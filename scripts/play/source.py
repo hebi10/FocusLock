@@ -52,7 +52,7 @@ def release_mode(env, event, commit_subject):
     resolve(env, event)
     if env.get('GITHUB_EVENT_NAME') == 'workflow_dispatch':
         mode = env.get('PLAY_REQUESTED_MODE', 'check')
-        if mode not in ('check', 'build', 'deploy', 'initialize'):
+        if mode not in ('check', 'icon', 'build', 'deploy', 'initialize'):
             raise SourceError('Unsupported Play release mode')
         return mode
     subject = commit_subject.splitlines()[0] if commit_subject else ''
