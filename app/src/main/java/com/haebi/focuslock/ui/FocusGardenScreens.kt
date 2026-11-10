@@ -52,14 +52,14 @@ fun FocusSetupScreen(onStart: (Int) -> Unit, selectedDistractions: Int) {
         FocusCard {
             SectionTitle("집중 후 보상")
             Text("집중 시간을 완료하면 정원이 성장합니다.", fontSize = 13.sp)
-            Text("완료 보상은 중복 지급되지 않도록 구현 단계에서 검증합니다.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+            Text("완료 기록과 보상은 기기에 저장되며 세션당 한 번만 지급됩니다.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
         }
         ActionButton("집중 시작", { onStart(duration) })
     }
 }
 
 @Composable
-fun FocusRunningScreen(minutes: Int, seconds: Int, paused: Boolean, onPauseToggle: () -> Unit, onFinish: () -> Unit) {
+fun FocusRunningScreen(minutes: Int, seconds: Int, paused: Boolean, restoredAfterReboot: Boolean, onPauseToggle: () -> Unit, onFinish: () -> Unit) {
     Column(
         Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 24.dp),
         verticalArrangement = Arrangement.SpaceBetween,
@@ -73,10 +73,17 @@ fun FocusRunningScreen(minutes: Int, seconds: Int, paused: Boolean, onPauseToggl
             val clock = "%02d:%02d".format(seconds / 60, seconds % 60)
             Text(clock, fontSize = 69.sp, lineHeight = 76.sp, fontWeight = FontWeight.Bold)
             if (minutes > 0) ProgressBar(1f - seconds.toFloat() / (minutes * 60).coerceAtLeast(1))
-            Text("화면을 꺼도 집중 상태가 유지되는 동작은 후속 단계에서 검증합니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+            Text(
+                when {
+                    restoredAfterReboot -> "기기 재시작으로 일시정지되었습니다. 계속 집중을 누르면 이어집니다."
+                    paused -> "집중 시간을 일시정지했습니다."
+                    else -> "진행 상태는 저장되며 앱을 다시 열면 기록을 복구합니다."
+                },
+                fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center
+            )
         }
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            if (minutes != 0) OutlinedButton(onClick = onPauseToggle, modifier = Modifier.fillMaxWidth().height(50.dp)) {
+            OutlinedButton(onClick = onPauseToggle, modifier = Modifier.fillMaxWidth().height(50.dp)) {
                 Text(if (paused) "계속 집중" else "일시정지")
             }
             ActionButton(if (minutes == 0) "집중 완료" else "집중 종료", onFinish)
@@ -100,7 +107,7 @@ fun FocusResultScreen(completed: Boolean, elapsedSeconds: Int, onHome: () -> Uni
             FocusCard {
                 Text("이번 세션 보상", fontWeight = FontWeight.Bold)
                 Text(if(completed) "경험치 +30 · 성장 포인트 +20" else "중단된 세션 · 보상 없음", color = MaterialTheme.colorScheme.secondary)
-                Text("UI 시연용 세션 기록입니다. Room 저장은 다음 구현 단계에 연결합니다.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                Text("세션과 보상은 기기 내부 Room 데이터베이스에 저장됩니다.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
             }
         }
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -126,10 +133,10 @@ fun GardenScreen(experience: Int, placedItem: String, onItem: (GardenItem) -> Un
             PageTitle("나의 정원", "집중 성과가 쌓일수록 성장합니다")
             FocusCard {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("레벨 1", fontWeight = FontWeight.Bold)
-                    Text("경험치 ${experience} / 100", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("레벨 ${experience / 100 + 1}", fontWeight = FontWeight.Bold)
+                    Text("경험치 ${experience % 100} / 100 · 누적 ${experience}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                ProgressBar(experience / 100f)
+                ProgressBar((experience % 100) / 100f)
             }
             if(wide) {
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
