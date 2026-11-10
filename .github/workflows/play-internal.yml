@@ -285,3 +285,70 @@ jobs:
             output/play-icon.json
           if-no-files-found: ignore
           retention-days: 30
+
+  closed:
+    name: Promote existing version 2 to closed testing
+    needs: [source, gates]
+    if: needs.source.outputs.mode == 'closed'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: google-play
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.source.outputs.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Require current main and exact SHA Android and emulator verification
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ needs.source.outputs.sha }}
+        run: python3 scripts/play/source.py --assert-current "$SOURCE_SHA"
+      - name: Check Play WIF configuration
+        id: credentials
+        env:
+          PLAY_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.PLAY_WORKLOAD_IDENTITY_PROVIDER }}
+          PLAY_SERVICE_ACCOUNT: ${{ vars.PLAY_SERVICE_ACCOUNT }}
+        run: python3 scripts/play/preflight.py auth
+      - name: Authenticate with Workload Identity Federation
+        if: steps.credentials.outputs.auth_mode == 'wif'
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.PLAY_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.PLAY_SERVICE_ACCOUNT }}
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/androidpublisher
+          create_credentials_file: false
+      - name: Inspect existing internal version 2 and closed alpha track (read only)
+        env:
+          PLAY_ACCESS_TOKEN: ${{ steps.wif.outputs.access_token }}
+          PLAY_RELEASE_MODE: closed
+          SOURCE_SHA: ${{ needs.source.outputs.sha }}
+        run: python3 scripts/play/closed_promotion.py --report output/play-closed-readiness.json inspect
+      - name: Recheck main and both verifications immediately before closed promotion
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ needs.source.outputs.sha }}
+        run: python3 scripts/play/source.py --assert-current "$SOURCE_SHA"
+      - name: Promote existing code 2 to closed alpha without another AAB upload
+        env:
+          PLAY_ACCESS_TOKEN: ${{ steps.wif.outputs.access_token }}
+          PLAY_RELEASE_MODE: closed
+          SOURCE_SHA: ${{ needs.source.outputs.sha }}
+        run: |
+          python3 scripts/play/closed_promotion.py --report output/play-closed-promotion.json promote
+          echo 'Closed alpha API edit and fresh readback validated. Play Console review, app setup, testing group and tester installation still require separate verification.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Preserve non-secret closed-track verification reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: focuslock-closed-promotion-${{ github.run_id }}
+          path: output/play-closed-*.json
+          if-no-files-found: ignore
+          retention-days: 30
