@@ -13,7 +13,7 @@
 - 명시적 main 병합 커밋 제목의 독립 마커 [promote-play-closed] 로만 자동 실행한다. 다른 main 커밋은 기존 internal deploy 정책을 유지한다. 충돌하는 play marker는 차단한다.
 - 기존 WIF Provider, 서비스 계정 및 google-play 환경의 main 브랜치 제한을 유지한다. JSON 인증키, 서명키, 새로운 앱 패키지·빌드·배포 트랙 권한은 필요하지 않다.
 - Google Play API를 조회하여 bundle versionCode 2 등록, internal completed versionCode 2, alpha 트랙 존재를 확인한다.
-- alpha에 다른 버전이 존재하면 변경하지 않는다. alpha가 비어 있거나 같은 versionCode 2의 draft인 경우에만 completed 업데이트한다.
+- alpha가 비었거나 같은 versionCode 2 draft, 또는 하나의 이전 versionCode 1 draft/completed 출시만 있을 경우 현재 versionCode 2 completed로 교체한다. 이전 versionCode 1 테스트는 새 버전 2로 업데이트하며 기존 테스터 그룹은 변경하지 않는다. 여러 릴리스, versionCode 3 이상, 중단된 halted/inProgress 상태는 변경 없이 차단한다.
 - alpha가 이미 같은 completed versionCode 2이면 아무것도 변경하지 않고 확인 결과만 기록한다.
 - production / beta / internal 또는 사용자 정의 다른 트랙에 대한 PUT/POST 절대 금지.
 - 앱 상태 변경 전후를 다른 Play edit에서 재조회한다. 커밋 결과가 모호하면 Console 확인 전 재시도하지 않는다.
