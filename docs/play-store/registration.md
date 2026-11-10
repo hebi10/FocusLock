@@ -1,5 +1,14 @@
 # FocusLock 내부 테스트 등록
 
+## WIF 변경 대응 및 아이콘 등록 (2026-11-10)
+
+FocusLock은 2026-07-15 이후 생성된 저장소입니다. GitHub의 새 OIDC 기본 주체에는 불변 owner/repository ID가 추가되었으므로, 구형 `repo:hebi10/FocusLock:environment:google-play` 조건을 그대로 사용하면 Cloud Provider가 거절할 수 있습니다. 오류와 Cloud 수정 가이드는 [WIF 불변 주체 복구](wif-immutable-subject-recovery.md)에 기록했습니다.
+
+Cloud WIF Provider와 서비스 계정 바인딩은 저장소의 코드를 수정하는 것만으로 변경되지 않습니다. 실제 IAM 조건 일치·Play API 호출 성공을 확인하기 전에는 인증 복구 완료를 주장하지 않습니다.
+
+수동 Play workflow의 `check`는 읽기 전용, `icon`은 [승인된 스토어 이미지](../../assets/store/FocusLock_Play_Icon_512.png)를 `ko-KR`의 `icon` 타입으로 **이미 존재하는 스토어 등록정보에서만** 교체합니다. 이 모드는 AAB 업로드·트랙 변경을 실행하지 않으며, 이미지 업로드 응답 해시와 새 edit readback을 검증합니다. Play 서비스 계정에는 해당 앱 스토어 등록정보 수정 권한이 별도로 필요할 수 있습니다. Play Console에서 아이콘 게시·검토 상태를 다시 확인합니다.
+
+
 ## 현재 상태
 
 이 변경은 배포 코드를 준비합니다. Play 앱·WIF·Secrets·Pages 설정은 2026년 11월 10일 별도 계정 작업에서 완료 확인되었으며, 이 PR은 자격 증명이나 계정 상태를 변경하지 않습니다. 실제 서명 release 산출물, 최초 업로드, App Signing 및 테스터 설치는 실행 증거로 별도 확인해야 합니다. 현재 `0.3.0`은 사용 기록·권한 조회, 집중 세션·보상 로컬 DB 저장과 사용 목표 알림을 제공합니다. 알림은 약 15분 주기 작업과 앱 재진입 확인에 의존하며 정확한 실시간 발송을 보장하지 않습니다. 기능 근거는 `docs/USAGE_API_QA.md`와 현재 소스입니다.
@@ -32,6 +41,7 @@ GitHub Actions의 `Play internal release`를 main에서 수동 실행할 수 있
 | 모드 | 결과 |
 | --- | --- |
 | `check` | 정확한 SHA 검증 및 인증 후 인벤토리 조회. 업로드·commit 없음 |
+| `icon` | 승인된 한국어 스토어 아이콘만 업로드·commit·재조회. 바이너리/트랙 변경 없음 |
 | `build` | 검증된 앱별 서명 APK/AAB 생성. Play API 호출 없음 |
 | `initialize` | 빈 번들·APK·모든 트랙 인벤토리 확인 후 코드 1 internal draft 최초 생성 |
 | `deploy` | 등록된 바이너리 확인 후 모든 Play 코드보다 큰 코드를 할당하여 internal 업데이트 |
