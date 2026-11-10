@@ -157,7 +157,7 @@ class FocusSessionStore(
             FocusReport(items.size, items.sumOf { it.elapsedSeconds }, items.size * 30)
         return FocusSummary(
             last7 = summarize(completed.filter {
-                LocalDate.ofInstant(Instant.ofEpochMilli(it.finishedAtMillis ?: 0L), timezone) >= last7Start
+                Instant.ofEpochMilli(it.finishedAtMillis ?: 0L).atZone(timezone).toLocalDate() >= last7Start
             }),
             last30 = summarize(completed)
         )
