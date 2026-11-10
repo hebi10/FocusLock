@@ -1,3 +1,22 @@
+# FocusLock — Android 디지털 습관 관리
+
+## 002 · 실제 사용 기록 및 권한 API (2026-11-10)
+
+- Android `UsageStatsManager`를 통한 실제 앱별 오늘·7일·30일 사용 시간·사용 패턴 표시.
+- 사용 정보 접근 권한을 Android 설정에서 직접 허용하도록 안내하며, 미허용·기록 없음·조회 실패를 구분합니다.
+- 최근 사용 이벤트로 실행·전환 횟수와 시간대별 사용 기록을 계산합니다. 이벤트가 보관되지 않은 경우 확인 불가로 표시합니다.
+- 볼 수 있는 앱에 한해 `PackageManager` 요청 권한과 일부 허용 여부를 표시합니다. 전체 앱 목록 무제한 조회 권한은 사용하지 않습니다.
+- 목표 설정은 기기 내부에 저장됩니다. 서버 전송·자동 앱 종료·실제 목표 경고 알림은 아직 포함되지 않습니다.
+- `.github/workflows/android-ci.yml`: 테스트·Lint·디버그 APK.
+- `.github/workflows/emulator-smoke.yml`: 자동 UI 테스트·API 36 에뮬레이터 화면 캡처.
+- 상세 검수 기준: [002 사용 기록·권한 및 에뮬레이터 QA](docs/USAGE_API_QA.md).
+
+**실행:** Android 8.0(API 26) 이상, Kotlin·Jetpack Compose, Java 17, 컴파일 SDK 36.
+
+```bash
+./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+```
+
 # FocusLock — 001 전체기능 및 화면 설계
 
 Android 네이티브 UI 프로토타입 (`0.1.0-ui`). **앱 전체 기능이 완성된 릴리스가 아닙니다.**
@@ -30,7 +49,7 @@ Android 네이티브 UI 프로토타입 (`0.1.0-ui`). **앱 전체 기능이 완
 ## 빌드 환경
 
 - JDK 17
-- Android SDK 36 (compileSdk), targetSdk 36, minSdk 26
+- Android SDK 37 (compileSdk), targetSdk 36, minSdk 26
 - Gradle 9.5.0, Android Gradle Plugin 9.3.1, Kotlin 2.4.20
 - `gradle/libs.versions.toml` 버전은 사용자 PetWorld 프로젝트의 기준과 맞췄습니다.
 

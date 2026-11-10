@@ -21,7 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.haebi.focuslock.R
-import com.haebi.focuslock.data.DemoData
+import com.haebi.focuslock.data.UsageFormat
 import com.haebi.focuslock.data.AppUsage
 
 @Composable
@@ -82,7 +82,7 @@ fun OnboardingPermission(onOpenSettings: () -> Unit, onNext: () -> Unit) {
                 IntroFeature("집중 중 방해 앱 기록", "확인 가능한 사용 이벤트를 분석해요.", Icons.Outlined.TrackChanges)
             }
             FocusCard {
-                IntroFeature("기록은 기기 안에서 처리", "UI 시안 단계이며 실제 통계 수집은 아직 연결되지 않았습니다.", Icons.Outlined.CheckCircleOutline)
+                IntroFeature("기록은 기기 안에서 처리", "Android 사용 기록은 기기 내부에서만 읽으며 서버로 전송하지 않습니다.", Icons.Outlined.CheckCircleOutline)
             }
         }
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -95,7 +95,7 @@ fun OnboardingPermission(onOpenSettings: () -> Unit, onNext: () -> Unit) {
 }
 
 @Composable
-fun OnboardingGoal(goals: Map<String, Int>, onSetGoal: (AppUsage) -> Unit, onFinish: () -> Unit) {
+fun OnboardingGoal(apps: List<AppUsage>, goals: Map<String, Int>, onSetGoal: (AppUsage) -> Unit, onFinish: () -> Unit) {
     Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.SpaceBetween) {
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(18.dp)) {
             Text("FocusLock", fontSize = 22.sp, fontWeight = FontWeight.Bold)
@@ -103,14 +103,15 @@ fun OnboardingGoal(goals: Map<String, Int>, onSetGoal: (AppUsage) -> Unit, onFin
             Image(painterResource(R.drawable.garden_illustration), contentDescription = "작은 정원", modifier = Modifier.fillMaxWidth().height(160.dp))
             Text("첫 목표 설정", fontSize = 29.sp, fontWeight = FontWeight.Bold)
             Text("자주 사용하는 앱의 하루 목표를 정해보세요.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            listOf("youtube", "instagram", "games").forEach { id ->
-                val app = DemoData.appById(id)
+            if (apps.isEmpty()) Text("선택 가능한 사용 기록이 없습니다. 사용 정보 접근을 허용한 뒤 설정에서 목표를 추가할 수 있습니다.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            apps.take(5).forEach { app ->
+                val id = app.id
                 FocusCard {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         AppSymbol(app)
                         Spacer(Modifier.width(12.dp))
                         Text(app.name, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                        TextButton(onClick = { onSetGoal(app) }) { Text(DemoData.minutesLabel(goals[id] ?: 60)) }
+                        TextButton(onClick = { onSetGoal(app) }) { Text(if (goals[id] == null) "목표 설정" else UsageFormat.minutesLabel(goals[id] ?: 60)) }
                     }
                 }
             }

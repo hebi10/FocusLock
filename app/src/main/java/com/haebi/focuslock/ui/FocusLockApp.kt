@@ -13,11 +13,21 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.haebi.focuslock.data.AppUsage
-import com.haebi.focuslock.data.DemoData
+import com.haebi.focuslock.data.UsageRepository
+import com.haebi.focuslock.data.UsageLoadState
+import com.haebi.focuslock.data.UsageSnapshot
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.delay
 
 private enum class MainTab(val label: String) { HOME("홈"), ANALYSIS("사용 분석"), FOCUS("집중"), GARDEN("정원"), SETTINGS("설정") }
@@ -26,19 +36,49 @@ private enum class MainTab(val label: String) { HOME("홈"), ANALYSIS("사용 �
 fun FocusLockApp() {
     val context = LocalContext.current
     val prefs = remember(context) { context.getSharedPreferences("focuslock_ui_prototype", 0) }
+    val repository = remember(context) { UsageRepository(context.applicationContext) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var reloadToken by remember { mutableIntStateOf(0) }
+    var usageState by remember { mutableStateOf<UsageLoadState>(UsageLoadState.Loading) }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) reloadToken++
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    LaunchedEffect(reloadToken) {
+        usageState = UsageLoadState.Loading
+        usageState = withContext(Dispatchers.IO) { repository.load() }
+    }
+    val usageSnapshot = (usageState as? UsageLoadState.Ready)?.snapshot
     var onboarding by rememberSaveable { mutableIntStateOf(if (prefs.getBoolean("onboarding_completed", false)) -1 else 0) }
     var theme by rememberSaveable { mutableStateOf(prefs.getString("theme", "시스템") ?: "시스템") }
     var tab by rememberSaveable { mutableStateOf(MainTab.HOME.name) }
     var detail by rememberSaveable { mutableStateOf("") }
-    var selectedAppId by rememberSaveable { mutableStateOf("youtube") }
+    var selectedAppId by rememberSaveable { mutableStateOf("") }
+    var selectedAppPeriod by rememberSaveable { mutableStateOf("오늘") }
+    var selectedAppRecord by remember { mutableStateOf<AppUsage?>(null) }
     var goalSheetId by rememberSaveable { mutableStateOf("") }
     var selectedGardenItemId by rememberSaveable { mutableStateOf("") }
     var placedGardenItem by rememberSaveable { mutableStateOf("작은 새싹") }
     var showInfo by rememberSaveable { mutableStateOf(false) }
 
-    val goals = remember { mutableStateMapOf("youtube" to 60, "instagram" to 30, "games" to 45) }
-    val distraction = remember { mutableStateMapOf("youtube" to true, "instagram" to true, "games" to true) }
-    val excluded = remember { mutableStateMapOf<String, Boolean>() }
+    val goals = remember(prefs) {
+        mutableStateMapOf<String, Int>().also { map ->
+            prefs.all.forEach { (key, value) -> if (key.startsWith("goal.") && value is Int) map[key.removePrefix("goal.")] = value }
+        }
+    }
+    val distraction = remember(prefs) {
+        mutableStateMapOf<String, Boolean>().also { map ->
+            prefs.all.forEach { (key, value) -> if (key.startsWith("distraction.") && value is Boolean) map[key.removePrefix("distraction.")] = value }
+        }
+    }
+    val excluded = remember(prefs) {
+        mutableStateMapOf<String, Boolean>().also { map ->
+            prefs.all.forEach { (key, value) -> if (key.startsWith("excluded.") && value is Boolean) map[key.removePrefix("excluded.")] = value }
+        }
+    }
     val warningAt80 = remember { mutableStateMapOf<String, Boolean>() }
     val warningAt100 = remember { mutableStateMapOf<String, Boolean>() }
     val everydayGoal = remember { mutableStateMapOf<String, Boolean>() }
@@ -126,6 +166,7 @@ fun FocusLockApp() {
                                 MainTab.SETTINGS -> Icons.Outlined.Settings
                             }
                             NavigationBarItem(
+                                modifier = Modifier.testTag("nav-${item.name}"),
                                 selected = tab == item.name,
                                 onClick = { goMain(item) },
                                 icon = { Icon(icon, contentDescription = item.label) },
@@ -142,7 +183,7 @@ fun FocusLockApp() {
                 }
             }
         ) { inset ->
-            Box(Modifier.padding(inset).fillMaxSize()) {
+            Box(Modifier.padding(inset).fillMaxSize().semantics { testTagsAsResourceId = true }) {
                 when {
                     onboarding == 0 -> OnboardingIntro(
                         onNext = { onboarding = 1 }, onExplore = ::endOnboarding
@@ -152,6 +193,7 @@ fun FocusLockApp() {
                         onNext = { onboarding = 2 }
                     )
                     onboarding == 2 -> OnboardingGoal(
+                        apps = usageSnapshot?.today?.apps ?: emptyList(),
                         goals = goals,
                         onSetGoal = { goalSheetId = it.id },
                         onFinish = ::endOnboarding
@@ -173,39 +215,51 @@ fun FocusLockApp() {
                     focusPhase == "result" -> FocusResultScreen(completed, elapsedSeconds,
                         onHome = {focusPhase="setup";goMain(MainTab.HOME)},
                         onGarden = {focusPhase="setup";goMain(MainTab.GARDEN)})
-                    detail == "app" -> AppDetailScreen(
-                        app = DemoData.appById(selectedAppId),
+                    detail == "app" && usageSnapshot != null && selectedAppRecord != null -> AppDetailScreen(
+                        app = selectedAppRecord!!,
+                        snapshot = usageSnapshot,
+                        period = selectedAppPeriod,
                         goalMinutes = goals[selectedAppId],
                         isDistraction = distraction[selectedAppId] ?: false,
                         isExcluded = excluded[selectedAppId] ?: false,
                         onBack = { detail = "" },
                         onGoal = { goalSheetId = selectedAppId },
                         onSystemSettings = {
-                            openInstalledAppInfo(context, DemoData.appById(selectedAppId).packageName)
+                            openInstalledAppInfo(context, selectedAppRecord?.packageName)
                         },
-                        onDistraction = { distraction[selectedAppId] = it },
-                        onExcluded = { excluded[selectedAppId] = it }
+                        onDistraction = { distraction[selectedAppId] = it; prefs.edit().putBoolean("distraction.$selectedAppId", it).apply() },
+                        onExcluded = { excluded[selectedAppId] = it; prefs.edit().putBoolean("excluded.$selectedAppId", it).apply() }
                     )
+                    detail == "app" -> InfoState("사용 기록 갱신됨", "선택한 앱의 사용 기록을 다시 확인해 주세요.", "사용 분석으로", {detail=""})
                     detail == "report" -> ReportScreen(
-                        onBack = {detail = ""}, onApp = { selectedAppId=it.id;detail="app" }
+                        state = usageState,
+                        excluded = excluded,
+                        onBack = {detail = ""}, onApp = { app, period -> selectedAppId=app.id; selectedAppRecord=app; selectedAppPeriod=period; detail="app" },
+                        onUsageSettings = {openUsageSettings(context)}, onRefresh = {reloadToken++}
                     )
-                    detail == "permissions" -> PermissionManagementScreen(
+                    detail == "permissions" -> key(reloadToken) { PermissionManagementScreen(
                         onBack = {detail = ""},
                         onUsageSettings = {openUsageSettings(context)},
                         onNotificationSettings = {openNotificationSettings(context)}
-                    )
+                    ) }
                     else -> when(MainTab.valueOf(tab)) {
                         MainTab.HOME -> HomeScreen(
+                            state = usageState,
                             goals = goals,
+                            excluded = excluded,
                             onFocus = {goMain(MainTab.FOCUS)},
                             onAnalysis = {goMain(MainTab.ANALYSIS)},
-                            onApp = { selectedAppId=it.id;detail="app" },
+                            onApp = { selectedAppId=it.id;selectedAppRecord=it;selectedAppPeriod="오늘";detail="app" },
                             onGarden = {goMain(MainTab.GARDEN)},
                             onReport = {detail="report"},
-                            onSettings = {goMain(MainTab.SETTINGS)}
+                            onSettings = {goMain(MainTab.SETTINGS)},
+                            onUsageSettings = {openUsageSettings(context)}, onRefresh = {reloadToken++}
                         )
                         MainTab.ANALYSIS -> AnalysisScreen(
-                            onApp = { selectedAppId=it.id;detail="app" }, onReport = {detail="report"}
+                            state = usageState,
+                            excluded = excluded,
+                            onApp = { app, period -> selectedAppId=app.id; selectedAppRecord=app; selectedAppPeriod=period;detail="app" }, onReport = {detail="report"},
+                            onUsageSettings = {openUsageSettings(context)}, onRefresh = {reloadToken++}
                         )
                         MainTab.FOCUS -> FocusSetupScreen(
                             onStart = ::startFocus,
@@ -228,8 +282,9 @@ fun FocusLockApp() {
             }
         }
         if(goalSheetId.isNotEmpty()) {
-            val app = DemoData.appById(goalSheetId)
-            GoalSheet(
+            val app = listOfNotNull(usageSnapshot?.today, usageSnapshot?.last7, usageSnapshot?.last30)
+                .flatMap { it.apps }.firstOrNull { it.id == goalSheetId }
+            if (app != null) GoalSheet(
                 app=app,
                 current=goals[app.id] ?: 60,
                 initialWarn80=warningAt80[app.id] ?: true,
@@ -237,12 +292,13 @@ fun FocusLockApp() {
                 initialEveryday=everydayGoal[app.id] ?: true,
                 onSave = { minutes, warn80, warn100, daily ->
                     goals[app.id] = minutes
+                    prefs.edit().putInt("goal.${app.id}", minutes).apply()
                     warningAt80[app.id] = warn80
                     warningAt100[app.id] = warn100
                     everydayGoal[app.id] = daily
                     goalSheetId = ""
                 },
-                onClear = {goals.remove(app.id);goalSheetId=""},
+                onClear = {goals.remove(app.id);prefs.edit().remove("goal.${app.id}").apply();goalSheetId=""},
                 onDismiss = {goalSheetId=""}
             )
         }
@@ -265,8 +321,8 @@ fun FocusLockApp() {
         )
         if(showInfo) AlertDialog(
             onDismissRequest={showInfo=false},
-            title={Text("FocusLock UI 프로토타입")},
-            text={Text("001_전체기능_및_화면_설계 단계입니다. 앱 사용 통계 수집, 알림 예약, 보상 영구 저장, 앱 제한은 구현되지 않았습니다.")},
+            title={Text("FocusLock 구현 상태")},
+            text={Text("Android 사용 통계·앱별 요청 권한 조회가 연결되었습니다. 자동 목표 경고, 보상 영구 저장, 앱 강제 제한은 구현되지 않았습니다.")},
             confirmButton={TextButton(onClick={showInfo=false}){Text("확인")}}
         )
     }

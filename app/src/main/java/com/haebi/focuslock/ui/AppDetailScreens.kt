@@ -10,15 +10,26 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.haebi.focuslock.data.AppUsage
-import com.haebi.focuslock.data.DemoData
+import com.haebi.focuslock.data.AppPermissionRepository
+import com.haebi.focuslock.data.PermissionLookup
+import com.haebi.focuslock.data.UsageFormat
+import com.haebi.focuslock.data.UsageSnapshot
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @Composable
 fun AppDetailScreen(
     app: AppUsage,
+    snapshot: UsageSnapshot,
+    period: String,
     goalMinutes: Int?,
     isDistraction: Boolean,
     isExcluded: Boolean,
@@ -28,6 +39,13 @@ fun AppDetailScreen(
     onDistraction: (Boolean) -> Unit,
     onExcluded: (Boolean) -> Unit
 ) {
+    val context = LocalContext.current
+    var permissions by remember(app.id) { mutableStateOf<PermissionLookup?>(null) }
+    var expanded by remember(app.id) { mutableStateOf(false) }
+    LaunchedEffect(app.id) {
+        permissions = withContext(Dispatchers.IO) { AppPermissionRepository(context.applicationContext).inspect(app.packageName) }
+    }
+    val history = snapshot.appDaily7[app.id]
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             IconButton(onClick = onBack) { Icon(Icons.Outlined.ArrowBack, "뒤로") }
@@ -37,61 +55,68 @@ fun AppDetailScreen(
                 Text(app.category, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
             }
         }
-        DemoNotice()
         FocusCard {
-            Metric(DemoData.minutesLabel(app.minutes), "오늘 사용", "어제보다 12분 감소")
-            Text(if(goalMinutes != null) "목표 ${DemoData.minutesLabel(goalMinutes)}" else "설정된 목표 없음", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if(goalMinutes != null) ProgressBar(app.minutes.toFloat() / goalMinutes.coerceAtLeast(1), isWarning = app.minutes > goalMinutes)
-            SettingRow("사용 목표", "목표를 초과해도 앱을 강제 종료하지 않습니다.", "수정", onGoal)
+            Metric(UsageFormat.minutesLabel(app.minutes), "$period 사용")
+            Text(if (goalMinutes != null) "일일 목표 ${UsageFormat.minutesLabel(goalMinutes)}" else "설정된 일일 목표 없음", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (goalMinutes != null) Text("목표 달성률은 사용 분석의 ‘오늘’에서 확인합니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            SettingRow("사용 목표", "목표를 초과해도 다른 앱을 강제 종료하지 않습니다.", "수정", onGoal)
         }
         FocusCard {
-            SectionTitle("사용 패턴")
-            BarChart(listOf(48, 73, 52, 47, 53, 92, app.minutes), listOf("월", "화", "수", "목", "금", "토", "일"), 120, 6)
+            SectionTitle("사용 패턴 · 최근 7일")
+            if (!history.isNullOrEmpty()) BarChart(history, (6 downTo 0).map { LocalDate.now().minusDays(it.toLong()).format(DateTimeFormatter.ofPattern("E", Locale.KOREAN)) }, (history.maxOrNull() ?: 1).coerceAtLeast(1), -1)
+            else Text("기간별 앱 사용 기록 없음", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            InfoPair("실행·전환 횟수", "${app.launches}회")
+            InfoPair("실행·전환 이벤트", if (app.launches < 0) "확인 불가" else "${app.launches}회")
             InfoPair("마지막 사용", app.lastUsed)
-            InfoPair("자주 사용하는 시간대", "오후 9시")
-            Text("실행 횟수는 사용 이벤트를 기준으로 집계할 예정입니다.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("실행 횟수는 Android에 남아 있는 최근 사용 이벤트를 기반으로 집계하며 일부 누락될 수 있습니다.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         FocusCard {
-            SectionTitle("권한")
-            Text("요청 권한과 허용 여부는 추후 PackageManager 연동 후 표시됩니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            listOf("카메라", "마이크", "위치", "알림").forEachIndexed { index, label ->
-                InfoPair(label, "Android에서 확인")
-                if(index < 3) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            SectionTitle("요청 권한")
+            Text("표시된 허용 상태는 Android에서 확인 가능한 권한에 한합니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            when (val result = permissions) {
+                null -> Text("권한 정보 확인 중", fontSize = 13.sp)
+                PermissionLookup.NotVisible -> Text("Android 패키지 가시성 제한으로 이 앱의 권한 정보를 확인할 수 없습니다. 시스템 앱 정보에서 직접 확인해 주세요.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                is PermissionLookup.Found -> {
+                    if (result.permissions.isEmpty()) Text("확인 가능한 요청 권한이 없습니다.", fontSize = 13.sp)
+                    val shown = if (expanded) result.permissions else result.permissions.take(10)
+                    shown.forEachIndexed { index, permission ->
+                        InfoPair(permission.name, permission.status)
+                        if (index < shown.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    }
+                    if (result.permissions.size > 10) TextButton(onClick = { expanded = !expanded }) { Text(if (expanded) "접기" else "권한 ${result.permissions.size - 10}개 더 보기") }
+                }
             }
-            SettingRow("Android 앱 권한 확인", "앱 정보 화면에서 권한 항목 확인", onClick = onSystemSettings)
+            SettingRow("Android 앱 권한 확인", "앱 정보 화면에서 자세한 권한을 확인합니다.", onClick = onSystemSettings)
         }
         FocusCard {
             SectionTitle("기기 영향")
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Icon(Icons.Outlined.Info, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("직접 측정한 배터리 소비량이 아닌 사용 패턴 정보입니다.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("배터리 소비량 측정이 아닌 사용 패턴 정보입니다.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            InfoPair("전체 사용 시간 비중", "${DemoData.sharePercent(app.minutes, DemoData.todayTotalMinutes)}%")
-            InfoPair("장시간 연속 사용", "예시 데이터")
-            InfoPair("반복 실행", "${app.launches}회")
-            SettingRow("배터리 정보 확인", "앱 정보 화면에서 배터리 항목 확인(기기별 다름)", onClick = onSystemSettings)
+            val referenceTotal = snapshot.window(period).totalMinutes
+            InfoPair("해당 기간 앱 사용 비중", "${UsageFormat.sharePercent(app.minutes, referenceTotal)}%")
+            InfoPair("사용 이벤트", if (app.launches < 0) "확인 불가" else "${app.launches}회")
+            SettingRow("배터리 정보 확인", "시스템 앱 정보 화면에서 배터리 사용량을 확인합니다.", onClick = onSystemSettings)
         }
         FocusCard {
             SectionTitle("앱 관리")
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("집중 방해 앱", fontWeight = FontWeight.Medium)
-                    Text("집중 중 사용 기록 대상으로 지정", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("집중 중 사용 기록 대상으로 지정 · 자동 차단 없음", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Switch(checked = isDistraction, onCheckedChange = onDistraction)
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("분석에서 제외", fontWeight = FontWeight.Medium)
-                    Text("화면 미리보기의 앱 목록에서 숨깁니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("앱 목록에서 숨기며 총 사용 시간에는 포함합니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Switch(checked = isExcluded, onCheckedChange = onExcluded)
             }
         }
-        Spacer(Modifier.height(12.dp))
     }
 }
 
@@ -130,7 +155,7 @@ fun GoalSheet(
                 Text("하루 제한 시간", fontWeight = FontWeight.SemiBold)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     OutlinedButton(onClick = { minutes = (minutes - 15).coerceAtLeast(15) }) { Text("− 15분") }
-                    Text(DemoData.minutesLabel(minutes), fontWeight = FontWeight.Bold)
+                    Text(UsageFormat.minutesLabel(minutes), fontWeight = FontWeight.Bold)
                     OutlinedButton(onClick = { minutes = (minutes + 15).coerceAtMost(240) }) { Text("+ 15분") }
                 }
             }
@@ -142,7 +167,7 @@ fun GoalSheet(
                     Text("100% 도달", fontSize = 13.sp)
                     Switch(checked = warn100, onCheckedChange = { warn100 = it })
                 }
-                Text("알림 설정은 UI 시안이며 실제 예약 전송은 추후 연결합니다.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("경고 알림은 기능 구현 전 상태입니다. 현재는 설정만 저장됩니다.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             FocusCard {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
