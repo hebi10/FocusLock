@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "com.haebi.focuslock"
-    compileSdk = 37
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.haebi.focuslock"

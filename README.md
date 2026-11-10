@@ -30,7 +30,7 @@ Android 네이티브 UI 프로토타입 (`0.1.0-ui`). **앱 전체 기능이 완
 ## 빌드 환경
 
 - JDK 17
-- Android SDK 37 (compileSdk), targetSdk 36, minSdk 26
+- Android SDK 36 (compileSdk), targetSdk 36, minSdk 26
 - Gradle 9.5.0, Android Gradle Plugin 9.3.1, Kotlin 2.4.20
 - `gradle/libs.versions.toml` 버전은 사용자 PetWorld 프로젝트의 기준과 맞췄습니다.
 
