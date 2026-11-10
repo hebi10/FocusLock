@@ -47,18 +47,20 @@ def update_icon(request, filename):
     publisher = Publisher(request)
     updated = False
 
-    with publisher.edit() as edit:
+    with publisher.initial_stage('edit_create'), publisher.edit() as edit:
         listing = edit + f'/listings/{ICON_LISTING}'
         path = listing + '/' + ICON_TYPE
         try:
-            registered = request('GET', listing)
+            with publisher.initial_stage('listing'):
+                registered = request('GET', listing)
         except PlayApiError as exc:
             if exc.http_status == 404:
                 raise ReleaseError('Korean Play store listing is missing; create it in Console before uploading the icon') from None
             raise
         if not isinstance(registered, dict) or not registered.get('language'):
             raise ReleaseError('Korean store listing was not confirmed; icon replacement cancelled')
-        current = request('GET', path).get('images', [])
+        with publisher.initial_stage('inventory'):
+            current = request('GET', path).get('images', [])
         if not isinstance(current, list):
             raise ReleaseError('Existing icon inventory is malformed')
         if len(current) == 1 and _matching_icon(current, sha256):
@@ -66,20 +68,23 @@ def update_icon(request, filename):
                     'status': 'icon_already_present', 'sha256': sha256,
                     'availability': 'requires_console_check'}
 
-        request('DELETE', path)
-        uploaded = request('POST', path + '?uploadType=media', data, 'image/png')
+        with publisher.initial_stage('upload'):
+            request('DELETE', path)
+            uploaded = request('POST', path + '?uploadType=media', data, 'image/png')
         image = uploaded.get('image', {}) if isinstance(uploaded, dict) else {}
         if (not isinstance(image, dict) or
                 not isinstance(image.get('sha256'), str) or
                 image['sha256'].lower() != sha256):
             raise ReleaseError('Uploaded Play icon SHA-256 did not match approved image; edit not committed')
-        # Never fall back to automatic review submission when Play rejects review holding.
-        publisher.commit(edit, changes_not_sent_for_review=True)
+        # Google Play may reject changesNotSentForReview even for an icon-only edit.
+        # Match the verified initial draft's safe commit policy: never alter an in-review edit.
+        with publisher.initial_stage('commit'):
+            commit_result = publisher.commit(edit, fail_if_in_review=True)
         updated = True
 
     if updated:
         try:
-            with publisher.edit() as edit:
+            with publisher.initial_stage('readback'), publisher.edit() as edit:
                 images = request('GET', edit + f'/listings/{ICON_LISTING}/{ICON_TYPE}').get('images', [])
             if len(images) != 1 or not _matching_icon(images, sha256):
                 raise ReleaseError('Icon readback does not match approved image')
@@ -88,7 +93,8 @@ def update_icon(request, filename):
 
     return {'package': PACKAGE, 'language': ICON_LISTING,
             'status': 'icon_committed_and_verified', 'sha256': sha256,
-            'availability': 'requires_console_check'}
+            'availability': 'requires_console_check',
+            'reviewHoldParameterOmitted': bool(commit_result and commit_result.get('reviewHoldParameterOmitted'))}
 
 
 def main():
@@ -103,7 +109,13 @@ def main():
         result = update_icon(HttpTransport(os.environ.get('PLAY_ACCESS_TOKEN', '')), args.file)
         code = 0
     except (ReleaseError, OSError, ValueError, KeyError) as exc:
-        # Do not disclose tokens, account contents or raw server errors.
+        # Keep error context coarse, never disclose a Play response body, credentials or secrets.
+        if isinstance(exc, ReleaseError):
+            result['stage'] = getattr(exc, 'stage', 'unknown')
+            if getattr(exc, 'http_status', None) is not None:
+                result['httpStatus'] = exc.http_status
+            if getattr(exc, 'api_status', None):
+                result['apiStatus'] = exc.api_status
         print('Play icon update blocked: ' + str(exc), file=sys.stderr)
         code = 1
     args.report.parent.mkdir(parents=True, exist_ok=True)
