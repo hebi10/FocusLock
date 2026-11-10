@@ -35,10 +35,13 @@ adb shell appops set com.haebi.focuslock GET_USAGE_STATS ignore
 run_case 'com.haebi.focuslock.FocusLockScreenQaTest#onboardingAndPermissionDeniedScreens' permission-denied
 
 adb shell appops set com.haebi.focuslock GET_USAGE_STATS allow
+adb shell pm grant com.haebi.focuslock android.permission.POST_NOTIFICATIONS
 adb shell am start -a android.settings.SETTINGS
 sleep 50
 adb shell input keyevent KEYCODE_HOME
 run_case 'com.haebi.focuslock.FocusLockScreenQaTest#grantedUsageAndDetailScreens' permission-granted
+run_case 'com.haebi.focuslock.FocusPersistenceQaTest#storedRewardSurvivesDatabaseReopenAndIsNotDuplicated' room-reopen-reward
+run_case 'com.haebi.focuslock.FocusPersistenceQaTest#rebootPausesSessionAndNeverInventsCompletion' room-reboot-recovery
 
 if ! adb pull /sdcard/Android/data/com.haebi.focuslock/files/qa-captures/ captures/; then
   echo "::error::Could not pull screenshots from the Android emulator"

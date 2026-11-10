@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -11,8 +12,8 @@ android {
         applicationId = "com.haebi.focuslock"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.2.0"
+        versionCode = 2
+        versionName = "0.3.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -34,6 +35,10 @@ android {
 
 dependencies {
     implementation(libs.activity.compose)
+    implementation(libs.room.runtime)
+    implementation(libs.room.ktx)
+    ksp(libs.room.compiler)
+    implementation(libs.work.runtime)
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.4")
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
