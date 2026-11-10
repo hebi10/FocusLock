@@ -6,18 +6,19 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
 import store_icon
-from publisher import PlayApiError, ReleaseError
+from publisher import PlayApiError, ReleaseError, REVIEW_HOLD_FORBIDDEN_REASON
 
 ICON = Path(store_icon.ICON_PATH)
 DIGEST = hashlib.sha256(ICON.read_bytes()).hexdigest()
 
 
 class IconPlayServer:
-    def __init__(self, icon=None, listing=True, wrong_upload_hash=False, bad_readback=False):
+    def __init__(self, icon=None, listing=True, wrong_upload_hash=False, bad_readback=False, reject_review_hold=False):
         self.icons = list(icon or [])
         self.listing = listing
         self.wrong_upload_hash = wrong_upload_hash
         self.bad_readback = bad_readback
+        self.reject_review_hold = reject_review_hold
         self.pending = None
         self.calls = []
         self.edit_counter = 0
@@ -49,6 +50,8 @@ class IconPlayServer:
         if method == 'POST' and ':validate' in path:
             return {}
         if method == 'POST' and ':commit' in path:
+            if self.reject_review_hold and 'changesNotSentForReview=true' in path:
+                raise PlayApiError(method, 400, safe_reason=REVIEW_HOLD_FORBIDDEN_REASON)
             if self.pending is not None:
                 self.icons = self.pending
             self.committed = True
@@ -89,7 +92,28 @@ class IconTests(unittest.TestCase):
         self.assertEqual(server.edit_counter, 2)
         self.assertTrue(server.committed)
         self.assertEqual(server.icons[0]['sha256'], DIGEST)
-        self.assertTrue(any(':commit?changesNotSentForReview=true' in p for _, p in server.calls))
+        self.assertTrue(any(':commit?changesNotSentForReview=true&changesInReviewBehavior=ERROR_IF_IN_REVIEW' in p for _, p in server.calls))
+
+    def test_review_hold_forbidden_retries_only_with_review_guard(self):
+        server = IconPlayServer(reject_review_hold=True)
+        result = store_icon.update_icon(server, ICON)
+        self.assertEqual(result['status'], 'icon_committed_and_verified')
+        self.assertTrue(result['reviewHoldParameterOmitted'])
+        self.assertTrue(server.committed)
+        self.assertTrue(any(':commit?changesInReviewBehavior=ERROR_IF_IN_REVIEW' in p for _, p in server.calls))
+        self.assertFalse(any(p.endswith(':commit') for _, p in server.calls))
+
+    def test_rejected_upload_is_categorized_without_commit(self):
+        class FailedUpload(IconPlayServer):
+            def __call__(self, method, path, body=None, content_type=None):
+                if method == 'POST' and '/icon?uploadType=media' in path:
+                    raise PlayApiError(method, 400)
+                return super().__call__(method, path, body, content_type)
+        server = FailedUpload()
+        with self.assertRaises(PlayApiError) as raised:
+            store_icon.update_icon(server, ICON)
+        self.assertEqual(getattr(raised.exception, 'stage', None), 'upload')
+        self.assertFalse(server.committed)
 
     def test_missing_store_listing_never_uploads(self):
         server = IconPlayServer(listing=False)
