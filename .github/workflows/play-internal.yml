@@ -8,11 +8,11 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'check = validation/access; build = signed AAB; initialize = first internal draft; deploy = internal update'
+        description: 'check = Play access; icon = approved store icon only; build = signed AAB; initialize = initial draft; deploy = internal update'
         required: true
         type: choice
         default: check
-        options: [check, build, initialize, deploy]
+        options: [check, icon, build, initialize, deploy]
       version_code:
         description: 'Build-only versionCode (minimum/default 1); deploy allocates above all Play artifacts'
         type: string
@@ -228,7 +228,7 @@ jobs:
 
   checked:
     needs: [source, gates]
-    if: needs.source.outputs.mode == 'check'
+    if: needs.source.outputs.mode == 'check' || needs.source.outputs.mode == 'icon'
     runs-on: ubuntu-latest
     environment: google-play
     permissions:
@@ -259,19 +259,29 @@ jobs:
           access_token_scopes: https://www.googleapis.com/auth/androidpublisher
           create_credentials_file: false
       - name: Inspect Play access without uploading or committing
+        if: needs.source.outputs.mode == 'check'
         env:
           PLAY_ACCESS_TOKEN: ${{ steps.wif.outputs.access_token }}
         run: python3 scripts/play/publisher.py --report output/play-preflight.json inspect
+      - name: Register approved Play store icon (no release upload)
+        if: needs.source.outputs.mode == 'icon'
+        env:
+          PLAY_ACCESS_TOKEN: ${{ steps.wif.outputs.access_token }}
+          PLAY_RELEASE_MODE: ${{ needs.source.outputs.mode }}
+        run: python3 scripts/play/store_icon.py --file assets/store/FocusLock_Play_Icon_512.png --report output/play-icon.json
       - name: Report validation result
         if: always()
         run: |
-          echo 'Exact-source verification and Play access diagnostics do not upload, commit, enroll App Signing, or enable deployment. Review the job outcomes and play-preflight report. Console publication, tester installability and 16 KB device execution remain separate checks.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'check mode performs read-only validation. icon mode may commit only the approved ko-KR store icon after successful WIF, existing-listing check and SHA-256 verification; neither mode uploads AAB or changes release tracks. Console publication and tester installability remain separate checks.' >> "$GITHUB_STEP_SUMMARY"
           if [[ -f output/play-preflight.json ]]; then cat output/play-preflight.json >> "$GITHUB_STEP_SUMMARY"; fi
+          if [[ -f output/play-icon.json ]]; then cat output/play-icon.json >> "$GITHUB_STEP_SUMMARY"; fi
       - name: Preserve non-secret access report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: focuslock-play-preflight-${{ github.run_id }}
-          path: output/play-preflight.json
+          path: |
+            output/play-preflight.json
+            output/play-icon.json
           if-no-files-found: ignore
           retention-days: 30
