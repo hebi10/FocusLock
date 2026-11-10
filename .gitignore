@@ -9,3 +9,6 @@
 *.aab
 *.jks
 *.keystore
+__pycache__/
+.superpowers/
+/output/

@@ -1,6 +1,8 @@
 name: Android full-screen emulator QA
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
   pull_request:
     paths:

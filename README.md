@@ -91,3 +91,9 @@ Windows PowerShell에서는 Android SDK/JDK를 준비한 뒤 다음 명령을 �
 - 후속: Android SDK 빌드/실기기 스크린샷 → 디자인 대조 → Room/UsageStatsManager 구현
 
 코드와 Android CI는 GitHub에서 관리합니다. Google Play 등록·서명키 설정·자동 업로드는 기존 GalliPick의 검증 사례를 참조하되, FocusLock의 Play 앱이 별도 구성되고 출시 승인이 확인되기 전까지 수행하지 않습니다.
+
+## Google Play 내부 테스트 자동화
+
+현재 `0.2.0` 코드의 `Android CI/verify`와 `Android full-screen emulator QA/emulator`가 정확한 최신 main SHA에서 모두 성공한 뒤, 앱별 서명키로 APK/AAB를 생성하는 자동화를 추가했습니다. `check`, `build`, 최초 `initialize`(빈 인벤토리의 코드 1 internal draft), 일반 `deploy`(모든 Play 코드보다 큰 코드)를 지원합니다. production/closed 승격은 제공하지 않습니다.
+
+설정 항목·실행 순서·미완료 등록 사항은 [내부 테스트 등록](docs/play-store/registration.md), 구현 기준은 [자동화 명세](docs/play-store/automation-spec.md)를 참고하십시오. 비밀값·계정·서명키·App Signing·테스터 설치 상태는 이 코드 변경만으로 설정되거나 확인되지 않습니다. [개인정보 방침](docs/privacy-policy.html)과 [한국어 소개 초안](docs/play-store/listing-ko.json)은 현재 기기 내 사용 기록·권한 조회와 시연 기능의 한계를 기준으로 작성했습니다.

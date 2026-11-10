@@ -39,6 +39,10 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.5.0'
+      - name: Verify release automation guards
+        run: |
+          python3 -m unittest discover -s scripts -p 'test_release*.py'
+          python3 -m unittest discover -s scripts/play/tests -p 'test_*.py'
       - name: Unit tests, lint and debug APK
         run: gradle --no-daemon :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --stacktrace
       - name: Upload debug APK
