@@ -21,7 +21,7 @@
 | `PLAY_WORKLOAD_IDENTITY_PROVIDER` | `projects/973619009476/locations/global/workloadIdentityPools/focuslock-github/providers/github-main` |
 | `PLAY_SERVICE_ACCOUNT` | `play-focuslock@hebi-app-release-80847404.iam.gserviceaccount.com` |
 
-WIF 조건은 저장소 ID `1452185615`, 저장소 `hebi10/FocusLock`, 소유자 ID `80847404`, ref `refs/heads/main`, 환경 `google-play`로 제한합니다. Cloud 프로젝트는 `hebi-app-release-80847404`입니다. 서비스 계정에는 해당 앱 내부 테스트 배포에 필요한 Play Console 권한을 별도로 부여해야 합니다. JSON 서비스 계정 키 fallback은 제공하지 않습니다. 위 식별자의 생성·권한 설정은 별도 계정 작업에서 확인했습니다. 실제 GitHub OIDC 토큰 교환과 Play API 호출 성공은 이 PR에서 아직 실행하지 않았습니다.
+WIF 조건은 저장소 ID `1452185615`, 저장소 `hebi10/FocusLock`, 소유자 ID `80847404`, ref `refs/heads/main`, 환경 `google-play`로 제한합니다. Cloud 프로젝트는 `hebi-app-release-80847404`입니다. 서비스 계정에는 해당 앱의 조회·테스트 출시·테스터 관리 권한을 별도 계정 작업에서 부여했으며 production 권한은 없습니다. JSON 서비스 계정 키 fallback은 제공하지 않습니다. 위 식별자의 생성·권한 설정은 별도 계정 작업에서 확인했습니다. 실제 GitHub OIDC 토큰 교환과 Play API 호출 성공은 이 PR에서 아직 실행하지 않았습니다.
 
 ## 검증과 실행
 

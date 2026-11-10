@@ -42,10 +42,10 @@
 
 **Files:** Create `docs/privacy-policy.html`, `docs/play-store/listing-ko.json`, `docs/play-store/registration.md`, `.github/workflows/privacy-pages.yml`; append README release documentation.
 
-**Interfaces:** Static privacy page can be published through GitHub Pages; registration guide lists exact environment/secret names and pending setup; listing stays local until Console registration.
+**Interfaces:** Static privacy page can be published through GitHub Pages; registration guide lists exact environment/secret names, confirmed setup and pending execution checks; listing stays local until Console registration.
 
 - [ ] Compare metadata against current app source and merged usage QA notes.
-- [ ] Add Korean privacy/listing and pending setup instructions; no claim of automatic blocking, exact real-time alerts or cloud synchronization.
+- [ ] Add Korean privacy/listing and configuration and pending execution checks; no claim of automatic blocking, exact real-time alerts or cloud synchronization.
 - [ ] Re-run Python suites, syntax/JSON checks and diff validation; create branch and PR against unchanged current main.
 - [ ] Obtain whole-branch review; address important findings with a failing regression test and green full suite.
 - [ ] Report PR SHA, test evidence, CI and remaining account/Console readiness accurately.
