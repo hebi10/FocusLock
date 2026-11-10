@@ -27,21 +27,42 @@ class FocusLockScreenQaTest {
         return ActivityScenario.launch(intent)
     }
 
+    private fun dismissEmulatorSystemUiAnr() {
+        repeat(3) {
+            val dialog = device.findObject(By.text("System UI isn't responding")) ?: return
+            System.err.println("Android emulator System UI ANR detected; selecting Wait for environment recovery")
+            val waitButton = device.wait(Until.findObject(By.text("Wait")), 1500L)
+            requireNotNull(waitButton) { "System UI ANR dialog has no Wait option" }.click()
+            Thread.sleep(2500L)
+        }
+        check(device.findObject(By.text("System UI isn't responding")) == null) {
+            "Android emulator System UI remains unresponsive"
+        }
+    }
+
     private fun capture(name: String) {
+        dismissEmulatorSystemUiAnr()
         device.waitForIdle(1500L)
+        dismissEmulatorSystemUiAnr()
         Thread.sleep(700L)
         val dir = File(context.getExternalFilesDir(null), "qa-captures").apply { mkdirs() }
         assertTrue("Screenshot failed: $name", device.takeScreenshot(File(dir, "$name.png")))
     }
 
     private fun tapText(label: String) {
-        var item = device.wait(Until.findObject(By.text(label)), 2000L)
+        dismissEmulatorSystemUiAnr()
+        // Content descriptions (for icon-only back buttons) must be checked before scrolling.
+        var item = device.findObject(By.desc(label))
+            ?: device.wait(Until.findObject(By.text(label)), 2500L)
         for (tries in 0 until 5) {
             if (item != null) break
-            device.swipe(device.displayWidth / 2, device.displayHeight * 3 / 4, device.displayWidth / 2, device.displayHeight / 3, 25)
-            item = device.wait(Until.findObject(By.text(label)), 1500L)
+            device.swipe(
+                device.displayWidth / 2, device.displayHeight * 3 / 4,
+                device.displayWidth / 2, device.displayHeight / 3, 25
+            )
+            item = device.findObject(By.desc(label))
+                ?: device.wait(Until.findObject(By.text(label)), 1700L)
         }
-        if (item == null) item = device.wait(Until.findObject(By.desc(label)), 1300L)
         requireNotNull(item) { "Could not find visible label or description: $label" }.click()
         device.waitForIdle(1200L)
     }
@@ -102,6 +123,7 @@ class FocusLockScreenQaTest {
             tapText("사용 목표")
             capture("19-goal-sheet")
             tapText("저장")
+            assertTrue("Goal sheet did not close after saving", device.wait(Until.gone(By.text("사용 목표 설정")), 10000L))
             tapText("뒤로")
             tapText("리포트 보기")
             capture("20-report")
