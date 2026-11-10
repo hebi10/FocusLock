@@ -11,6 +11,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -145,7 +146,9 @@ fun GoalSheet(
     var warn100 by remember(app.id) { mutableStateOf(initialWarn100) }
     var weekdays by remember(app.id) { mutableStateOf(initialEveryday) }
     ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val compact = maxWidth / LocalDensity.current.fontScale < 360.dp
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Text("사용 목표 설정", fontSize = 24.sp, fontWeight = FontWeight.Bold)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 AppSymbol(app)
@@ -153,7 +156,13 @@ fun GoalSheet(
             }
             FocusCard {
                 Text("하루 제한 시간", fontWeight = FontWeight.SemiBold)
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                if (compact) {
+                    Text(UsageFormat.minutesLabel(minutes), Modifier.align(Alignment.CenterHorizontally), fontWeight = FontWeight.Bold)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OutlinedButton(onClick = { minutes = (minutes - 15).coerceAtLeast(15) }, modifier = Modifier.weight(1f), contentPadding = PaddingValues(8.dp)) { Text("− 15분") }
+                        OutlinedButton(onClick = { minutes = (minutes + 15).coerceAtMost(240) }, modifier = Modifier.weight(1f), contentPadding = PaddingValues(8.dp)) { Text("+ 15분") }
+                    }
+                } else Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     OutlinedButton(onClick = { minutes = (minutes - 15).coerceAtLeast(15) }) { Text("− 15분") }
                     Text(UsageFormat.minutesLabel(minutes), fontWeight = FontWeight.Bold)
                     OutlinedButton(onClick = { minutes = (minutes + 15).coerceAtMost(240) }) { Text("+ 15분") }
@@ -161,7 +170,16 @@ fun GoalSheet(
             }
             FocusCard {
                 Text("경고 알림", fontWeight = FontWeight.SemiBold)
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                if (compact) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("80% 도달", Modifier.weight(1f), fontSize = 13.sp)
+                        Switch(checked = warn80, onCheckedChange = { warn80 = it })
+                    }
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("100% 도달", Modifier.weight(1f), fontSize = 13.sp)
+                        Switch(checked = warn100, onCheckedChange = { warn100 = it })
+                    }
+                } else Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Text("80% 도달", fontSize = 13.sp)
                     Switch(checked = warn80, onCheckedChange = { warn80 = it })
                     Text("100% 도달", fontSize = 13.sp)
@@ -180,6 +198,7 @@ fun GoalSheet(
             TextButton(onClick = onClear, modifier = Modifier.align(Alignment.CenterHorizontally)) {
                 Text("목표 해제", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+        }
         }
     }
 }

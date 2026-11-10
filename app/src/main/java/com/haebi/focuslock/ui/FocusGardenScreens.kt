@@ -93,8 +93,9 @@ fun FocusRunningScreen(minutes: Int, seconds: Int, paused: Boolean, restoredAfte
 
 @Composable
 fun FocusResultScreen(completed: Boolean, elapsedSeconds: Int, onHome: () -> Unit, onGarden: () -> Unit) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
     Column(
-        Modifier.fillMaxSize().padding(24.dp),
+        Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).heightIn(min = maxHeight).padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
@@ -110,10 +111,11 @@ fun FocusResultScreen(completed: Boolean, elapsedSeconds: Int, onHome: () -> Uni
                 Text("세션과 보상은 기기 내부 Room 데이터베이스에 저장됩니다.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
             }
         }
-        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.fillMaxWidth().padding(top = 24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             ActionButton("홈으로", onHome)
             TextButton(onClick = onGarden, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text("정원 보기") }
         }
+    }
     }
 }
 

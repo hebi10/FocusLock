@@ -3,6 +3,8 @@ package com.haebi.focuslock.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
@@ -15,12 +17,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.Constraints
 import com.haebi.focuslock.data.AppUsage
 import com.haebi.focuslock.data.UsageFormat
 
@@ -143,7 +150,21 @@ fun PeriodSelector(options: List<String>, selected: String, onSelected: (String)
 
 @Composable
 fun BarChart(values: List<Int>, labels: List<String>, maxValue: Int, highlight: Int = values.lastIndex, modifier: Modifier = Modifier) {
-    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    val dense = labels.size > 8
+    val ticks = labels.withIndex().filter { it.value.isNotBlank() && it.index < values.size }
+    val textMeasurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val axisStyle = TextStyle(fontSize = if (dense) 9.sp else 11.sp)
+    val widestTick = ticks.maxOfOrNull { textMeasurer.measure(it.value, axisStyle).size.width } ?: 0
+    val tickStep = ticks.zipWithNext { a, b -> b.index - a.index }.minOrNull() ?: values.size.coerceAtLeast(1)
+    // Bars and labels share the same scrollable plot when enlarged text needs
+    // more space. Empty hourly/day slots never constrain a label's natural width.
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+    val minimumWidth = with(density) {
+        ((widestTick + 12.dp.toPx()) * values.size / tickStep.coerceAtLeast(1) + widestTick).toDp()
+    }
+    val plotWidth = if (dense) maxOf(maxWidth, minimumWidth) else maxWidth
+    Column(Modifier.horizontalScroll(rememberScrollState()).width(plotWidth), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(Modifier.fillMaxWidth().height(140.dp), horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.Bottom) {
             values.forEachIndexed { i, value ->
                 Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.Bottom, horizontalAlignment = Alignment.CenterHorizontally) {
@@ -154,12 +175,32 @@ fun BarChart(values: List<Int>, labels: List<String>, maxValue: Int, highlight: 
                 }
             }
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+        if (dense) Layout(
+            content = {
+                ticks.forEach { tick ->
+                    Text(tick.value, style = axisStyle, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                }
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) { measurables, constraints ->
+            val placeables = measurables.map { it.measure(Constraints(maxWidth = constraints.maxWidth)) }
+            val width = constraints.maxWidth
+            val gap = 5.dp.roundToPx()
+            val count = values.size.coerceAtLeast(1)
+            val barWidth = (width - gap * (count - 1)).toFloat() / count
+            layout(width, placeables.maxOfOrNull { it.height } ?: 0) {
+                placeables.forEachIndexed { index, placeable ->
+                    val center = barWidth / 2 + ticks[index].index * (barWidth + gap)
+                    placeable.placeRelative((center - placeable.width / 2).toInt().coerceIn(0, (width - placeable.width).coerceAtLeast(0)), 0)
+                }
+            }
+        } else Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
             labels.forEach { label ->
                 Text(label, fontSize = if (labels.size > 8) 9.sp else 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center, maxLines = 1, modifier = Modifier.weight(1f))
             }
         }
+    }
     }
 }
 
