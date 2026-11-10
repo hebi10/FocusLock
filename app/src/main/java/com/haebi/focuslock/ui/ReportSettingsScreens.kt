@@ -18,9 +18,10 @@ import androidx.compose.ui.unit.sp
 import com.haebi.focuslock.data.AppUsage
 import com.haebi.focuslock.data.UsageFormat
 import com.haebi.focuslock.data.UsageLoadState
+import com.haebi.focuslock.data.FocusSummary
 
 @Composable
-fun ReportScreen(state: UsageLoadState, excluded: Map<String, Boolean>, onBack: () -> Unit, onApp: (AppUsage, String) -> Unit, onUsageSettings: () -> Unit, onRefresh: () -> Unit) {
+fun ReportScreen(state: UsageLoadState, excluded: Map<String, Boolean>, focusSummary: FocusSummary, onBack: () -> Unit, onApp: (AppUsage, String) -> Unit, onUsageSettings: () -> Unit, onRefresh: () -> Unit) {
     var period by rememberSaveable { mutableStateOf("7일") }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -59,11 +60,27 @@ fun ReportScreen(state: UsageLoadState, excluded: Map<String, Boolean>, onBack: 
                     if(index < minOf(5, selected.apps.count { excluded[it.id] != true }) - 1) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 }
             }
-            FocusCard {
-                SectionTitle("집중 성과")
-                Text("집중 세션의 영구 저장과 통합 리포트는 다음 단계에서 연결합니다. 확인되지 않은 성과 수치를 표시하지 않습니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        FocusCard {
+            SectionTitle("집중 성과")
+            val focus = focusSummary.forPeriod(period)
+            if (focus.completedCount == 0) {
+                Text("선택 기간에 완료된 집중 세션이 없습니다.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                InfoPairReport("완료 세션", "${focus.completedCount}회")
+                InfoPairReport("완료 집중 시간", UsageFormat.minutesLabel(focus.minutes))
+                InfoPairReport("획득 경험치", "${focus.experience} XP")
+                Text("중단된 세션은 완료 횟수와 경험치에 포함하지 않습니다.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
+    }
+}
+
+@Composable
+private fun InfoPairReport(label: String, value: String) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(label, fontSize = 13.sp)
+        Text(value, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 
@@ -82,16 +99,16 @@ fun SettingsScreen(theme: String, onTheme: (String) -> Unit, onPermissions: () -
         }
         FocusCard {
             SectionTitle("알림")
-            Text("사용 목표에 따른 실제 경고 알림 전송은 아직 구현되지 않았습니다. 현재 단계에서는 사용 정보 접근과 알림 권한 상태만 확인합니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("설정한 목표의 80%·100% 도달 시 알림을 보냅니다. WorkManager는 약 15분 간격으로 확인하며 절전 정책에 따라 지연될 수 있습니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         FocusCard {
             SectionTitle("데이터")
-            Text("Android 시스템에서 관리하는 사용 기록을 읽어 기기 내부에서 분석합니다. FocusLock은 이 기록을 외부로 전송하지 않으며 별도 앱 사용 기록 DB를 생성하지 않습니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("사용 기록은 Android 시스템에서 기기 내부로 읽습니다. FocusLock의 집중 세션·보상은 Room에 저장되며 서버로 전송하지 않습니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         FocusCard {
             SectionTitle("앱 정보")
-            SettingRow("현재 구현 범위", "실제 사용 통계·권한 조회와 UI 통합 상태", onClick = onInfo)
-            Text("FocusLock 0.2.0", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            SettingRow("현재 구현 범위", "실제 사용 통계·권한·목표 경고·집중 기록 저장", onClick = onInfo)
+            Text("FocusLock 0.3.0", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -118,7 +135,7 @@ fun PermissionManagementScreen(onBack: () -> Unit, onUsageSettings: () -> Unit, 
         FocusCard {
             SectionTitle("알림")
             Text(if(notificationGranted) "현재 상태: 허용" else "현재 상태: 미허용", color = if(notificationGranted) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("알림 권한 상태를 확인합니다. 실제 목표 경고 알림은 아직 구현되지 않았습니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("앱별 목표 도달 알림을 받으려면 허용이 필요합니다. Android 백그라운드 제한으로 알림이 지연될 수 있습니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             OutlinedButton(onClick = onNotificationSettings, modifier = Modifier.fillMaxWidth()) { Text("Android 알림 설정") }
         }
         Text("Android 설정에서 돌아오면 사용 통계와 권한 상태가 다시 갱신됩니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
