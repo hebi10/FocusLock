@@ -272,8 +272,9 @@ jobs:
       - name: Report validation result
         if: always()
         run: |
-          echo 'Exact-source verification and Play access diagnostics do not upload, commit, enroll App Signing, or enable deployment. Review the job outcomes and play-preflight report. Console publication, tester installability and 16 KB device execution remain separate checks.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'check mode performs read-only validation. icon mode may commit only the approved ko-KR store icon after successful WIF, existing-listing check and SHA-256 verification; neither mode uploads AAB or changes release tracks. Console publication and tester installability remain separate checks.' >> "$GITHUB_STEP_SUMMARY"
           if [[ -f output/play-preflight.json ]]; then cat output/play-preflight.json >> "$GITHUB_STEP_SUMMARY"; fi
+          if [[ -f output/play-icon.json ]]; then cat output/play-icon.json >> "$GITHUB_STEP_SUMMARY"; fi
       - name: Preserve non-secret access report
         if: always()
         uses: actions/upload-artifact@v4
