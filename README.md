@@ -1,5 +1,17 @@
 # FocusLock — Android 디지털 습관 관리
 
+## 004 · 미니멀 앱 아이콘 및 스토어 자료 (2026-11-10)
+
+- 최종 선택한 미니멀 자물쇠·집중 표적·잎사귀 아이콘을 Android 런처에 적용합니다.
+- Android 8.0 이상에서 적응형 아이콘(전경/배경) 및 단색 테마 아이콘을 사용합니다.
+- Google Play 512×512 PNG는 `assets/store/FocusLock_Play_Icon_512.png`에 보관합니다.
+- Google Drive 원본: https://drive.google.com/file/d/1yhov-7N7DKG3WZJFE3Og3aY_oiUmSZJ_/view
+- Google Drive Play 이미지: https://drive.google.com/file/d/13ccHVbyNolgrSpZWNvC0ZZ5SavAGYpTW/view
+- 스토어 등록정보 및 Play 배포는 별도 Console 확인이 필요하며, 이 PR에서는 빌드 코드 및 자료만 업데이트합니다.
+- 상세 작업: [004 아이콘 적용](docs/APP_ICON_004.md), [001~004 진행 현황](docs/PROJECT_STATUS_2026_11_10.md)
+
+---
+
 ## 003 · 목표 경고·집중 기록 영구 저장 (2026-11-10)
 
 - **Room 2.8.5**: 집중 세션과 보상 기록을 로컬 DB에 저장하며 완료 보상은 세션 ID 기준으로 한 번만 지급합니다.
