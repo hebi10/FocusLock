@@ -56,7 +56,13 @@ def release_mode(env, event, commit_subject):
             raise SourceError('Unsupported Play release mode')
         return mode
     subject = commit_subject.splitlines()[0] if commit_subject else ''
-    return 'initialize' if re.search(r'(?<!\S)\[initialize-play\](?!\S)', subject) else 'deploy'
+    initialize = bool(re.search(r'(?<!\S)\[initialize-play\](?!\S)', subject))
+    icon = bool(re.search(r'(?<!\S)\[upload-play-icon\](?!\S)', subject))
+    if initialize and icon:
+        raise SourceError('Play initialization and icon upload markers cannot be combined')
+    if icon:
+        return 'icon'
+    return 'initialize' if initialize else 'deploy'
 
 
 def verify_ci(sha, run, jobs):
