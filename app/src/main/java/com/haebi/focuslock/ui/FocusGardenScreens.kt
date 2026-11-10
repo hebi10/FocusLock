@@ -47,7 +47,7 @@ fun FocusSetupScreen(onStart: (Int) -> Unit, selectedDistractions: Int) {
         FocusCard {
             SectionTitle("집중 중 사용 기록")
             Text("방해 앱 ${selectedDistractions}개 선택됨", fontWeight = FontWeight.Medium)
-            Text("일반 앱 권한으로 다른 앱을 강제로 차단하지 않습니다. 사용 정보 접근 권한과 별도 데이터 연동은 후속 단계에서 진행합니다.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+            Text("일반 앱 권한으로 다른 앱을 강제로 차단하지 않습니다. 실제 방해 앱 사용 감지·중단 판정은 후속 기능입니다.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
         }
         FocusCard {
             SectionTitle("집중 후 보상")

@@ -14,6 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -21,7 +22,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.haebi.focuslock.data.AppUsage
-import com.haebi.focuslock.data.DemoData
+import com.haebi.focuslock.data.UsageFormat
 
 @Composable
 fun PageTitle(title: String, subtitle: String? = null, action: (@Composable () -> Unit)? = null) {
@@ -64,14 +65,6 @@ fun FocusCard(modifier: Modifier = Modifier, contentPadding: Dp = 16.dp, content
 }
 
 @Composable
-fun DemoNotice() {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        Icon(Icons.Outlined.Info, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(14.dp))
-        Text("화면 미리보기 데이터 · 실제 사용 기록 미연동", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
-
-@Composable
 fun Metric(value: String, hint: String, note: String? = null) {
     Text(hint, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
     Text(value, fontSize = 34.sp, fontWeight = FontWeight.Bold, lineHeight = 39.sp)
@@ -99,21 +92,21 @@ fun AppSymbol(app: AppUsage, size: Dp = 38.dp) {
 }
 
 @Composable
-fun AppUsageRow(app: AppUsage, goal: Int? = null, totalMinutes: Int = DemoData.todayTotalMinutes, onClick: () -> Unit) {
+fun AppUsageRow(app: AppUsage, goal: Int? = null, totalMinutes: Int = 0, onClick: () -> Unit) {
     val exceed = goal != null && app.minutes > goal
     Row(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth().testTag("usage-row").clickable(onClick = onClick).padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         AppSymbol(app)
         Column(Modifier.weight(1f)) {
             Text(app.name, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-            Text("실행 ${app.launches}회 · 마지막 사용 ${app.lastUsed}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text("${if (app.launches < 0) "실행 횟수 확인 불가" else "실행 ${app.launches}회"} · 마지막 사용 ${app.lastUsed}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Column(horizontalAlignment = Alignment.End) {
-            Text(DemoData.minutesLabel(app.minutes), fontWeight = FontWeight.Bold, fontSize = 14.sp)
-            Text("${DemoData.sharePercent(app.minutes, totalMinutes)}%", color = if (exceed) FocusColors.Red else MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+            Text(UsageFormat.minutesLabel(app.minutes), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Text("${UsageFormat.sharePercent(app.minutes, totalMinutes)}%", color = if (exceed) FocusColors.Red else MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
         }
         Icon(Icons.Outlined.ArrowForwardIos, null, modifier = Modifier.size(13.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
@@ -123,9 +116,9 @@ fun AppUsageRow(app: AppUsage, goal: Int? = null, totalMinutes: Int = DemoData.t
 fun CategoryRow(label: String, minutes: Int, total: Int) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(label, fontSize = 13.sp, modifier = Modifier.width(56.dp))
-        Text(DemoData.minutesLabel(minutes), fontSize = 12.sp, modifier = Modifier.width(48.dp))
+        Text(UsageFormat.minutesLabel(minutes), fontSize = 12.sp, modifier = Modifier.width(48.dp))
         Box(Modifier.weight(1f)) { ProgressBar(if (total == 0) 0f else minutes.toFloat() / total) }
-        Text("${DemoData.sharePercent(minutes, total)}%", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.width(34.dp))
+        Text("${UsageFormat.sharePercent(minutes, total)}%", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.width(34.dp))
     }
 }
 
