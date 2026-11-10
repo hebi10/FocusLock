@@ -24,8 +24,11 @@ class ReleaseConfigurationTests(unittest.TestCase):
 
     def test_gradle_preserves_version_and_requires_existing_release_signer(self):
         gradle = (ROOT / 'app/build.gradle.kts').read_text()
-        self.assertIn('versionName = "0.2.0"', gradle)
+        self.assertIn('versionName = "0.3.0"', gradle)
         self.assertIn('versionCode = releaseVersionCode', gradle)
+        self.assertIn('.orElse("2").get()', gradle)
+        for dependency in ('alias(libs.plugins.ksp)', 'implementation(libs.room.runtime)', 'ksp(libs.room.compiler)', 'implementation(libs.work.runtime)'):
+            self.assertIn(dependency, gradle)
         self.assertIn('if (name == "preReleaseBuild") dependsOn(verifyReleaseSigning)', gradle)
         self.assertIn('"verify-keystore"', gradle)
 

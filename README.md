@@ -1,6 +1,24 @@
 # FocusLock — Android 디지털 습관 관리
 
-## 002 · 실제 사용 기록 및 권한 API (2026-11-10)
+## 003 · 목표 경고·집중 기록 영구 저장 (2026-11-10)
+
+- **Room 2.8.5**: 집중 세션과 보상 기록을 로컬 DB에 저장하며 완료 보상은 세션 ID 기준으로 한 번만 지급합니다.
+- **재실행 복구**: 같은 부팅에서는 단조 시계로 진행 시간을 복구하며 기기 재시작 감지 시 자동 완료하지 않고 일시정지합니다.
+- **집중 보상**: 설정 시간 달성 또는 자유 집중 10분 이상일 때 경험치 30·성장 포인트 20 지급. 중단된 세션은 보상이 없습니다.
+- **사용 목표 알림**: 실제 사용 시간의 80%·100% 임계치, 날짜별 중복 전송 방지. 경고별 사용 여부와 매일 적용 설정은 로컬에 보존합니다.
+- **WorkManager 2.12.0**: 15분 주기 백그라운드 확인 + 앱 재진입 시 재조회. Android의 절전/권한 제약으로 발송 시각은 정확하지 않습니다.
+- **권한**: 사용 기록 접근 및 Android 알림 권한이 없으면 목표 알림이 발송되지 않습니다. 알림 권한은 필요할 때 요청하며 앱 강제 차단은 하지 않습니다.
+- **정원·리포트**: 누적 경험치·아이템 배치 설정과 7일·30일의 실제 완료 세션·유효 시간·경험치를 표시합니다.
+- **검증**: JUnit 목표 경고·보상 규칙, Room 재오픈 및 중복 지급·재부팅 계측 테스트, API 36 전체 화면 캡처 QA.
+
+기획·명세: [003 Google Drive 문서](https://docs.google.com/document/d/1Yl9ilo7WE_5DSXO1xzthNriEkmk4iUaiZdVz18zTEVk/edit)
+
+주의: FocusLock은 다른 앱 사용을 강제로 차단하거나 앱 사용량을 정확한 실시간 시점에 감지하지 않습니다. Android OS가 공개하는 사용 통계의 보관 기간·정확도와 주기 작업 실행 시점에 의존합니다. 앱 삭제 시 로컬 DB는 제거됩니다. Google Play 배포는 이 단계에 포함되지 않습니다.
+
+---
+
+
+## 002 · 실제 사용 기록 및 권한 API (구현 이력, 2026-11-10)
 
 - Android `UsageStatsManager`를 통한 실제 앱별 오늘·7일·30일 사용 시간·사용 패턴 표시.
 - 사용 정보 접근 권한을 Android 설정에서 직접 허용하도록 안내하며, 미허용·기록 없음·조회 실패를 구분합니다.
@@ -94,6 +112,6 @@ Windows PowerShell에서는 Android SDK/JDK를 준비한 뒤 다음 명령을 �
 
 ## Google Play 내부 테스트 자동화
 
-현재 `0.2.0` 코드의 `Android CI/verify`와 `Android full-screen emulator QA/emulator`가 정확한 최신 main SHA에서 모두 성공한 뒤, 앱별 서명키로 APK/AAB를 생성하는 자동화를 추가했습니다. `check`, `build`, 최초 `initialize`(빈 인벤토리의 코드 1 internal draft), 일반 `deploy`(모든 Play 코드보다 큰 코드)를 지원합니다. production/closed 승격은 제공하지 않습니다.
+현재 `0.3.0` 코드의 `Android CI/verify`와 `Android full-screen emulator QA/emulator`가 정확한 최신 main SHA에서 모두 성공한 뒤, 앱별 서명키로 APK/AAB를 생성하는 자동화를 추가했습니다. `check`, `build`, 최초 `initialize`(빈 인벤토리의 코드 1 internal draft), 일반 `deploy`(모든 Play 코드보다 큰 코드)를 지원합니다. production/closed 승격은 제공하지 않습니다.
 
-설정 항목·실행 순서·미완료 등록 사항은 [내부 테스트 등록](docs/play-store/registration.md), 구현 기준은 [자동화 명세](docs/play-store/automation-spec.md)를 참고하십시오. 비밀값·계정·서명키·App Signing·테스터 설치 상태는 이 코드 변경만으로 설정되거나 확인되지 않습니다. [개인정보 방침](docs/privacy-policy.html)과 [한국어 소개 초안](docs/play-store/listing-ko.json)은 현재 기기 내 사용 기록·권한 조회와 시연 기능의 한계를 기준으로 작성했습니다.
+설정 항목·실행 순서·미완료 등록 사항은 [내부 테스트 등록](docs/play-store/registration.md), 구현 기준은 [자동화 명세](docs/play-store/automation-spec.md)를 참고하십시오. 비밀값·계정·서명키·App Signing·테스터 설치 상태는 이 코드 변경만으로 설정되거나 확인되지 않습니다. [개인정보 방침](docs/privacy-policy.html)과 [한국어 소개 초안](docs/play-store/listing-ko.json)은 현재 기기 내 사용 기록·권한 조회, 집중 기록·보상 저장 및 목표 알림의 제약를 기준으로 작성했습니다.

@@ -2,7 +2,7 @@
 
 ## 현재 상태
 
-이 변경은 배포 코드를 준비합니다. Play 앱 등록, 서명키 준비, WIF·환경 설정, 최초 업로드, 테스터 설치, Pages 공개 접근은 이 PR에서 수행하거나 확인하지 않았습니다. 현재 `0.2.0`의 사용 기록·권한 조회는 기기 내 처리이며 집중 타이머·정원은 시연 한계가 남아 있습니다. 기능 근거는 `docs/USAGE_API_QA.md`와 현재 소스입니다.
+이 변경은 배포 코드를 준비합니다. Play 앱·WIF·Secrets·Pages 설정은 2026년 11월 10일 별도 계정 작업에서 완료 확인되었으며, 이 PR은 자격 증명이나 계정 상태를 변경하지 않습니다. 실제 서명 release 산출물, 최초 업로드, App Signing 및 테스터 설치는 실행 증거로 별도 확인해야 합니다. 현재 `0.3.0`은 사용 기록·권한 조회, 집중 세션·보상 로컬 DB 저장과 사용 목표 알림을 제공합니다. 알림은 약 15분 주기 작업과 앱 재진입 확인에 의존하며 정확한 실시간 발송을 보장하지 않습니다. 기능 근거는 `docs/USAGE_API_QA.md`와 현재 소스입니다.
 
 ## GitHub 설정
 
@@ -16,12 +16,12 @@
 | `ANDROID_RELEASE_KEY_PASSWORD` | 키 암호 |
 | `ANDROID_RELEASE_CERT_SHA256` | 서명 인증서 SHA-256 |
 
-| 환경 Variable | 계획된 값: 설정·검증 대기 |
+| 환경 Variable | 계정 설정에서 확인할 값 |
 | --- | --- |
 | `PLAY_WORKLOAD_IDENTITY_PROVIDER` | `projects/973619009476/locations/global/workloadIdentityPools/focuslock-github/providers/github-main` |
 | `PLAY_SERVICE_ACCOUNT` | `play-focuslock@hebi-app-release-80847404.iam.gserviceaccount.com` |
 
-WIF 조건은 저장소 ID `1452185615`, 저장소 `hebi10/FocusLock`, 소유자 ID `80847404`, ref `refs/heads/main`, 환경 `google-play`로 제한합니다. Cloud 프로젝트는 `hebi-app-release-80847404`입니다. 서비스 계정에는 해당 앱 내부 테스트 배포에 필요한 Play Console 권한을 별도로 부여해야 합니다. JSON 서비스 계정 키 fallback은 제공하지 않습니다. 문서의 식별자는 계획값이며 실제 존재·권한·연결 성공을 보증하지 않습니다.
+WIF 조건은 저장소 ID `1452185615`, 저장소 `hebi10/FocusLock`, 소유자 ID `80847404`, ref `refs/heads/main`, 환경 `google-play`로 제한합니다. Cloud 프로젝트는 `hebi-app-release-80847404`입니다. 서비스 계정에는 해당 앱 내부 테스트 배포에 필요한 Play Console 권한을 별도로 부여해야 합니다. JSON 서비스 계정 키 fallback은 제공하지 않습니다. 위 식별자의 생성·권한 설정은 별도 계정 작업에서 확인했습니다. 실제 GitHub OIDC 토큰 교환과 Play API 호출 성공은 이 PR에서 아직 실행하지 않았습니다.
 
 ## 검증과 실행
 
@@ -50,7 +50,7 @@ GitHub Actions의 `Play internal release`를 main에서 수동 실행할 수 있
 https://hebi10.github.io/FocusLock/privacy-policy.html
 ```
 
-실제로 연락 가능한 지원 이메일을 Console과 정책에 보완해야 합니다. 스크린샷, 아이콘·그래픽, 연령 등급, 대상 연령, 광고·앱 액세스·데이터 보안 설문은 실제 앱과 계정 기준으로 작성해야 합니다. 사용 정보 접근은 기기 내 처리가 구현되어 있습니다. 앱 차단·목표 초과 실제 알림·집중 및 보상의 장기 저장을 제공한다고 표시하지 않습니다.
+실제로 연락 가능한 지원 이메일을 Console과 정책에 보완해야 합니다. 스크린샷, 아이콘·그래픽, 연령 등급, 대상 연령, 광고·앱 액세스·데이터 보안 설문은 실제 앱과 계정 기준으로 작성해야 합니다. 사용 정보 접근은 기기 내 처리가 구현되어 있습니다. 앱 강제 차단·정확한 실시간 알림·클라우드 동기화를 제공한다고 표시하지 않습니다. 집중 세션·보상은 Room DB에, 정원 배치·목표/알림 설정은 기기에 저장합니다.
 
 Manifest는 `allowBackup=false`이며 별도 `dataExtractionRules`가 없습니다. 자동 백업 비활성화 설정은 확인했지만 제조사별 기기 이전·복원 동작을 일괄 보증하지 않습니다.
 
@@ -59,3 +59,15 @@ Manifest는 `allowBackup=false`이며 별도 `dataExtractionRules`가 없습니�
 - 기준 main `38ffc650ff2abf348206634d7fe125b37bd6d09d`의 Android CI push 실행 `42771077677` 성공을 확인했습니다. 이 SHA의 에뮬레이터 main 실행은 확인되지 않았으며 PR 검증으로 대체하지 않습니다.
 - 로컬 Python 가드 전체 suite 및 워크플로 정적 검사를 실행하며 결과와 PR SHA Android 검증은 PR 본문에 기록합니다.
 - 로컬 Gradle은 `services.gradle.org` 접근 시 `Network is unreachable`로 중단되어 Android 산출물을 생성하지 못했습니다. 성공한 Actions 빌드와 앱별 서명 산출물 생성은 별도 증거가 필요합니다.
+
+## 003 main 통합
+
+`9b8279ae8d80d752aeb1b7e3a423aae5a1ac33ee`의 Room/KSP/WorkManager, 목표 알림, 집중 기록·보상 저장 및 확장 계측 테스트를 그대로 보존했습니다. Gradle versionCode 충돌은 동적 배포 코드와 upstream 기본값 2를 함께 유지하여 해결하고, artifact/release versionName 검증을 `0.3.0`에 맞췄습니다. 최초 빈 인벤토리 업로드의 코드 1 규칙은 그대로입니다.
+
+## 계정 설정 확인 (2026-11-10)
+
+- Play 앱 ID `4974641493304969346`, 패키지 `com.haebi.focuslock`, Play 개발자 계정 `5537932067090246638` 생성 확인.
+- 전용 서비스 계정의 앱별 조회·테스트 출시·테스터 관리 권한 활성화 확인. production 권한은 부여하지 않았습니다.
+- 전용 WIF provider와 서비스 계정 연결은 저장소 ID `1452185615`, 소유자 ID `80847404`, main 및 `repo:hebi10/FocusLock:environment:google-play` subject로 제한했습니다.
+- `google-play` 환경의 main 브랜치 제한, 서명 Secrets 5개와 인증 변수 2개 저장, Pages Source의 Actions 설정 확인. 비공개 업로드 키 백업은 소유자 전용 접근으로 확인했습니다.
+- 실제 서명 release 빌드·최초 draft 업로드·공개 정책 URL 접근·App Signing·테스터 설치 검증은 별도 실행 전입니다.

@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Package `com.haebi.focuslock`; preserve current main versionName `0.2.0`.
+- Package `com.haebi.focuslock`; preserve current main versionName `0.3.0`.
 - Preserve UI, app permissions, feature code and instrumentation scenarios.
 - Existing signer only; no keys, credentials or account changes in this work.
 - Initial empty inventory code 1 internal draft; normal allocation exceeds all Play codes.
@@ -24,7 +24,7 @@
 - A new failed or incomplete CI attempt on the same SHA must block an earlier successful run.
 - Cross-app package/signer/source and stale allocation must fail before release commit.
 - A draft-only or unassigned artifact inventory must prevent duplicate initialization.
-- Current usage permissions and demo-only timer/garden limitations must agree with privacy/listing.
+- Current usage permissions and persistent local sessions/rewards and approximate goal-alert limitations must agree with privacy/listing.
 
 ### Task 1: Release guards and workflow
 
@@ -45,7 +45,7 @@
 **Interfaces:** Static privacy page can be published through GitHub Pages; registration guide lists exact environment/secret names and pending setup; listing stays local until Console registration.
 
 - [ ] Compare metadata against current app source and merged usage QA notes.
-- [ ] Add Korean privacy/listing and pending setup instructions; no claim of automatic blocking, alerts or persistent garden rewards.
+- [ ] Add Korean privacy/listing and pending setup instructions; no claim of automatic blocking, exact real-time alerts or cloud synchronization.
 - [ ] Re-run Python suites, syntax/JSON checks and diff validation; create branch and PR against unchanged current main.
 - [ ] Obtain whole-branch review; address important findings with a failing regression test and green full suite.
 - [ ] Report PR SHA, test evidence, CI and remaining account/Console readiness accurately.

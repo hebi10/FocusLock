@@ -8,7 +8,7 @@ import artifacts
 
 
 class ArtifactIdentityTests(unittest.TestCase):
-    def runner(self, package='com.haebi.focuslock', aab_code='1', apk_code='1', version='0.2.0', fail=False):
+    def runner(self, package='com.haebi.focuslock', aab_code='1', apk_code='1', version='0.3.0', fail=False):
         def run(command, **kwargs):
             if command[0] == 'java':
                 text = f'<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="{package}" android:versionCode="{aab_code}" android:versionName="{version}" />'
@@ -19,10 +19,10 @@ class ArtifactIdentityTests(unittest.TestCase):
 
     def test_real_tool_identity_matches_expected_package_version_and_allocated_code(self):
         result = artifacts.verify('app.aab', 'app.apk', 'bundletool.jar', 'aapt2', '1', self.runner())
-        self.assertEqual(result, {'package': 'com.haebi.focuslock', 'versionName': '0.2.0', 'versionCode': 1, 'status': 'artifact_identity_verified'})
+        self.assertEqual(result, {'package': 'com.haebi.focuslock', 'versionName': '0.3.0', 'versionCode': 1, 'status': 'artifact_identity_verified'})
 
     def test_wrong_package_stale_aab_apk_or_version_blocks_release(self):
-        for options in ({'package': 'other.app'}, {'aab_code': '2'}, {'apk_code': '2'}, {'version': 'old'}):
+        for options in ({'package': 'other.app'}, {'aab_code': '2'}, {'apk_code': '2'}, {'version': 'old'}, {'version': '0.2.0'}):
             with self.subTest(options=options), self.assertRaises(artifacts.IdentityError):
                 artifacts.verify('app.aab', 'app.apk', 'bundletool.jar', 'aapt2', '1', self.runner(**options))
 

@@ -193,7 +193,7 @@ class Publisher:
                     raise ReleaseError('Initial bundle SHA-256 does not match the verified local AAB')
             with self.initial_stage('track_update'):
                 self.request('PUT', edit + '/tracks/internal', {'track': 'internal', 'releases': [
-                    {'name': '0.2.0 (1)', 'versionCodes': ['1'], 'status': 'draft'}]})
+                    {'name': '0.3.0 (1)', 'versionCodes': ['1'], 'status': 'draft'}]})
             commit_result = self.commit(edit, changes_not_sent_for_review=True, fail_if_in_review=True)
         try:
             with self.initial_stage('readback'), self.edit(ignore_delete_error=False) as edit:
@@ -276,7 +276,7 @@ class Publisher:
             if not isinstance(uploaded_hash, str) or not re.fullmatch(r'[a-fA-F0-9]{64}', uploaded_hash) or uploaded_hash.lower() != bundle_hash:
                 raise ReleaseError('Uploaded bundle SHA-256 is missing, invalid or does not match the local AAB; release was not committed')
             self.request('PUT', edit + '/tracks/internal', {'track': 'internal', 'releases': [
-                {'name': f'0.2.0 ({code})', 'versionCodes': [str(code)], 'status': release_status}]})
+                {'name': f'0.3.0 ({code})', 'versionCodes': [str(code)], 'status': release_status}]})
             self.commit(edit, changes_not_sent_for_review)
         result = self.verify_track(track, code, release_status)
         result['uploadedBundleSHA256'] = bundle_hash

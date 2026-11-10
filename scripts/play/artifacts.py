@@ -9,7 +9,7 @@ import sys
 import xml.etree.ElementTree as ET
 
 PACKAGE = 'com.haebi.focuslock'
-VERSION_NAME = '0.2.0'
+VERSION_NAME = '0.3.0'
 ANDROID = '{http://schemas.android.com/apk/res/android}'
 
 

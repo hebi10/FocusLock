@@ -167,14 +167,14 @@ fun GoalSheet(
                     Text("100% 도달", fontSize = 13.sp)
                     Switch(checked = warn100, onCheckedChange = { warn100 = it })
                 }
-                Text("경고 알림은 기능 구현 전 상태입니다. 현재는 설정만 저장됩니다.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("알림 권한이 허용된 경우 사용 목표를 주기적으로 확인해 알립니다. Android 절전 상태에서는 지연될 수 있습니다.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             FocusCard {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text("매일 적용", modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
                     Switch(checked = weekdays, onCheckedChange = { weekdays = it })
                 }
-                if(!weekdays) Text("요일별 목표 선택은 후속 기능 단계에서 연동합니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if(!weekdays) Text("매일 적용을 끄면 자동 목표 경고를 중지합니다. 요일별 적용은 후속 기능입니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             ActionButton("저장", { onSave(minutes, warn80, warn100, weekdays) })
             TextButton(onClick = onClear, modifier = Modifier.align(Alignment.CenterHorizontally)) {

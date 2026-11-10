@@ -69,6 +69,7 @@ class InitializeTests(unittest.TestCase):
             bundle.flush()
             result = publisher.Publisher(server).initialize(bundle.name)
         release = server.pending['releases'][0]
+        self.assertEqual(release['name'], '0.3.0 (1)')
         self.assertEqual((server.pending['track'], release['versionCodes'], release['status']), ('internal', ['1'], 'draft'))
         self.assertEqual(result['status'], 'initial_draft_committed_and_verified')
         self.assertEqual(result['uploadedBundleSHA256'], hashlib.sha256(b'first signed AAB').hexdigest())
