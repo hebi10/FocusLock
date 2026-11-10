@@ -317,6 +317,7 @@ jobs:
           PLAY_SERVICE_ACCOUNT: ${{ vars.PLAY_SERVICE_ACCOUNT }}
         run: python3 scripts/play/preflight.py auth
       - name: Authenticate with Workload Identity Federation
+        id: wif
         if: steps.credentials.outputs.auth_mode == 'wif'
         uses: google-github-actions/auth@v3
         with:
