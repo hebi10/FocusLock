@@ -58,8 +58,11 @@ def release_mode(env, event, commit_subject):
     subject = commit_subject.splitlines()[0] if commit_subject else ''
     initialize = bool(re.search(r'(?<!\S)\[initialize-play\](?!\S)', subject))
     icon = bool(re.search(r'(?<!\S)\[upload-play-icon\](?!\S)', subject))
-    if initialize and icon:
-        raise SourceError('Play initialization and icon upload markers cannot be combined')
+    closed = bool(re.search(r'(?<!\S)\[promote-play-closed\](?!\S)', subject))
+    if sum((initialize, icon, closed)) > 1:
+        raise SourceError('Play action markers cannot be combined')
+    if closed:
+        return 'closed'
     if icon:
         return 'icon'
     return 'initialize' if initialize else 'deploy'
