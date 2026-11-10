@@ -18,7 +18,8 @@ EMULATOR = '.github/workflows/emulator-smoke.yml'
 
 def run(path, name, run_id=1, conclusion='success', status='completed'):
     return {'id': run_id, 'name': name, 'path': path, 'head_sha': SHA, 'head_branch': 'main',
-            'event': 'push', 'conclusion': conclusion, 'status': status}
+            'event': 'push', 'conclusion': conclusion, 'status': status,
+            'created_at': '2026-11-10T00:00:00Z', 'run_started_at': '2026-11-10T00:00:00Z', 'run_attempt': 1}
 
 
 class FocusLockGuardTests(unittest.TestCase):
@@ -115,3 +116,55 @@ class FocusLockGuardTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+class FinalCiFreshnessTests(unittest.TestCase):
+    def test_queued_rerun_newer_update_revokes_an_earlier_success(self):
+        queued = dict(run(ANDROID, 'Android CI', run_id=100, status='queued', conclusion=None),
+                      run_attempt=2, run_started_at='2026-11-10T10:00:00Z', updated_at='2026-11-10T12:00:00Z')
+        success = dict(run(ANDROID, 'Android CI', run_id=101), run_started_at='2026-11-10T11:00:00Z')
+        self.assertEqual(source.latest_ci_run(SHA, ANDROID, [queued, success])['id'], 100)
+
+    def test_attempt_clock_must_be_valid_and_only_first_attempt_can_fallback_to_creation(self):
+        first = run(ANDROID, 'Android CI')
+        first.pop('run_started_at')
+        self.assertEqual(source.latest_ci_run(SHA, ANDROID, [first])['id'], 1)
+        for event in (dict(first, run_attempt=2), dict(first, run_started_at='bad'),
+                      dict(first, run_started_at='2026-11-10T12:00:00')):
+            with self.subTest(event=event), self.assertRaises(source.SourceError):
+                source.latest_ci_run(SHA, ANDROID, [event])
+
+    def test_preupload_assert_current_rechecks_latest_ci_and_blocks_failure_or_running_attempt(self):
+        for status, conclusion in (('completed', 'failure'), ('in_progress', None)):
+            seen = []
+            def fetch(path):
+                seen.append(path)
+                if '/git/ref/' in path:
+                    return {'object': {'sha': SHA}}
+                event = run(ANDROID, 'Android CI', conclusion=conclusion, status=status)
+                return {'workflow_runs': [event]} if '/workflows/' in path else {'jobs': [{'name': 'verify', 'conclusion': 'success'}]}
+            with self.subTest(status=status), mock.patch.object(source, 'gh', side_effect=fetch), mock.patch('sys.argv', ['source.py', '--assert-current', SHA]), contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(source.main(), 1)
+                self.assertTrue(any('/workflows/android-ci.yml/runs' in path for path in seen))
+
+    def test_lower_run_id_latest_rerun_is_selected_over_earlier_new_run_success(self):
+        later_rerun = dict(run(ANDROID, 'Android CI', run_id=100, conclusion='failure'),
+                           run_attempt=2, run_started_at='2026-11-10T12:00:00Z')
+        earlier_new_run = dict(run(ANDROID, 'Android CI', run_id=101),
+                               run_attempt=1, run_started_at='2026-11-10T11:00:00Z')
+        for status, conclusion in (('completed', 'failure'), ('in_progress', None)):
+            event = dict(later_rerun, status=status, conclusion=conclusion)
+            with self.subTest(status=status):
+                self.assertEqual(source.latest_ci_run(SHA, ANDROID, [event, earlier_new_run])['id'], 100)
+
+    def test_assert_current_success_requires_both_ci_and_checks_main_again_after_ci(self):
+        seen = []
+        def fetch(path):
+            seen.append(path)
+            if '/git/ref/' in path:
+                return {'object': {'sha': SHA}}
+            return FocusLockGuardTests().ci_fetch(lambda: [run(EMULATOR, 'Android full-screen emulator QA', run_id=2)])(path)
+        with mock.patch.object(source, 'gh', side_effect=fetch), mock.patch('sys.argv', ['source.py', '--assert-current', SHA]), contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(source.main(), 0)
+        self.assertTrue(any('/workflows/emulator-smoke.yml/runs' in path for path in seen))
+        self.assertIn('/git/ref/heads/main', seen[-1])
+        self.assertEqual(sum('/git/ref/heads/main' in path for path in seen), 2)

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Resolve an immutable main source and require its completed verification run."""
 import argparse
+from datetime import datetime
 import json
 import os
 from pathlib import Path
@@ -74,7 +75,26 @@ def latest_ci_run(sha, workflow, runs):
                   and run.get('path') == workflow and run.get('event') in ('push', 'workflow_dispatch')]
     if not candidates:
         raise SourceError('Required main verification is missing for the exact source SHA: ' + workflow)
-    return max(candidates, key=lambda value: (value['id'], value.get('run_attempt', 1)))
+    def order(run):
+        attempt = run.get('run_attempt', 1)
+        if isinstance(attempt, bool) or not isinstance(attempt, int) or attempt < 1:
+            raise SourceError('Invalid CI attempt metadata')
+        timestamp = run.get('run_started_at') or (run.get('created_at') if attempt == 1 else None)
+        def parse(value):
+            try:
+                result = datetime.fromisoformat(value.replace('Z', '+00:00'))
+                if result.tzinfo is None:
+                    raise ValueError()
+                return result
+            except (AttributeError, TypeError, ValueError):
+                raise SourceError('CI attempt start time is missing or invalid') from None
+        started = parse(timestamp)
+        # A queued rerun may not yet have a fresh start time. Its newer update
+        # must revoke an older success until the attempt has completed.
+        if run.get('status') != 'completed' and run.get('updated_at'):
+            started = max(started, parse(run['updated_at']))
+        return started, run['id'], attempt
+    return max(candidates, key=order)
 
 
 def wait_for_ci(sha, fetch, wait_seconds=0, sleep=time.sleep, monotonic=time.monotonic):
@@ -120,7 +140,9 @@ def main():
         if args.assert_current:
             current = gh(f'repos/{REPO}/git/ref/heads/main')['object']['sha']
             require_current_main(args.assert_current, current)
-            print('Release source still matches current main')
+            wait_for_ci(args.assert_current, gh)
+            require_current_main(args.assert_current, gh(f'repos/{REPO}/git/ref/heads/main')['object']['sha'])
+            print('Release source and latest Android/emulator CI still match verified current main')
             return 0
         event = json.loads(Path(os.environ['GITHUB_EVENT_PATH']).read_text(encoding='utf-8'))
         sha = resolve(os.environ, event)

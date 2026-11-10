@@ -25,7 +25,7 @@ WIF 조건은 저장소 ID `1452185615`, 저장소 `hebi10/FocusLock`, 소유자
 
 ## 검증과 실행
 
-`Android CI/verify`와 `Android full-screen emulator QA/emulator`가 모두 현재 main의 정확한 SHA에서 성공해야 합니다. PR 실행 성공만으로 대체하지 않습니다. 최신 실패·취소·건너뛴 job을 이전 성공으로 우회하지 않습니다. 두 워크플로 모두 main push에서 실행합니다. 자동 배포는 Android CI 완료로 한 번 시작하고 동일 SHA의 에뮬레이터 완료를 최대 50분 기다립니다. 완료되지 않거나 main이 변경되면 업로드 없이 실패합니다.
+`Android CI/verify`와 `Android full-screen emulator QA/emulator`가 모두 현재 main의 정확한 SHA에서 성공해야 합니다. PR 실행 성공만으로 대체하지 않습니다. 최신 실패·취소·건너뛴 job을 이전 성공으로 우회하지 않습니다. 최신 시도는 GitHub의 `run_started_at`으로 비교하고, 업로드 직전에도 두 CI를 대기 없이 다시 확인합니다. 두 워크플로 모두 main push에서 실행합니다. 자동 배포는 Android CI 완료로 한 번 시작하고 동일 SHA의 에뮬레이터 완료를 최대 50분 기다립니다. 완료되지 않거나 main이 변경되면 업로드 없이 실패합니다.
 
 GitHub Actions의 `Play internal release`를 main에서 수동 실행할 수 있습니다.
 
