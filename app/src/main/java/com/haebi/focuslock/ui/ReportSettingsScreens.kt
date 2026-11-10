@@ -20,7 +20,7 @@ import com.haebi.focuslock.data.UsageFormat
 import com.haebi.focuslock.data.UsageLoadState
 
 @Composable
-fun ReportScreen(state: UsageLoadState, onBack: () -> Unit, onApp: (AppUsage) -> Unit, onUsageSettings: () -> Unit, onRefresh: () -> Unit) {
+fun ReportScreen(state: UsageLoadState, excluded: Map<String, Boolean>, onBack: () -> Unit, onApp: (AppUsage, String) -> Unit, onUsageSettings: () -> Unit, onRefresh: () -> Unit) {
     var period by rememberSaveable { mutableStateOf("7일") }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -54,9 +54,9 @@ fun ReportScreen(state: UsageLoadState, onBack: () -> Unit, onApp: (AppUsage) ->
             FocusCard {
                 SectionTitle("사용량 상위 앱")
                 if (selected.apps.isEmpty()) Text("사용 기록 없음", fontSize = 12.sp)
-                selected.apps.take(5).forEachIndexed { index, app ->
-                    AppUsageRow(app, totalMinutes = selected.totalMinutes, onClick = { onApp(app) })
-                    if(index < minOf(5, selected.apps.size) - 1) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                selected.apps.filter { excluded[it.id] != true }.take(5).forEachIndexed { index, app ->
+                    AppUsageRow(app, totalMinutes = selected.totalMinutes, onClick = { onApp(app, period) })
+                    if(index < minOf(5, selected.apps.count { excluded[it.id] != true }) - 1) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 }
             }
             FocusCard {

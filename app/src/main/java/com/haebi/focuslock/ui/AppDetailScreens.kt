@@ -21,11 +21,15 @@ import com.haebi.focuslock.data.UsageFormat
 import com.haebi.focuslock.data.UsageSnapshot
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @Composable
 fun AppDetailScreen(
     app: AppUsage,
     snapshot: UsageSnapshot,
+    period: String,
     goalMinutes: Int?,
     isDistraction: Boolean,
     isExcluded: Boolean,
@@ -52,14 +56,14 @@ fun AppDetailScreen(
             }
         }
         FocusCard {
-            Metric(UsageFormat.minutesLabel(app.minutes), "선택한 기간 사용")
+            Metric(UsageFormat.minutesLabel(app.minutes), "$period 사용")
             Text(if (goalMinutes != null) "일일 목표 ${UsageFormat.minutesLabel(goalMinutes)}" else "설정된 일일 목표 없음", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (goalMinutes != null) Text("목표 달성률은 사용 분석의 ‘오늘’에서 확인합니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             SettingRow("사용 목표", "목표를 초과해도 다른 앱을 강제 종료하지 않습니다.", "수정", onGoal)
         }
         FocusCard {
             SectionTitle("사용 패턴 · 최근 7일")
-            if (!history.isNullOrEmpty()) BarChart(history, listOf("월", "화", "수", "목", "금", "토", "일"), (history.maxOrNull() ?: 1).coerceAtLeast(1), -1)
+            if (!history.isNullOrEmpty()) BarChart(history, (6 downTo 0).map { LocalDate.now().minusDays(it.toLong()).format(DateTimeFormatter.ofPattern("E", Locale.KOREAN)) }, (history.maxOrNull() ?: 1).coerceAtLeast(1), -1)
             else Text("기간별 앱 사용 기록 없음", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             InfoPair("실행·전환 이벤트", if (app.launches < 0) "확인 불가" else "${app.launches}회")
@@ -90,8 +94,7 @@ fun AppDetailScreen(
                 Icon(Icons.Outlined.Info, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("배터리 소비량 측정이 아닌 사용 패턴 정보입니다.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            val referenceTotal = listOf(snapshot.today, snapshot.last7, snapshot.last30)
-                .firstOrNull { window -> window.apps.any { it.id == app.id && it.minutes == app.minutes } }?.totalMinutes ?: snapshot.today.totalMinutes
+            val referenceTotal = snapshot.window(period).totalMinutes
             InfoPair("해당 기간 앱 사용 비중", "${UsageFormat.sharePercent(app.minutes, referenceTotal)}%")
             InfoPair("사용 이벤트", if (app.launches < 0) "확인 불가" else "${app.launches}회")
             SettingRow("배터리 정보 확인", "시스템 앱 정보 화면에서 배터리 사용량을 확인합니다.", onClick = onSystemSettings)
@@ -109,7 +112,7 @@ fun AppDetailScreen(
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("분석에서 제외", fontWeight = FontWeight.Medium)
-                    Text("통계·상위 앱 목록에서 숨깁니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("앱 목록에서 숨기며 총 사용 시간에는 포함합니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Switch(checked = isExcluded, onCheckedChange = onExcluded)
             }

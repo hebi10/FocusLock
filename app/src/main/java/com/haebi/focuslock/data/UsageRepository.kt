@@ -131,7 +131,8 @@ class UsageRepository(private val context: Context) {
                     events.getNextEvent(event)
                     val timestamp = event.timeStamp.coerceIn(eventStart, nowMillis)
                     val packageName = event.packageName ?: continue
-                    if (packageName == context.packageName) continue
+                    // Keep our own foreground transitions in the timeline to close the previous app's interval.
+                    // appendHourly intentionally excludes FocusLock itself.
                     val day = Instant.ofEpochMilli(timestamp).atZone(zone).toLocalDate()
                     when (event.eventType) {
                         resumedType -> {

@@ -57,6 +57,7 @@ fun FocusLockApp() {
     var tab by rememberSaveable { mutableStateOf(MainTab.HOME.name) }
     var detail by rememberSaveable { mutableStateOf("") }
     var selectedAppId by rememberSaveable { mutableStateOf("") }
+    var selectedAppPeriod by rememberSaveable { mutableStateOf("오늘") }
     var selectedAppRecord by remember { mutableStateOf<AppUsage?>(null) }
     var goalSheetId by rememberSaveable { mutableStateOf("") }
     var selectedGardenItemId by rememberSaveable { mutableStateOf("") }
@@ -217,6 +218,7 @@ fun FocusLockApp() {
                     detail == "app" && usageSnapshot != null && selectedAppRecord != null -> AppDetailScreen(
                         app = selectedAppRecord!!,
                         snapshot = usageSnapshot,
+                        period = selectedAppPeriod,
                         goalMinutes = goals[selectedAppId],
                         isDistraction = distraction[selectedAppId] ?: false,
                         isExcluded = excluded[selectedAppId] ?: false,
@@ -231,7 +233,8 @@ fun FocusLockApp() {
                     detail == "app" -> InfoState("사용 기록 갱신됨", "선택한 앱의 사용 기록을 다시 확인해 주세요.", "사용 분석으로", {detail=""})
                     detail == "report" -> ReportScreen(
                         state = usageState,
-                        onBack = {detail = ""}, onApp = { selectedAppId=it.id; selectedAppRecord=it; detail="app" },
+                        excluded = excluded,
+                        onBack = {detail = ""}, onApp = { app, period -> selectedAppId=app.id; selectedAppRecord=app; selectedAppPeriod=period; detail="app" },
                         onUsageSettings = {openUsageSettings(context)}, onRefresh = {reloadToken++}
                     )
                     detail == "permissions" -> key(reloadToken) { PermissionManagementScreen(
@@ -243,9 +246,10 @@ fun FocusLockApp() {
                         MainTab.HOME -> HomeScreen(
                             state = usageState,
                             goals = goals,
+                            excluded = excluded,
                             onFocus = {goMain(MainTab.FOCUS)},
                             onAnalysis = {goMain(MainTab.ANALYSIS)},
-                            onApp = { selectedAppId=it.id;selectedAppRecord=it;detail="app" },
+                            onApp = { selectedAppId=it.id;selectedAppRecord=it;selectedAppPeriod="오늘";detail="app" },
                             onGarden = {goMain(MainTab.GARDEN)},
                             onReport = {detail="report"},
                             onSettings = {goMain(MainTab.SETTINGS)},
@@ -253,7 +257,8 @@ fun FocusLockApp() {
                         )
                         MainTab.ANALYSIS -> AnalysisScreen(
                             state = usageState,
-                            onApp = { selectedAppId=it.id;selectedAppRecord=it;detail="app" }, onReport = {detail="report"},
+                            excluded = excluded,
+                            onApp = { app, period -> selectedAppId=app.id; selectedAppRecord=app; selectedAppPeriod=period;detail="app" }, onReport = {detail="report"},
                             onUsageSettings = {openUsageSettings(context)}, onRefresh = {reloadToken++}
                         )
                         MainTab.FOCUS -> FocusSetupScreen(
@@ -316,7 +321,7 @@ fun FocusLockApp() {
         )
         if(showInfo) AlertDialog(
             onDismissRequest={showInfo=false},
-            title={Text("FocusLock UI 프로토타입")},
+            title={Text("FocusLock 구현 상태")},
             text={Text("Android 사용 통계·앱별 요청 권한 조회가 연결되었습니다. 자동 목표 경고, 보상 영구 저장, 앱 강제 제한은 구현되지 않았습니다.")},
             confirmButton={TextButton(onClick={showInfo=false}){Text("확인")}}
         )

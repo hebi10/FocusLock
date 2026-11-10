@@ -37,6 +37,7 @@ private fun UsageStatus(state: UsageLoadState, onGrant: () -> Unit, onRefresh: (
 fun HomeScreen(
     state: UsageLoadState,
     goals: Map<String, Int>,
+    excluded: Map<String, Boolean>,
     onFocus: () -> Unit,
     onAnalysis: () -> Unit,
     onApp: (AppUsage) -> Unit,
@@ -60,16 +61,18 @@ fun HomeScreen(
                 val totalGoals = goals.values.sum()
                 if (totalGoals > 0) {
                     Text("설정된 앱 목표 합계 ${UsageFormat.minutesLabel(totalGoals)}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    ProgressBar(total.toFloat() / totalGoals)
+                    val managedMinutes = snapshot.today.apps.filter { goals.containsKey(it.id) }.sumOf { it.minutes }
+                    Text("관리 대상 앱 ${UsageFormat.minutesLabel(managedMinutes)} 사용", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    ProgressBar(managedMinutes.toFloat() / totalGoals)
                 } else Text("앱별 목표를 설정하면 진행률을 확인할 수 있습니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 ActionButton("집중 시작", onFocus)
                 Text("25분 집중", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, modifier = Modifier.align(Alignment.CenterHorizontally))
             }
             FocusCard {
                 SectionTitle("많이 사용한 앱", "전체 보기", onAnalysis)
-                snapshot.today.apps.take(3).forEachIndexed { index, app ->
+                snapshot.today.apps.filter { excluded[it.id] != true }.take(3).forEachIndexed { index, app ->
                     AppUsageRow(app, goals[app.id], snapshot.today.totalMinutes) { onApp(app) }
-                    if (index < minOf(3, snapshot.today.apps.size) - 1) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    if (index < minOf(3, snapshot.today.apps.count { excluded[it.id] != true }) - 1) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 }
             }
         } else {
@@ -95,7 +98,8 @@ fun HomeScreen(
 @Composable
 fun AnalysisScreen(
     state: UsageLoadState,
-    onApp: (AppUsage) -> Unit,
+    excluded: Map<String, Boolean>,
+    onApp: (AppUsage, String) -> Unit,
     onReport: () -> Unit,
     onUsageSettings: () -> Unit,
     onRefresh: () -> Unit
@@ -116,7 +120,7 @@ fun AnalysisScreen(
             } else {
                 val selected = snapshot.window(period)
                 val prior = snapshot.prior(period)
-                val filtered = selected.apps.filter { category == "전체" || it.category == category }
+                val filtered = selected.apps.filter { excluded[it.id] != true && (category == "전체" || it.category == category) }
                     .let { if (sort == "실행 횟수") it.sortedByDescending { app -> app.launches } else it.sortedByDescending { app -> app.minutes } }
                 if (selected.apps.isEmpty()) InfoState("사용 기록 없음", "선택한 기간에 Android가 제공하는 앱 사용 기록이 없습니다.")
                 FocusCard {
@@ -164,7 +168,7 @@ fun AnalysisScreen(
                         }
                         if (filtered.isEmpty()) Text("선택한 조건의 사용 기록이 없습니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         filtered.forEachIndexed { index, app ->
-                            AppUsageRow(app, totalMinutes = selected.totalMinutes, onClick = { onApp(app) })
+                            AppUsageRow(app, totalMinutes = selected.totalMinutes, onClick = { onApp(app, period) })
                             if (index < filtered.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         }
                     }
