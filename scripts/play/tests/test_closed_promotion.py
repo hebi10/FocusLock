@@ -147,9 +147,35 @@ class ClosedPromotionTests(unittest.TestCase):
 
     def test_missing_track_bundle_or_source_release_never_mutates(self):
         servers = (Server(bundles=False), Server(alpha=False), Server(internal=False),
-                   Server(alpha_code=1))
+                   Server(alpha_code=3))
         for server in servers:
             with self.subTest(tracks=server.tracks), self.assertRaises(publisher.ReleaseError):
+                closed_promotion.promote(server)
+            self.assertFalse(server.committed)
+            self.assertFalse(any(method == 'PUT' for method, _, _ in server.calls))
+
+    def test_single_older_alpha_code_one_may_be_replaced_as_user_requested(self):
+        for status in ('draft', 'completed'):
+            with self.subTest(status=status):
+                server = Server(alpha_code=1)
+                server.tracks[-1]['releases'][0]['status'] = status
+                result = closed_promotion.promote(server)
+                self.assertEqual(result['status'], 'closed_api_committed_and_verified')
+                self.assertEqual(server.tracks[-1]['releases'][0]['versionCodes'], ['2'])
+                self.assertTrue(result['internalTrackPreserved'])
+
+    def test_only_empty_draft_may_be_replaced_without_existing_code(self):
+        server = Server()
+        server.tracks[-1]['releases'] = [{'status': 'draft', 'versionCodes': []}]
+        self.assertEqual(closed_promotion.promote(server)['status'], 'closed_api_committed_and_verified')
+
+    def test_halted_and_multiple_alpha_releases_are_never_overwritten(self):
+        blocked = [Server(alpha_code=1), Server(alpha_code=1)]
+        blocked[0].tracks[-1]['releases'][0]['status'] = 'halted'
+        blocked[1].tracks[-1]['releases'].append(
+            {'status': 'completed', 'versionCodes': ['2']})
+        for server in blocked:
+            with self.assertRaises(publisher.ReleaseError):
                 closed_promotion.promote(server)
             self.assertFalse(server.committed)
             self.assertFalse(any(method == 'PUT' for method, _, _ in server.calls))

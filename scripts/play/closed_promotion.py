@@ -44,6 +44,30 @@ def release_is(release, status):
             and [str(value) for value in release.get('versionCodes', [])] == [VERSION])
 
 
+def alpha_release_policy(releases):
+    if not releases:
+        return 'empty'
+    if len(releases) != 1 or not isinstance(releases[0], dict):
+        raise ReleaseError('Multiple existing closed track releases require Console review')
+    release = releases[0]
+    codes = [str(value) for value in (release.get('versionCodes') or [])]
+    status = release.get('status')
+    if codes == [VERSION] and status == 'completed':
+        return 'already'
+    if codes == [VERSION] and status == 'draft':
+        return 'same_version_draft'
+    # One previously registered code 1 is safe to replace when explicitly
+    # promoting already verified code 2. Never override paused/in-progress,
+    # higher-code, multiple-code, or malformed closed releases.
+    if codes == ['1'] and status in ('draft', 'completed'):
+        return 'older_version'
+    if not codes and status == 'draft':
+        return 'empty_draft'
+    safe_codes = ','.join(c for c in codes[:3] if c.isascii() and c.isdigit()) or 'none'
+    safe_status = status if status in ('draft', 'completed', 'halted', 'inProgress') else 'unknown'
+    raise ReleaseError('Closed track requires Console review; existing code=' + safe_codes + ', status=' + safe_status)
+
+
 def snapshot(publisher, edit):
     bundles, apks, tracks = publisher.inventory(edit)
     if (not isinstance(bundles, list) or not isinstance(apks, list)
@@ -70,9 +94,7 @@ def snapshot(publisher, edit):
     releases = closed.get('releases', [])
     if not isinstance(releases, list):
         raise ReleaseError('Closed testing releases are malformed')
-    if releases and (len(releases) != 1 or
-                     not (release_is(releases[0], 'completed') or release_is(releases[0], 'draft'))):
-        raise ReleaseError('Closed track already has another release; refusing to replace it')
+    alpha_release_policy(releases)
     other = {name: value for name, value in by_name.items() if name != TRACK}
     return releases, other
 
@@ -81,7 +103,7 @@ def inspect(transport):
     publisher = Publisher(transport)
     with publisher.initial_stage('inventory'), publisher.edit(ignore_delete_error=False) as edit:
         releases, _ = snapshot(publisher, edit)
-    ready = releases == [] or release_is(releases[0], 'draft')
+    ready = alpha_release_policy(releases) != 'already'
     return {'package': PACKAGE, 'sourceTrack': SOURCE_TRACK, 'targetTrack': TRACK,
             'versionCode': int(VERSION),
             'status': 'ready_for_closed_promotion' if ready else 'already_on_closed',
