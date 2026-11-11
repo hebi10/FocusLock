@@ -43,6 +43,7 @@ adb shell am start -a android.settings.SETTINGS
 sleep 50
 adb shell input keyevent KEYCODE_HOME
 run_case 'com.haebi.focuslock.FocusLockScreenQaTest#grantedUsageAndDetailScreens' permission-granted
+run_case 'com.haebi.focuslock.FocusLockAnalysisQaTest#usageAnalysisSearchSortAndPeriodAreOperableWithRealAndroidData' ui-r04-analysis-search-sort
 run_case 'com.haebi.focuslock.FocusLockUsageStateAuditTest#permissionGrantedCapturesRealUsageCoverage' ui-r00-usage-granted
 run_case 'com.haebi.focuslock.FocusPersistenceQaTest#storedRewardSurvivesDatabaseReopenAndIsNotDuplicated' room-reopen-reward
 run_case 'com.haebi.focuslock.FocusPersistenceQaTest#rebootPausesSessionAndNeverInventsCompletion' room-reboot-recovery
@@ -51,6 +52,18 @@ if ! adb pull /sdcard/Android/data/com.haebi.focuslock/files/qa-r00/ captures/; 
   echo "::error::Could not pull UI-R00 real usage evidence"
   failed=1
 fi
+
+if ! adb pull /sdcard/Android/data/com.haebi.focuslock/files/qa-r04-captures/ captures/; then
+  echo "::error::Could not pull UI-R04 real Android analysis captures"
+  failed=1
+fi
+
+for name in r04-analysis-today r04-analysis-search-empty r04-analysis-sort-name; do
+  if [[ ! -s "captures/qa-r04-captures/${name}.png" ]]; then
+    echo "::error::Missing UI-R04 actual Android capture: ${name}.png"
+    failed=1
+  fi
+done
 
 if ! adb pull /sdcard/Android/data/com.haebi.focuslock/files/qa-captures/ captures/; then
   echo "::error::Could not pull screenshots from the Android emulator"
