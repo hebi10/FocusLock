@@ -88,13 +88,15 @@ fun HomeScreen(
 
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 if (totalGoals > 0) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("관리 앱 목표 진행률", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                        Text(
-                            UsageFormat.minutesLabel(managedMinutes) + " / " + UsageFormat.minutesLabel(totalGoals),
-                            style = MaterialTheme.typography.labelMedium
-                        )
-                    }
+                    Text(
+                        "관리 앱 목표 진행률",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        UsageFormat.minutesLabel(managedMinutes) + " / " + UsageFormat.minutesLabel(totalGoals),
+                        style = MaterialTheme.typography.labelMedium
+                    )
                     ProgressBar(managedMinutes.toFloat() / totalGoals, isWarning = managedMinutes > totalGoals)
                     Text(
                         if (managedMinutes > totalGoals) "합산 목표보다 " + UsageFormat.minutesLabel(managedMinutes - totalGoals) + " 초과"
