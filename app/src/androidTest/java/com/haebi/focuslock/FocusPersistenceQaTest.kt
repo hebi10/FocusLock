@@ -41,6 +41,7 @@ class FocusPersistenceQaTest {
             assertNotNull(first?.reward)
             assertEquals(first?.reward, second?.reward)
             assertEquals(30, store.totalExperience())
+            assertEquals(20, store.totalPoints())
             assertEquals(1, store.report().last7.completedCount)
         } finally { original.close() }
 
@@ -48,6 +49,7 @@ class FocusPersistenceQaTest {
         try {
             val store = FocusSessionStore(reopened, clock)
             assertEquals(30, store.totalExperience())
+            assertEquals(20, store.totalPoints())
             assertEquals(1, store.report().last7.completedCount)
             assertEquals(null, store.restore().session)
         } finally {
@@ -93,6 +95,28 @@ class FocusPersistenceQaTest {
             assertEquals(20, recovery.session?.elapsedSeconds)
             assertEquals(null, store.finish(original.id)?.reward)
             assertEquals(0, store.totalExperience())
+        } finally { db.close() }
+    }
+    @Test fun repeatedStartKeepsActiveSessionAndEarlyStopNeverEarnsRewards() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val db = Room.inMemoryDatabaseBuilder(context, FocusDatabase::class.java).build()
+        try {
+            val clock = FixedClock()
+            val store = FocusSessionStore(db, clock)
+            val first = store.start(25)
+            val repeated = store.start(10)
+            assertEquals(first.id, repeated.id)
+            assertEquals(FocusSessionStatus.RUNNING, repeated.status)
+
+            clock.monotonic += 12_000L
+            clock.wall += 12_000L
+            val stopped = store.finish(first.id)
+            assertEquals(FocusSessionStatus.STOPPED, stopped?.session?.status)
+            assertEquals(12, stopped?.session?.elapsedSeconds)
+            assertEquals(null, stopped?.reward)
+            assertEquals(0, store.totalExperience())
+            assertEquals(0, store.totalPoints())
+            assertEquals(null, store.restore().session)
         } finally { db.close() }
     }
 }

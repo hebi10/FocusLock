@@ -80,7 +80,14 @@ fun FocusLockApp() {
     var selectedAppRecord by remember { mutableStateOf<AppUsage?>(null) }
     var goalSheetId by rememberSaveable { mutableStateOf("") }
     var selectedGardenItemId by rememberSaveable { mutableStateOf("") }
-    var placedGardenItem by rememberSaveable { mutableStateOf(prefs.getString("placed_garden_item", "작은 새싹") ?: "작은 새싹") }
+    var placedGardenItemId by rememberSaveable {
+        mutableStateOf(
+            GardenCatalog.fromSaved(
+                prefs.getString("placed_garden_item_id", null)
+                    ?: prefs.getString("placed_garden_item", null)
+            ).id
+        )
+    }
     var showInfo by rememberSaveable { mutableStateOf(false) }
 
     val goals = remember(prefs) {
@@ -128,6 +135,11 @@ fun FocusLockApp() {
     var paused by rememberSaveable { mutableStateOf(false) }
     var completed by rememberSaveable { mutableStateOf(false) }
     var experience by rememberSaveable { mutableIntStateOf(0) }
+    var growthPoints by remember { mutableIntStateOf(0) }
+    var resultExperience by rememberSaveable { mutableIntStateOf(0) }
+    var resultPoints by rememberSaveable { mutableIntStateOf(0) }
+    var startInProgress by remember { mutableStateOf(false) }
+    var finishInProgress by remember { mutableStateOf(false) }
     var todayExperience by remember { mutableIntStateOf(0) }
     var stopConfirm by rememberSaveable { mutableStateOf(false) }
     var focusSessionId by remember { mutableStateOf<String?>(null) }
@@ -153,6 +165,7 @@ fun FocusLockApp() {
     LaunchedEffect(Unit) {
         val recovered = withContext(Dispatchers.IO) { focusStore.restore() }
         experience = withContext(Dispatchers.IO) { focusStore.totalExperience() }
+        growthPoints = withContext(Dispatchers.IO) { focusStore.totalPoints() }
         todayExperience = withContext(Dispatchers.IO) { focusStore.todayExperience() }
         focusReport = withContext(Dispatchers.IO) { focusStore.report() }
         recovered.session?.let {
@@ -191,29 +204,46 @@ fun FocusLockApp() {
         onboarding = -1
     }
     fun startFocus(minutes: Int) {
+        if (startInProgress || focusSessionId != null) return
+        startInProgress = true
         scope.launch {
-            val saved = withContext(Dispatchers.IO) { focusStore.start(minutes) }
-            applySession(saved)
-            completed = false
-            focusRestoreMessage = false
-            stopConfirm = false
-            detail = ""
-            tab = MainTab.FOCUS.name
+            try {
+                val saved = withContext(Dispatchers.IO) { focusStore.start(minutes) }
+                applySession(saved)
+                completed = false
+                resultExperience = 0
+                resultPoints = 0
+                focusRestoreMessage = false
+                stopConfirm = false
+                detail = ""
+                tab = MainTab.FOCUS.name
+            } finally {
+                startInProgress = false
+            }
         }
     }
 
     fun finishFocus() {
         val id = focusSessionId ?: return
+        if (finishInProgress) return
+        finishInProgress = true
         scope.launch {
-            val result = withContext(Dispatchers.IO) { focusStore.finish(id) } ?: return@launch
-            completed = result.reward != null
-            elapsedSeconds = result.session.elapsedSeconds
-            experience = withContext(Dispatchers.IO) { focusStore.totalExperience() }
-        todayExperience = withContext(Dispatchers.IO) { focusStore.todayExperience() }
-            focusReport = withContext(Dispatchers.IO) { focusStore.report() }
-            focusSessionId = null
-            focusPhase = "result"
-            stopConfirm = false
+            try {
+                val result = withContext(Dispatchers.IO) { focusStore.finish(id) } ?: return@launch
+                completed = result.reward != null
+                resultExperience = result.reward?.experience ?: 0
+                resultPoints = result.reward?.points ?: 0
+                elapsedSeconds = result.session.elapsedSeconds
+                experience = withContext(Dispatchers.IO) { focusStore.totalExperience() }
+                growthPoints = withContext(Dispatchers.IO) { focusStore.totalPoints() }
+                todayExperience = withContext(Dispatchers.IO) { focusStore.todayExperience() }
+                focusReport = withContext(Dispatchers.IO) { focusStore.report() }
+                focusSessionId = null
+                focusPhase = "result"
+                stopConfirm = false
+            } finally {
+                finishInProgress = false
+            }
         }
     }
 
@@ -323,9 +353,14 @@ fun FocusLockApp() {
                         },
                         onFinish = { stopConfirm = true }
                     )
-                    focusPhase == "result" -> FocusResultScreen(completed, elapsedSeconds,
-                        onHome = {focusPhase="setup";goMain(MainTab.HOME)},
-                        onGarden = {focusPhase="setup";goMain(MainTab.GARDEN)})
+                    focusPhase == "result" -> FocusResultScreen(
+                        completed = completed,
+                        elapsedSeconds = elapsedSeconds,
+                        rewardExperience = resultExperience,
+                        rewardPoints = resultPoints,
+                        onHome = { focusPhase = "setup"; goMain(MainTab.HOME) },
+                        onGarden = { focusPhase = "setup"; goMain(MainTab.GARDEN) }
+                    )
                     detail == "app" && usageSnapshot != null && selectedAppRecord != null -> AppDetailScreen(
                         app = selectedAppRecord!!,
                         snapshot = usageSnapshot,
@@ -379,13 +414,22 @@ fun FocusLockApp() {
                         )
                         MainTab.FOCUS -> FocusSetupScreen(
                             onStart = ::startFocus,
-                            selectedDistractions = distraction.values.count { it }
+                            selectedDistractions = distraction.values.count { it },
+                            availableApps = (usageSnapshot?.last7?.apps.orEmpty() +
+                                usageSnapshot?.today?.apps.orEmpty()).distinctBy { it.id },
+                            selectedDistractionIds = distraction.filterValues { it }.keys,
+                            onDistractionChange = { id, selected ->
+                                distraction[id] = selected
+                                prefs.edit().putBoolean("distraction.$id", selected).apply()
+                            },
+                            usageAccessGranted = usageAccessGranted
                         )
                         MainTab.GARDEN -> GardenScreen(
                             experience = experience,
-                            placedItem = placedGardenItem,
-                            onItem = {selectedGardenItemId=it.id},
-                            onFocus = {goMain(MainTab.FOCUS)}
+                            points = growthPoints,
+                            placedItem = placedGardenItemId,
+                            onItem = { selectedGardenItemId = it.id },
+                            onFocus = { goMain(MainTab.FOCUS) }
                         )
                         MainTab.SETTINGS -> SettingsScreen(
                             theme = theme,
@@ -442,24 +486,37 @@ fun FocusLockApp() {
                 onDismiss = {goalSheetId=""}
             )
         }
-        if(selectedGardenItemId.isNotEmpty()) {
-            val item = listOf(
-                GardenItem("sprout", "작은 새싹", "🌱", 0),
-                GardenItem("flowers", "꽃밭", "🌼", 60),
-                GardenItem("tree", "작은 나무", "🌳", 150),
-                GardenItem("bench", "정원 벤치", "🪑", 300)
-            ).firstOrNull { it.id == selectedGardenItemId }
-            if (item != null) GardenItemSheet(item, experience,
-                onDismiss={selectedGardenItemId=""}, onSelect={
-                    placedGardenItem = item.name
-                    prefs.edit().putString("placed_garden_item", item.name).apply()
+        if (selectedGardenItemId.isNotEmpty()) {
+            val item = GardenCatalog.items.firstOrNull { it.id == selectedGardenItemId }
+            if (item != null) GardenItemSheet(
+                item = item,
+                experience = experience,
+                placedItemId = GardenCatalog.placed(placedGardenItemId, experience).id,
+                onDismiss = { selectedGardenItemId = "" },
+                onSelect = {
+                    if (GardenCatalog.canPlace(item.id, experience)) {
+                        placedGardenItemId = item.id
+                        prefs.edit().putString("placed_garden_item_id", item.id).apply()
+                    }
                     selectedGardenItemId = ""
-                })
+                }
+            )
         }
         if(stopConfirm) AlertDialog(
-            onDismissRequest={stopConfirm=false},
+            onDismissRequest = { stopConfirm = false },
+            shape = MaterialTheme.shapes.medium,
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurface,
             title={Text("집중을 종료할까요?")},
-            text={Text(if(focusDuration==0) "10분 이상 진행했다면 완료 보상을 받습니다." else "설정한 시간을 채우기 전 종료하면 완료 보상은 지급되지 않습니다.")},
+            text = {
+                Text(
+                    if (com.haebi.focuslock.data.FocusRewardRules.qualifies(focusDuration, elapsedSeconds))
+                        "보상 조건을 달성했습니다. 종료하면 기록과 보상이 저장됩니다."
+                    else "현재 ${elapsedSeconds / 60}분 ${(elapsedSeconds % 60).toString().padStart(2, '0')}초 진행했습니다. " +
+                        "지금 종료하면 보상 없이 기록됩니다."
+                )
+            },
             confirmButton={TextButton(onClick=::finishFocus){Text("종료")}},
             dismissButton={TextButton(onClick={stopConfirm=false}){Text("계속 집중")}}
         )

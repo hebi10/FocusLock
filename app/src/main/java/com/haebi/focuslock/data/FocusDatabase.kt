@@ -62,6 +62,9 @@ interface FocusDao {
     @Query("SELECT COALESCE(SUM(experience), 0) FROM focus_rewards")
     suspend fun totalExperience(): Int
 
+    @Query("SELECT COALESCE(SUM(points), 0) FROM focus_rewards")
+    suspend fun totalPoints(): Int
+
     @Query("SELECT COALESCE(SUM(experience), 0) FROM focus_rewards WHERE earnedAtMillis >= :fromMillis AND earnedAtMillis < :untilMillis")
     suspend fun experienceBetween(fromMillis: Long, untilMillis: Long): Int
 

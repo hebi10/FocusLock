@@ -66,13 +66,7 @@ class FocusSessionStore(
 
     suspend fun start(durationMinutes: Int): FocusSessionEntity = database.withTransaction {
         require(durationMinutes == 0 || durationMinutes in 5..90)
-        dao.activeSession()?.let {
-            dao.updateSession(it.copy(
-                elapsedSeconds = elapsed(it),
-                status = FocusSessionStatus.STOPPED,
-                finishedAtMillis = clock.wallMillis()
-            ))
-        }
+        dao.activeSession()?.let { return@withTransaction it }
         FocusSessionEntity(
             id = UUID.randomUUID().toString(),
             createdAtMillis = clock.wallMillis(),
@@ -146,6 +140,8 @@ class FocusSessionStore(
     }
 
     suspend fun totalExperience(): Int = dao.totalExperience()
+
+    suspend fun totalPoints(): Int = dao.totalPoints()
 
     suspend fun todayExperience(): Int {
         val zone = ZoneId.systemDefault()

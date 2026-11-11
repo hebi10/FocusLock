@@ -127,12 +127,20 @@ class FocusLockScreenQaTest {
             tapText("뒤로")
             tapText("집중")
             capture("08-focus-setup")
+            assertTrue(
+                "Focus start must be visible without scrolling the setup screen",
+                device.wait(Until.findObject(By.text("집중 시작")), 2500L) != null
+            )
             tapText("집중 시작")
             capture("09-focus-running")
             tapText("집중 종료")
             capture("10-focus-stop-confirm")
             tapText("종료")
             capture("11-focus-result")
+            assertTrue(
+                "Early stopped focus must not claim any earned reward",
+                device.wait(Until.hasObject(By.text("완료 조건 미충족 · 지급된 보상 없음")), 4000L)
+            )
             tapText("정원 보기")
             capture("12-garden")
             captureScrolledContent("28-garden-scroll")

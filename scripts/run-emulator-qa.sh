@@ -49,6 +49,7 @@ run_case 'com.haebi.focuslock.FocusLockUsageStateAuditTest#permissionGrantedCapt
 run_case 'com.haebi.focuslock.FocusPersistenceQaTest#storedRewardSurvivesDatabaseReopenAndIsNotDuplicated' room-reopen-reward
 run_case 'com.haebi.focuslock.FocusPersistenceQaTest#todayExperienceIsLimitedToEarnedRewardsFromLocalDay' room-today-experience
 run_case 'com.haebi.focuslock.FocusPersistenceQaTest#rebootPausesSessionAndNeverInventsCompletion' room-reboot-recovery
+run_case 'com.haebi.focuslock.FocusPersistenceQaTest#repeatedStartKeepsActiveSessionAndEarlyStopNeverEarnsRewards' room-duplicate-start-and-early-stop
 
 if ! adb pull /sdcard/Android/data/com.haebi.focuslock/files/qa-r00/ captures/; then
   echo "::error::Could not pull UI-R00 real usage evidence"
