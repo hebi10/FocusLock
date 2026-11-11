@@ -49,10 +49,11 @@ fun FocusSetupScreen(
         "사용자" -> customMinutes
         else -> 0
     }
-    Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
+    Column(Modifier.fillMaxSize()) {
+        Column(
+            Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
         PageTitle("집중", "지금 할 일에 집중할 시간을 정하세요")
         FocusCard {
             SectionTitle("집중 모드")
@@ -112,10 +113,13 @@ fun FocusSetupScreen(
                 style = MaterialTheme.typography.bodySmall
             )
         }
-        ActionButton("집중 시작", { onStart(duration) })
+        }
+        Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+            ActionButton("집중 시작", { onStart(duration) })
+        }
     }
     if (showDistractionSheet) {
-        ModalBottomSheet(onDismissRequest = { showDistractionSheet = false }) {
+        ModalBottomSheet(onDismissRequest = { showDistractionSheet = false }, containerColor = MaterialTheme.colorScheme.surface) {
             Column(
                 Modifier.fillMaxWidth().heightIn(max = 540.dp)
                     .verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 12.dp),
@@ -426,7 +430,7 @@ fun GardenItemSheet(
 ) {
     val unlocked = GardenCatalog.canPlace(item.id, experience)
     val placed = placedItemId == item.id
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.surface) {
         Column(
             Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
