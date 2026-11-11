@@ -282,10 +282,16 @@ fun GoalSheet(
     var warn80 by remember(app.id) { mutableStateOf(initialWarn80) }
     var warn100 by remember(app.id) { mutableStateOf(initialWarn100) }
     var selectedDays by remember(app.id) { mutableIntStateOf(GoalDayPolicy.normalize(initialDays)) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = 0.dp
+    ) {
         Column(
-            Modifier.fillMaxWidth().fillMaxHeight(0.9f)
+            Modifier.fillMaxWidth().fillMaxHeight(0.9f).navigationBarsPadding()
                 .padding(horizontal = FocusSpacing.md).padding(bottom = FocusSpacing.md),
             verticalArrangement = Arrangement.spacedBy(FocusSpacing.sm)
         ) {
