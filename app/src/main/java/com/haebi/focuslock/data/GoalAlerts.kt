@@ -36,9 +36,19 @@ object GoalAlerts {
     private const val UNIQUE_WORK = "focuslock_goal_periodic"
     private val notificationLock = Any()
 
+    private fun daysForApp(prefs: android.content.SharedPreferences, appId: String): Int =
+        if (prefs.contains("goalDays.${appId}")) {
+            GoalDayPolicy.normalize(prefs.getInt("goalDays.${appId}", GoalDayPolicy.EVERY_DAY))
+        } else {
+            GoalDayPolicy.fromLegacyEveryday(prefs.getBoolean("everyday.${appId}", true))
+        }
+
     fun schedule(context: Context) {
         val prefs = context.getSharedPreferences(PREFS, 0)
-        val hasGoals = prefs.all.any { (key, value) -> key.startsWith("goal.") && value is Int && value > 0 }
+        val hasGoals = prefs.all.any { (key, value) ->
+            key.startsWith("goal.") && value is Int && value > 0 &&
+                daysForApp(prefs, key.removePrefix("goal.")) != GoalDayPolicy.NONE
+        }
         val work = WorkManager.getInstance(context.applicationContext)
         if (hasGoals) {
             val request = PeriodicWorkRequestBuilder<GoalAlertWorker>(15, TimeUnit.MINUTES).build()
@@ -55,7 +65,8 @@ object GoalAlerts {
         val state = UsageRepository(context.applicationContext).load()
         val snapshot = (state as? UsageLoadState.Ready)?.snapshot ?: return
         val prefs = context.getSharedPreferences(PREFS, 0)
-        val today = LocalDate.now().toEpochDay()
+        val localDate = LocalDate.now()
+        val today = localDate.toEpochDay()
         notificationManager.createNotificationChannel(
             NotificationChannel(CHANNEL, "사용 목표 알림", NotificationManager.IMPORTANCE_DEFAULT)
         )
@@ -66,7 +77,7 @@ object GoalAlerts {
         )
         snapshot.today.apps.forEach { app ->
             val goal = prefs.getInt("goal.${app.id}", 0)
-            if (goal <= 0 || !prefs.getBoolean("everyday.${app.id}", true)) return@forEach
+            if (goal <= 0 || !GoalDayPolicy.selected(daysForApp(prefs, app.id), localDate)) return@forEach
             val threshold = GoalAlertPolicy.threshold(
                 minutes = app.minutes,
                 goal = goal,
