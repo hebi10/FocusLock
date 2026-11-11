@@ -159,7 +159,7 @@ class FocusLockScreenQaTest {
             else GoalDayPolicy.fromLegacyEveryday(
                 pref.getBoolean("everyday.com.android.settings", true)
             )
-            tapTag("goal-day-1")
+            tapText("월")
             tapText("저장")
             assertEquals(
                 "Changing Monday must persist exact selected notification weekdays",
