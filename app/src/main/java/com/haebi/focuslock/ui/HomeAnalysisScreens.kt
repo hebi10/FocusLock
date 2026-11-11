@@ -107,76 +107,62 @@ fun AnalysisScreen(
     var period by rememberSaveable { mutableStateOf("오늘") }
     var category by rememberSaveable { mutableStateOf("전체") }
     var sort by rememberSaveable { mutableStateOf("사용 시간") }
-    var filterMenu by remember { mutableStateOf(false) }
-    var sortMenu by remember { mutableStateOf(false) }
-    val snapshot = (state as? UsageLoadState.Ready)?.snapshot
+    var query by rememberSaveable { mutableStateOf("") }
+
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val wide = maxWidth >= 700.dp
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            PageTitle("사용 분석") { TextButton(onClick = onRefresh) { Text("새로고침") } }
-            PeriodSelector(listOf("오늘", "7일", "30일"), period) { period = it }
-            if (snapshot == null) {
+        Column(
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+                .padding(horizontal = FocusSpacing.md, vertical = FocusSpacing.md),
+            verticalArrangement = Arrangement.spacedBy(FocusSpacing.md)
+        ) {
+            PageTitle("사용 분석") {
+                TextButton(onClick = onRefresh) { Text("새로고침") }
+            }
+            PeriodSelector(AnalysisModels.periods, period) {
+                period = it
+                category = "전체"
+            }
+
+            if (state !is UsageLoadState.Ready) {
                 UsageStatus(state, onUsageSettings, onRefresh)
             } else {
+                val snapshot = state.snapshot
                 val selected = snapshot.window(period)
                 val prior = snapshot.prior(period)
-                val filtered = selected.apps.filter { excluded[it.id] != true && (category == "전체" || it.category == category) }
-                    .let { if (sort == "실행 횟수") it.sortedByDescending { app -> app.launches } else it.sortedByDescending { app -> app.minutes } }
-                if (selected.apps.isEmpty()) InfoState("사용 기록 없음", "선택한 기간에 Android가 제공하는 앱 사용 기록이 없습니다.")
-                FocusCard {
-                    Metric(UsageFormat.minutesLabel(selected.totalMinutes), "총 사용 시간")
-                    Text(UsageFormat.comparison(selected.totalMinutes, prior.totalMinutes) ?: "이전 기간의 비교 기록 없음", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                val chartContent: @Composable () -> Unit = {
+
+                if (selected.apps.isEmpty()) {
+                    InfoState("사용 기록 없음", "선택한 기간에 Android가 제공하는 앱 사용 기록이 없습니다.", "새로고침", onRefresh)
+                } else {
                     FocusCard {
-                        SectionTitle(if(period == "오늘") "시간대별 사용량" else "일별 사용 시간")
-                        val vals = snapshot.chart(period)
-                        if (vals == null) Text("시간대별 사용 이벤트를 확인할 수 없습니다. 일일 사용 시간은 위 집계를 참고해 주세요.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-                        else {
-                            val labels = when(period) {
-                                "오늘" -> List(24) { if(it % 3 == 0) "${it}시" else "" }
-                                "7일" -> (6 downTo 0).map { LocalDate.now().minusDays(it.toLong()).format(DateTimeFormatter.ofPattern("E", Locale.KOREAN)) }
-                                else -> (29 downTo 0).map { if (it % 5 == 0) LocalDate.now().minusDays(it.toLong()).dayOfMonth.toString() else "" }
-                            }
-                            BarChart(vals, labels, (vals.maxOrNull() ?: 0).coerceAtLeast(1), -1)
-                            if (period == "오늘") Text("시간대별 수치는 보관된 앱 전환 이벤트를 기반으로 하며 일부 누락될 수 있습니다.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
+                        Metric(UsageFormat.minutesLabel(selected.totalMinutes), "총 사용 시간")
+                        Text(
+                            UsageFormat.comparison(selected.totalMinutes, prior.totalMinutes)
+                                ?: "이전 기간의 비교 기록 없음",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
-                }
-                val listContent: @Composable () -> Unit = {
-                    FocusCard {
-                        SectionTitle("카테고리별 사용 비중")
-                        selected.apps.groupBy { it.category }.toList().sortedByDescending { (_, list) -> list.sumOf { it.minutes } }
-                            .forEach { (cat, items) -> CategoryRow(cat, items.sumOf { it.minutes }, selected.totalMinutes) }
-                        if (selected.apps.isEmpty()) Text("분류할 기록 없음", fontSize = 12.sp)
-                    }
-                    FocusCard {
-                        SectionTitle("앱별 사용 시간", "리포트 보기", onReport)
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Box {
-                                OutlinedButton(onClick = { filterMenu = true }) { Text(category) }
-                                DropdownMenu(filterMenu, onDismissRequest = { filterMenu = false }) {
-                                    (listOf("전체") + selected.apps.map { it.category }.distinct()).forEach { label -> DropdownMenuItem(text = { Text(label) }, onClick = { category = label; filterMenu = false }) }
-                                }
+                    if (wide) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.md)) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(FocusSpacing.md)) {
+                                AnalysisChart(snapshot, period)
+                                AnalysisCategorySummary(selected)
                             }
-                            Box {
-                                OutlinedButton(onClick = { sortMenu = true }) { Text(sort) }
-                                DropdownMenu(sortMenu, onDismissRequest = { sortMenu = false }) {
-                                    listOf("사용 시간", "실행 횟수").forEach { label -> DropdownMenuItem(text = { Text(label) }, onClick = { sort = label; sortMenu = false }) }
-                                }
+                            Box(Modifier.weight(1f)) {
+                                AnalysisAppList(selected, period, excluded, category, sort, query,
+                                    onCategory = { category = it }, onSort = { sort = it },
+                                    onQuery = { query = it }, onApp = onApp, onReport = onReport)
                             }
                         }
-                        if (filtered.isEmpty()) Text("선택한 조건의 사용 기록이 없습니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        filtered.forEachIndexed { index, app ->
-                            AppUsageRow(app, totalMinutes = selected.totalMinutes, onClick = { onApp(app, period) })
-                            if (index < filtered.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        }
+                    } else {
+                        AnalysisChart(snapshot, period)
+                        AnalysisAppList(selected, period, excluded, category, sort, query,
+                            onCategory = { category = it }, onSort = { sort = it },
+                            onQuery = { query = it }, onApp = onApp, onReport = onReport)
+                        AnalysisCategorySummary(selected)
                     }
                 }
-                if (wide) Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Column(Modifier.weight(1f)) { chartContent() }
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp)) { listContent() }
-                } else { chartContent(); listContent() }
             }
         }
     }
