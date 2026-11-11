@@ -36,7 +36,7 @@ def update_only_images(folder, request):
     expected = expected_image_files(folder)
     publisher = Publisher(request)
     changed = False
-    with publisher.edit(ignore_delete_error=False) as edit:
+    with publisher.edit() as edit:
         listing = edit + "/listings/" + LOCALE
         record = request("GET", listing)
         if not isinstance(record, dict) or record.get("language") != LOCALE:
