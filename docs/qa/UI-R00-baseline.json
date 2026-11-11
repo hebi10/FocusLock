@@ -21,7 +21,9 @@
         "01-onboarding-intro.png"
       ],
       "code": "OnboardingScreens.kt",
-      "initial_classification": "layout"
+      "initial_classification": "layout",
+      "sha256": "2e52881f9514df5e15eeaba475c784f7bfcc49f2748a320d32858bb6e944b1f0",
+      "size_bytes": 1553379
     },
     {
       "name": "02_온보딩_권한.png",
@@ -30,7 +32,9 @@
         "02-onboarding-permission.png"
       ],
       "code": "OnboardingScreens.kt",
-      "initial_classification": "layout"
+      "initial_classification": "layout",
+      "sha256": "dd540fd6de31747dc7d7f58028fb5097d50b774f8c91cbf478cff2f484867fb9",
+      "size_bytes": 1456606
     },
     {
       "name": "03_온보딩_목표.png",
@@ -39,7 +43,9 @@
         "03-onboarding-goal.png"
       ],
       "code": "OnboardingScreens.kt",
-      "initial_classification": "data-limited"
+      "initial_classification": "data-limited",
+      "sha256": "4612a5f87856ec6ad3a14f75c55c6809185d65560faecf1bbbad44d5737c5927",
+      "size_bytes": 1477625
     },
     {
       "name": "04_홈_라이트.png",
@@ -48,7 +54,9 @@
         "14-home-granted.png"
       ],
       "code": "HomeAnalysisScreens.kt",
-      "initial_classification": "data-limited"
+      "initial_classification": "data-limited",
+      "sha256": "c74755a7a114ec629656033aa579efde631453604af06e7d4955504f2a6d7ab6",
+      "size_bytes": 1317609
     },
     {
       "name": "05_홈_다크.png",
@@ -57,7 +65,9 @@
         "22-dark-home.png"
       ],
       "code": "Theme.kt / HomeAnalysisScreens.kt",
-      "initial_classification": "layout"
+      "initial_classification": "layout",
+      "sha256": "8fa1ec0dbd798ef7d79bf309208fd3697dd0c44484a597d5907a48f8465e9e01",
+      "size_bytes": 1471073
     },
     {
       "name": "06_사용분석_오늘.png",
@@ -66,7 +76,9 @@
         "15-analysis-today.png"
       ],
       "code": "HomeAnalysisScreens.kt / Components.kt",
-      "initial_classification": "data-limited"
+      "initial_classification": "data-limited",
+      "sha256": "9e31678a176cb23d8be0c490505246adaabd8e20bebb717de276c47e5cdb9820",
+      "size_bytes": 1489186
     },
     {
       "name": "07_사용분석_7일.png",
@@ -75,7 +87,9 @@
         "16-analysis-week.png"
       ],
       "code": "HomeAnalysisScreens.kt / Components.kt",
-      "initial_classification": "data-limited"
+      "initial_classification": "data-limited",
+      "sha256": "3e4ac321d3c73e81188ead7a13801f7f0b9da0847c15542199ecf6e1228dc054",
+      "size_bytes": 1431150
     },
     {
       "name": "08_앱상세_사용기록.png",
@@ -84,7 +98,9 @@
         "18-app-detail.png"
       ],
       "code": "AppDetailScreens.kt",
-      "initial_classification": "partial-feature"
+      "initial_classification": "partial-feature",
+      "sha256": "59d34f9ebd5bee5d4dfdeb1a78c098d627791273f6b4dc67db422470385059e7",
+      "size_bytes": 1410253
     },
     {
       "name": "09_앱상세_권한영향.png",
@@ -93,7 +109,9 @@
         "18-app-detail.png"
       ],
       "code": "AppDetailScreens.kt",
-      "initial_classification": "needs-scroll"
+      "initial_classification": "needs-scroll",
+      "sha256": "3dbbc105eca27f58c0c873a8663bb036877bdf4172f5915fb6cf3a108bbb0239",
+      "size_bytes": 1507992
     },
     {
       "name": "10_목표설정_시트.png",
@@ -102,7 +120,9 @@
         "19-goal-sheet.png"
       ],
       "code": "AppDetailScreens.kt",
-      "initial_classification": "partial-feature"
+      "initial_classification": "partial-feature",
+      "sha256": "5301f8f8c2ff1519e06986d92da6475b50e9a0f9ac92d9ffbec4259915c19995",
+      "size_bytes": 1461433
     }
   ],
   "screenshot_files": {
@@ -146,5 +166,6 @@
     "36-dark-home-scroll.png": "22-dark-home.png",
     "37-permissions-granted-scroll.png": "23-permission-management-granted.png"
   },
-  "usage_data_policy": "Use Android UsageStatsManager real OS samples; never present DemoData, synthetic samples or design reference numbers as captured production usage."
+  "usage_data_policy": "Use Android UsageStatsManager real OS samples; never present DemoData, synthetic samples or design reference numbers as captured production usage.",
+  "design_qa_note": "Design PNG SHA-256 is from user's Drive current 2026-11-11 copy; these images are conceptual reference, not actual Android captures."
 }
