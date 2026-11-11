@@ -146,6 +146,10 @@ class FocusLockScreenQaTest {
             captureScrolledContent("33-app-detail-scroll")
             tapText("사용 목표")
             capture("19-goal-sheet")
+            assertTrue(
+                "Goal sheet save action must be visible without scrolling",
+                device.wait(Until.hasObject(By.text("저장")), 5000L)
+            )
             tapText("저장")
             assertTrue("Goal sheet did not close after saving", device.wait(Until.gone(By.text("사용 목표 설정")), 10000L))
             tapText("뒤로")
