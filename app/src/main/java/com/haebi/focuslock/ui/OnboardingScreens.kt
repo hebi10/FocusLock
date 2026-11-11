@@ -42,7 +42,7 @@ fun OnboardingIntro(onNext: () -> Unit, onExplore: () -> Unit) {
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 IntroFeature("집중하면 정원이 성장", "집중한 시간이 쌓일수록 작은 정원이 자라요.", Icons.Outlined.Yard)
             }
-            Text("●  ○  ○", fontSize = 13.sp, color = MaterialTheme.colorScheme.secondary, modifier = Modifier.align(Alignment.CenterHorizontally))
+            Text("●  ○  ○", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.align(Alignment.CenterHorizontally))
         }
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             ActionButton("시작하기", onNext)
@@ -56,7 +56,7 @@ fun OnboardingIntro(onNext: () -> Unit, onExplore: () -> Unit) {
 @Composable
 private fun IntroFeature(title: String, detail: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Icon(icon, null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(26.dp))
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(FocusSpacing.icon))
         Column {
             Text(title, fontWeight = FontWeight.SemiBold)
             Text(detail, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
