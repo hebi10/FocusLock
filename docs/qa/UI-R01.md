@@ -1,7 +1,7 @@
 # UI-R01 — 공통 디자인 시스템
 
 기준일: 2026-11-11
-상태: 검증 전 PR 단계
+상태: 완료 — 동일 SHA CI·API36 실제 화면 QA 통과, main 병합. Google Play에는 미배포
 대상: FocusLock `com.haebi.focuslock`
 
 ## 근거
@@ -60,3 +60,18 @@ API 29/35, 160% 폰트·폴더블/태블릿·물리 기기는 UI-R08에서 확�
 
 우선순위: `UI-R03 — 홈 대시보드` → `UI-R04 — 사용 분석` → `UI-R05 — 앱 상세·목표` → `UI-R02 — 온보딩` → `UI-R06 — 집중·정원` → `UI-R07 — 리포트·설정`.
 전체 UI 검증 후 `UI-R09`에서 최신 실제 Android 캡처를 이용하여 Play 설명 이미지 8장을 다시 만듭니다.
+
+## UI-R01 최종 확인 (2026-11-11)
+
+- PR #20: https://github.com/hebi10/FocusLock/pull/20
+- 검증 대상 head: `e4a34c2f2e025ea23f970ae4880a06701d348b60`.
+- Android CI #42964239764: 성공 — Kotlin 단위·토큰·4.5:1 대비 검사, Lint, Debug APK 빌드.
+- Android API36 실제 화면 QA #42964239742: 성공 — 6개 계측, 37/37 PNG 확보(원본 23 + 스크롤 14).
+- UI-R00 대비 온보딩·홈 라이트/다크·오늘 분석·목표 시트·정원·다크 설정 7종 실제 화면 비교. 일반 분석 차트는 무채색, 목표 및 정원 진행률은 녹색 유지.
+- 화면 하단 14장 중 10장 스크롤 후 다른 픽셀 확인. 다른 4장은 해당 뷰의 콘텐츠가 짧은 경우 등 추가 검토 대상이므로 오류로 단정하지 않음.
+- 실제 에뮬레이터 데이터는 1개 앱·오늘 1분·관측 1일로 빈약하며, 다중 앱·다중 날짜 시각 검수는 UI-R04의 필수 잔여.
+- main squash: `f75f5e1f5ec8b748e1992206961f7ca7f334ee64` (`[skip ci]`, 앱 새 AAB 업로드 없음).
+- Drive QA 37장·로그: https://drive.google.com/file/d/1JpHxTfzlqdKWuH4L8y5FbSrLW4jC5uOM/view
+- Drive 실제 UI 전후 비교: https://drive.google.com/file/d/1uIfxkrNZizuEjyqXwjjOrsS20nZ_ZmCh/view
+- Drive 검증 문서: https://docs.google.com/document/d/1ED-_gK6aE7CNIqVRBLrNQbBmWlJWViVlLNSv8u4ueWk/edit
+- 후속 우선순위: UI-R03 홈 → UI-R04 분석 → UI-R05 앱 상세·목표 → UI-R02 온보딩. 테스트 트랙 코드 2/3은 별도 승격·배포 작업 전까지 변경하지 않음.
