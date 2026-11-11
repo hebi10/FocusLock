@@ -1,7 +1,7 @@
 import copy
-import hashlib
 import json
 import struct
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -38,9 +38,11 @@ class UiR00ContractTests(unittest.TestCase):
     def test_manifest_rejects_removed_source_screen(self):
         broken = copy.deepcopy(self.source)
         broken["screenshot_files"].pop("01-onboarding-intro.png")
-        self.assertEqual(len(broken["screenshot_files"]), 22)
-        self.assertEqual(hashlib.sha256(b"abc").hexdigest(),
-                         "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "manifest.json"
+            path.write_text(json.dumps(broken), encoding="utf-8")
+            with self.assertRaises(ValueError):
+                audit.read_manifest(path)
 
 
 if __name__ == "__main__":
