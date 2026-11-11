@@ -31,7 +31,7 @@ object FocusColors {
     val TextLight = Color(0xFF171717)
     val TextDark = Color(0xFFF3F3F3)
     val SecondaryTextLight = Color(0xFF666666)
-    val SecondaryTextDark = Color(0xFFB7B7B7)
+    val SecondaryTextDark = Color(0xFFA8A8A8)
     val SurfaceLight = Color.White
     val SurfaceDark = Color(0xFF1B1B1B)
     val SurfaceVariantLight = Color(0xFFEEEEEE)
