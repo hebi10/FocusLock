@@ -28,6 +28,15 @@ object FocusColors {
     val BgLight = Color(0xFFF7F7F7)
     val BgDark = Color(0xFF101010)
     val GrayLight = Color(0xFFE4E4E4)
+    val TextLight = Color(0xFF171717)
+    val TextDark = Color(0xFFF3F3F3)
+    val SecondaryTextLight = Color(0xFF666666)
+    val SecondaryTextDark = Color(0xFFB7B7B7)
+    val SurfaceLight = Color.White
+    val SurfaceDark = Color(0xFF1B1B1B)
+    val SurfaceVariantLight = Color(0xFFEEEEEE)
+    val SurfaceVariantDark = Color(0xFF2D2D2D)
+    val DividerDark = Color(0xFF363636)
 }
 
 object FocusSpacing {
@@ -56,14 +65,14 @@ private val focusTypography = Typography(
 )
 
 private val lightScheme = lightColorScheme(
-    primary = Color(0xFF171717),
-    onPrimary = Color.White,
+    primary = FocusColors.TextLight,
+    onPrimary = FocusColors.SurfaceLight,
     background = FocusColors.BgLight,
-    onBackground = Color(0xFF171717),
-    surface = Color.White,
-    onSurface = Color(0xFF171717),
-    surfaceVariant = Color(0xFFEEEEEE),
-    onSurfaceVariant = Color(0xFF666666),
+    onBackground = FocusColors.TextLight,
+    surface = FocusColors.SurfaceLight,
+    onSurface = FocusColors.TextLight,
+    surfaceVariant = FocusColors.SurfaceVariantLight,
+    onSurfaceVariant = FocusColors.SecondaryTextLight,
     outlineVariant = FocusColors.GrayLight,
     secondary = FocusColors.Green,
     onSecondary = Color.White,
@@ -71,15 +80,15 @@ private val lightScheme = lightColorScheme(
 )
 
 private val darkScheme = darkColorScheme(
-    primary = Color(0xFFF3F3F3),
-    onPrimary = Color(0xFF171717),
+    primary = FocusColors.TextDark,
+    onPrimary = FocusColors.TextLight,
     background = FocusColors.BgDark,
-    onBackground = Color(0xFFF3F3F3),
-    surface = Color(0xFF1B1B1B),
-    onSurface = Color(0xFFF3F3F3),
-    surfaceVariant = Color(0xFF2D2D2D),
-    onSurfaceVariant = Color(0xFFB7B7B7),
-    outlineVariant = Color(0xFF363636),
+    onBackground = FocusColors.TextDark,
+    surface = FocusColors.SurfaceDark,
+    onSurface = FocusColors.TextDark,
+    surfaceVariant = FocusColors.SurfaceVariantDark,
+    onSurfaceVariant = FocusColors.SecondaryTextDark,
+    outlineVariant = FocusColors.DividerDark,
     secondary = FocusColors.DarkGreen,
     onSecondary = Color(0xFF101010),
     error = Color(0xFFF2A3A3)
