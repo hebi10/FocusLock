@@ -2,7 +2,7 @@
 
 기준일: 2026-11-11
 대상 앱: com.haebi.focuslock
-상태: QA 전용 PR 검증 중. Google Play / 앱 운영 코드는 변경하지 않습니다.
+상태: 완료 — 기준선 검증·확장 Android QA·Drive 증거 보관 완료. Google Play / 앱 운영 코드는 변경하지 않았습니다.
 
 ## 1. 증거의 분류
 
@@ -73,3 +73,23 @@
 실제 Android QA: https://github.com/hebi10/FocusLock/actions/runs/42945780305
 이전 기획·로드맵 문서: https://docs.google.com/document/d/1mJ0oCZeqQ8_PviTsQixYr-ykVpyjNtY94yY_RjqkNDY/edit
 작업 추적: https://github.com/hebi10/FocusLock/issues/17
+
+
+## 8. UI-R00 최종 QA 완료 기록 (2026-11-11)
+
+- GitHub PR #18: 세 가지 필수 워크플로 모두 성공한 뒤 main에 squash 병합, 커밋 55e6ec6a9ea8f265de153ea3460e6382def9eb49 ([skip ci], 추가 AAB 배포 방지).
+- 기준선 무결성: Actions #42960574304 성공. 기존 실제 Android PNG 23개가 기준 SHA-256과 일치.
+- Android CI: Actions #42960574140 성공. 단위 테스트·Lint·Debug APK 빌드와 QA Python 계약 테스트.
+- Android emulator: Actions #42960574248 성공. 원래 23장 + 실제 하단 14장 = 총 37장, 1080×2400 PNG, 계측 QA 6개 테스트 실행 성공.
+- 하단 화면 14장 중 11개가 초기 상단 이미지와 다른 실제 픽셀 값을 보임. 나머지 3개(온보딩 소개/목표/권한 거부)는 변화가 없으며, 짧은 콘텐츠에 대한 스크롤 부재로 추정할 수 있으나 기능 오류로 단정하지 않음.
+- 새로 확인한 실제 코드 화면: 앱 상세 하단의 요청 권한/기기 영향/앱 관리, 분석의 앱별 목록, 홈의 지난 7일 변화는 실제로 존재함(이전 상단 캡처에 누락).
+- 사용 기록 조회: AppOps 거부=PermissionRequired; 허용=Ready, 오늘 Settings 1개 앱·1분, 7일 및 30일 관측 1일, 시간대별 이벤트 조회 가능. 실제 OS 기록만 사용하며 주입 데이터 없음.
+- 실데이터 충실도: limited_real_data. 여러 앱·여러 날에 대한 사용 패턴은 아직 시각적으로 검증하지 못함. 후속 UI-R03/R04의 실제 테스트 데이터 조건으로 인계.
+- 목표 시트의 저장 클릭 테스트는 성공했으나 초기 캡처에서 하단 저장 버튼이 보이지 않으므로 화면 높이·글꼴 확대 접근성은 UI-R05에서 확인.
+- Room 계측: 완료 보상 중복 방지·DB 재열기, 재부팅 이후 잘못된 자동 완료 방지 테스트 각각 성공.
+- Google Drive 보고서: https://docs.google.com/document/d/1Z2Gw09K3NKNjd-7lsTJlj-z6h0HN4knLKsh5eoptOYs/edit
+- Drive 기준선 ZIP (기획 10장 + 실제 23장): https://drive.google.com/file/d/1Tdk3RdT96aHC8khhr_jnoxE_f8WYO852/view
+- Drive 확장 QA ZIP (실제 37장 + JSON): https://drive.google.com/file/d/1VnXE-HwvKiLRaO2qFlUNrhYj9t9vxBOu/view
+- Drive 추가 14장 미리보기: https://drive.google.com/file/d/1ZjWaq3LVaNGOfZbb3JBP8XZu5jZ2mz7c/view
+- 미검증: 실제 2일 이상·3개 이상 앱의 풍부한 기록, 완료된 집중 결과의 UI, 작은 화면/160% 글꼴, 폴더블·태블릿·삼성 실기기, API29/35.
+- 다음 순서: UI-R01 공통 디자인 시스템 → UI-R03 홈 → UI-R04 분석 → UI-R05 앱 상세·목표.
