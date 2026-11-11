@@ -2,7 +2,7 @@
 
 기준: [Google Drive 전체 화면 디자인 D04·D05](https://docs.google.com/document/d/160M4wHLgML5FHsKuORsU73akWD5ktMAAQp6nRbLW4W4/edit), [R00 QA 기준](UI-R00.md), [R04 실제 Android 화면](UI-R04.md).
 대상: FocusLock `com.haebi.focuslock` · Kotlin/Compose/Android UsageStatsManager.
-상태: UI-R05 개발/PR 검증 중. Google Play 미배포.
+상태: 완료 — 동일 HEAD Android CI·API36 실제화면 QA 통과, PR #25 main 병합. Google Play 미배포.
 
 ## 1. 앱 상세
 
@@ -37,3 +37,17 @@
 - UI QA 주의: 초기 API36 목표 시트 스크린샷에서는 부분 펼침 때문에 저장 버튼이 보이지 않았습니다. 이후 `skipPartiallyExpanded=true` 및 저장 버튼 첫 진입 가시성 계측을 추가하였고, **수정 커밋의 UI 검증 결과를 받아야 최종 완료로 판정**합니다.
 
 - UI-R05 색상 회귀 수정: 기본 Material3 보라색 선택 칩을 라이트/다크 공통 `primary/onPrimary`와 중성 `surfaceVariant`로 교체, 작은 모서리 모양을 사용합니다. 최종 동일 SHA CI·에뮬레이터 QA 성공 후 병합합니다.
+
+## 최종 QA 및 병합 기록 (2026-11-11)
+
+- GitHub PR: https://github.com/hebi10/FocusLock/pull/25
+- 최종 검증 head: `7293a3c7b3508366a156a30f8db1a96eb23034dc`.
+- Android CI: https://github.com/hebi10/FocusLock/actions/runs/42985487530 — **success**.
+- API36 실제 Android 전체 화면 QA: https://github.com/hebi10/FocusLock/actions/runs/42985487348 — **success**.
+- 실화면 QA: R00 37/37장 + R04 5/5장 = 총 **42장**. artifact `13839284233`, SHA256 `a200650f38c64ee31c7791c7df84500ecb56818aa01e757de09493777c351977`.
+- Android UI 계측에서 요일 `월` 선택 후 정확한 `goalDays.com.android.settings` 저장 마스크 확인. 최초 시트에서 스크롤 없이 `저장` 버튼을 인식하고 클릭 가능, 저장 후 시트 종료.
+- 월~일 선택 칩의 기본 Material 보라색을 제거하고 FocusLock의 무채색(선택된 칩=기본 text color/선택 글자=onPrimary)으로 통일한 실제 Android 캡처 시각 검수 완료.
+- 기존 기간별 분석/앱 권한/집중·Room/목표 알림 회귀 테스트 통과. 구형 `everyday.*` 호환 정책 단위 테스트 통과.
+- 실제 데이터는 `limited_real_data` (관찰 대상 Android 앱 2개, 1일). 3개 이상 앱·다중 일자·API29/35·160% 글꼴·실기기·태블릿·폴더블은 UI-R08에 남음.
+- `main` squash 병합 `d23ca2585042824a059ad1eaebb3de3b5d0f68d0` (`[skip ci]`). Google Play AAB·서명·버전·트랙·스토어 이미지는 변경하지 않음.
+- UI-R03 PR #22는 아직 미병합이며, `FocusLockApp.kt` 공유 변경이 있어 별도 브랜치 업데이트·통합 QA 후 병합해야 함.
