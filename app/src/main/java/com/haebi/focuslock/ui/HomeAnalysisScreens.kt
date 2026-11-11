@@ -80,7 +80,7 @@ fun HomeScreen(
                 } else {
                     Text(
                         UsageFormat.comparison(snapshot.today.totalMinutes, snapshot.yesterday.totalMinutes)
-                            ?: "어제 비교 기록 없음",
+                            ?.replace("이전 기간", "어제") ?: "어제 비교 기록 없음",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -126,10 +126,11 @@ fun HomeScreen(
                         TextButton(onClick = onAnalysis) { Text("사용 분석에서 앱 확인") }
                     }
                 }
+                ActionButton("집중 시작", onFocus)
             }
         }
 
-        ActionButton("집중 시작", onFocus)
+        if (snapshot == null) ActionButton("집중 시작", onFocus)
 
         if (snapshot != null) {
             if (snapshot.today.apps.isEmpty()) {
@@ -212,7 +213,7 @@ fun HomeScreen(
                 )
                 Text(
                     UsageFormat.comparison(snapshot.last7.totalMinutes, snapshot.previous7.totalMinutes)
-                        ?: "이전 7일 비교 기록 없음",
+                        ?.replace("이전 기간", "이전 7일") ?: "이전 7일 비교 기록 없음",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
