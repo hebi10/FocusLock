@@ -60,6 +60,23 @@ class FocusLockAnalysisQaTest {
         }
     }
 
+    private fun selectPeriod(period: String) {
+        val tag = "period-option-$period"
+        repeat(7) {
+            device.findObject(By.res(tag))?.let { option ->
+                option.click()
+                device.waitForIdle(1200L)
+                return
+            }
+            device.swipe(
+                device.displayWidth / 2, device.displayHeight * 27 / 100,
+                device.displayWidth / 2, device.displayHeight * 75 / 100, 25
+            )
+        }
+        requireNotNull(device.findObject(By.res(tag))) { "Period tab unavailable: $tag" }.click()
+        device.waitForIdle(1200L)
+    }
+
     @Test
     fun usageAnalysisSearchSortAndPeriodAreOperableWithRealAndroidData() {
         launch().use {
@@ -86,16 +103,13 @@ class FocusLockAnalysisQaTest {
                 device.wait(Until.hasObject(By.text("정렬: 이름")), 5000L))
             capture("r04-analysis-sort-name")
 
-            repeat(5) {
-                device.swipe(
-                    device.displayWidth / 2, device.displayHeight * 25 / 100,
-                    device.displayWidth / 2, device.displayHeight * 77 / 100, 30
-                )
-            }
-            findTextAfterScroll("7일").click()
+            device.findObject(By.res("nav-HOME"))?.click()
+            val analysisNav = device.wait(Until.findObject(By.res("nav-ANALYSIS")), 5000L)
+            requireNotNull(analysisNav) { "Analysis bottom navigation tab unavailable" }.click()
+            selectPeriod("7일")
             assertTrue(device.wait(Until.hasObject(By.text("일별 사용 시간")), 5000L))
             capture("r04-analysis-week")
-            findTextAfterScroll("30일").click()
+            selectPeriod("30일")
             assertTrue(device.wait(Until.hasObject(By.text("일별 사용 시간")), 5000L))
             capture("r04-analysis-month")
         }
