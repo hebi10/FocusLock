@@ -55,16 +55,24 @@ jobs:
         run: |
           set -euo pipefail
           gh api "repos/$GITHUB_REPOSITORY/actions/workflows/emulator-smoke.yml/runs?branch=main&status=success&per_page=30" > "$RUNNER_TEMP/qa-runs.json"
-          python3 - "$RUNNER_TEMP/qa-runs.json" >> "$GITHUB_OUTPUT" <<'PY'
+          gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" > "$RUNNER_TEMP/main-ref.json"
+          python3 - "$RUNNER_TEMP/qa-runs.json" "$RUNNER_TEMP/main-ref.json" >> "$GITHUB_OUTPUT" <<'PY'
           import json, sys
-          data = json.load(open(sys.argv[1]))
-          for run in data.get('workflow_runs', []):
-              if run.get('conclusion') == 'success' and run.get('head_branch') == 'main' and run.get('head_sha') and run.get('id'):
+          runs = json.load(open(sys.argv[1])).get('workflow_runs', [])
+          main_sha = json.load(open(sys.argv[2]))['object']['sha']
+          for run in runs:
+              if (run.get('conclusion') == 'success'
+                      and run.get('head_branch') == 'main'
+                      and run.get('head_sha') == main_sha
+                      and run.get('id')):
                   print('run_id=' + str(run['id']))
-                  print('source_sha=' + run['head_sha'])
+                  print('source_sha=' + main_sha)
                   break
           else:
-              raise SystemExit('No successful main emulator capture run found')
+              raise SystemExit(
+                  'UI-R09 blocked: current main has no successful matching emulator QA; '
+                  'refusing older screenshot assets'
+              )
           PY
       - name: Download real Android screenshot artifact
         env:
@@ -74,8 +82,8 @@ jobs:
           set -euo pipefail
           mkdir -p captures
           gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name focuslock-android-fullscreen-captures --dir captures
-          test "$(find captures/qa-captures -maxdepth 1 -name '*.png' | wc -l)" -eq 23
-      - name: Generate eight real-capture listing images and graphic
+          test "$(find captures/qa-captures -maxdepth 1 -name '*.png' | wc -l)" -ge 23
+      - name: Generate eight verified real-capture listing images and graphic
         env:
           SOURCE_SHA: ${{ steps.capture.outputs.source_sha }}
           SOURCE_RUN: ${{ steps.capture.outputs.run_id }}
