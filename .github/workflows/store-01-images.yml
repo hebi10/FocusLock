@@ -83,6 +83,7 @@ jobs:
           python3 scripts/store/render_images.py --captures captures/qa-captures --output generated/ko-KR
           python3 scripts/store/render_images.py --check --output generated/ko-KR
           python3 scripts/store/play_images.py --dir generated/ko-KR --report output/store-01-check.json
+          python3 -m unittest discover -s scripts/store -p 'test_*.py'
       - name: Preserve validated images and SHA-256 manifest
         uses: actions/upload-artifact@v4
         with:
