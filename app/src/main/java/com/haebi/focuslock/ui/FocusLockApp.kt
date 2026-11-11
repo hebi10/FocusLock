@@ -503,7 +503,11 @@ fun FocusLockApp() {
             )
         }
         if(stopConfirm) AlertDialog(
-            onDismissRequest={stopConfirm=false},
+            onDismissRequest = { stopConfirm = false },
+            shape = MaterialTheme.shapes.medium,
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurface,
             title={Text("집중을 종료할까요?")},
             text = {
                 Text(
