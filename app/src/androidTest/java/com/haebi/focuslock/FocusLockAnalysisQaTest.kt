@@ -47,6 +47,19 @@ class FocusLockAnalysisQaTest {
         }
     }
 
+    private fun findTextAfterScroll(label: String): androidx.test.uiautomator.UiObject2 {
+        repeat(7) {
+            device.findObject(By.text(label))?.let { return it }
+            device.swipe(
+                device.displayWidth * 3 / 4, device.displayHeight * 75 / 100,
+                device.displayWidth * 3 / 4, device.displayHeight * 32 / 100, 30
+            )
+        }
+        return requireNotNull(device.findObject(By.text(label))) {
+            "Unable to find visible analysis text: $label"
+        }
+    }
+
     @Test
     fun usageAnalysisSearchSortAndPeriodAreOperableWithRealAndroidData() {
         launch().use {
@@ -58,19 +71,33 @@ class FocusLockAnalysisQaTest {
             val search = findAfterScroll("analysis-search")
             search.click()
             search.setText("focuslock-no-such-installed-app")
-            assertTrue("Search empty state is missing",
-                device.wait(Until.hasObject(By.text("검색어나 카테고리에 맞는 앱이 없습니다.")), 7000L))
-            capture("r04-analysis-search-empty")
-            search.setText("")
             device.pressBack()
-            val sort = device.findObject(By.text("정렬: 사용 시간"))
-                ?: device.wait(Until.findObject(By.text("정렬: 사용 시간")), 4000L)
-            requireNotNull(sort).click()
-            val byName = device.wait(Until.findObject(By.text("이름")), 4000L)
+            val emptyResult = findTextAfterScroll("검색어나 카테고리에 맞는 앱이 없습니다.")
+            assertTrue("Search must show a truthful empty result", emptyResult.isEnabled)
+            capture("r04-analysis-search-empty")
+
+            findTextAfterScroll("홈").click()
+            val analysisTab = device.wait(Until.findObject(By.text("사용 분석")), 5000L)
+            requireNotNull(analysisTab).click()
+            findTextAfterScroll("정렬: 사용 시간").click()
+            val byName = device.wait(Until.findObject(By.text("이름")), 5000L)
             requireNotNull(byName).click()
             assertTrue("Name sort cannot be selected",
                 device.wait(Until.hasObject(By.text("정렬: 이름")), 5000L))
             capture("r04-analysis-sort-name")
+
+            repeat(5) {
+                device.swipe(
+                    device.displayWidth / 2, device.displayHeight * 25 / 100,
+                    device.displayWidth / 2, device.displayHeight * 77 / 100, 30
+                )
+            }
+            findTextAfterScroll("7일").click()
+            assertTrue(device.wait(Until.hasObject(By.text("일별 사용 시간")), 5000L))
+            capture("r04-analysis-week")
+            findTextAfterScroll("30일").click()
+            assertTrue(device.wait(Until.hasObject(By.text("일별 사용 시간")), 5000L))
+            capture("r04-analysis-month")
         }
     }
 }
