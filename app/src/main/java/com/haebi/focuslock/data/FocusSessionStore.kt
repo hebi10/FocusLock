@@ -147,6 +147,14 @@ class FocusSessionStore(
 
     suspend fun totalExperience(): Int = dao.totalExperience()
 
+    suspend fun todayExperience(): Int {
+        val zone = ZoneId.systemDefault()
+        val today = Instant.ofEpochMilli(clock.wallMillis()).atZone(zone).toLocalDate()
+        val from = today.atStartOfDay(zone).toInstant().toEpochMilli()
+        val until = today.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+        return dao.experienceBetween(from, until)
+    }
+
     suspend fun report(): FocusSummary {
         val now = Instant.ofEpochMilli(clock.wallMillis()).atZone(ZoneId.systemDefault()).toLocalDate()
         val since = now.minusDays(29).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
