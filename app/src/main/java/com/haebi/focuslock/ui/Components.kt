@@ -72,10 +72,14 @@ fun Metric(value: String, hint: String, note: String? = null) {
 }
 
 @Composable
-fun ProgressBar(fraction: Float, isWarning: Boolean = false) {
+fun ProgressBar(fraction: Float, isWarning: Boolean = false, gardenAccent: Boolean = false) {
     LinearProgressIndicator(
         progress = { fraction.coerceIn(0f, 1f) },
-        color = if (isWarning) FocusColors.Amber else MaterialTheme.colorScheme.primary,
+        color = when {
+            isWarning -> FocusColors.Amber
+            gardenAccent -> MaterialTheme.colorScheme.secondary
+            else -> MaterialTheme.colorScheme.primary
+        },
         trackColor = MaterialTheme.colorScheme.surfaceVariant,
         modifier = Modifier.fillMaxWidth().height(7.dp)
     )
