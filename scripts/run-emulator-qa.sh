@@ -32,6 +32,7 @@ run_case() {
 }
 
 adb shell appops set com.haebi.focuslock GET_USAGE_STATS ignore
+run_case 'com.haebi.focuslock.FocusLockUsageStateAuditTest#permissionDeniedReallyReturnsPermissionRequired' ui-r00-usage-denied
 run_case 'com.haebi.focuslock.FocusLockScreenQaTest#onboardingAndPermissionDeniedScreens' permission-denied
 
 adb shell appops set com.haebi.focuslock GET_USAGE_STATS allow
@@ -40,8 +41,14 @@ adb shell am start -a android.settings.SETTINGS
 sleep 50
 adb shell input keyevent KEYCODE_HOME
 run_case 'com.haebi.focuslock.FocusLockScreenQaTest#grantedUsageAndDetailScreens' permission-granted
+run_case 'com.haebi.focuslock.FocusLockUsageStateAuditTest#permissionGrantedCapturesRealUsageCoverage' ui-r00-usage-granted
 run_case 'com.haebi.focuslock.FocusPersistenceQaTest#storedRewardSurvivesDatabaseReopenAndIsNotDuplicated' room-reopen-reward
 run_case 'com.haebi.focuslock.FocusPersistenceQaTest#rebootPausesSessionAndNeverInventsCompletion' room-reboot-recovery
+
+if ! adb pull /sdcard/Android/data/com.haebi.focuslock/files/qa-r00/ captures/; then
+  echo "::error::Could not pull UI-R00 real usage evidence"
+  failed=1
+fi
 
 if ! adb pull /sdcard/Android/data/com.haebi.focuslock/files/qa-captures/ captures/; then
   echo "::error::Could not pull screenshots from the Android emulator"
@@ -55,6 +62,11 @@ expected=(
   12-garden 13-garden-item 14-home-granted 15-analysis-today
   16-analysis-week 17-analysis-month 18-app-detail 19-goal-sheet
   20-report 21-dark-settings 22-dark-home 23-permission-management-granted
+  24-onboarding-intro-scroll 25-onboarding-goal-scroll
+  26-settings-scroll 27-permissions-denied-scroll 28-garden-scroll
+  29-home-granted-scroll 30-analysis-today-scroll 31-analysis-week-scroll
+  32-analysis-month-scroll 33-app-detail-scroll 34-report-scroll
+  35-dark-settings-scroll 36-dark-home-scroll 37-permissions-granted-scroll
 )
 for name in "${expected[@]}"; do
   if [[ ! -s "captures/qa-captures/${name}.png" ]]; then
@@ -64,4 +76,8 @@ for name in "${expected[@]}"; do
 done
 
 echo "Captured $(find captures/qa-captures -name '*.png' -type f 2>/dev/null | wc -l) of ${#expected[@]} required screens"
+if ! python3 scripts/qa/ui_r00_verify.py run --capture-root captures --output captures/ui-r00-audit-report.json; then
+  echo "::error::UI-R00 screenshot, permission or usage-state report validation failed"
+  failed=1
+fi
 exit "${failed}"
