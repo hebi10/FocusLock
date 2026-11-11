@@ -19,42 +19,124 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.haebi.focuslock.R
+import com.haebi.focuslock.data.AppUsage
 import com.haebi.focuslock.data.DemoData
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FocusSetupScreen(onStart: (Int) -> Unit, selectedDistractions: Int) {
+fun FocusSetupScreen(
+    onStart: (Int) -> Unit,
+    selectedDistractions: Int,
+    availableApps: List<AppUsage>,
+    selectedDistractionIds: Set<String>,
+    onDistractionChange: (String, Boolean) -> Unit,
+    usageAccessGranted: Boolean
+) {
     var mode by rememberSaveable { mutableStateOf("25분") }
     var customMinutes by rememberSaveable { mutableIntStateOf(45) }
+    var showDistractionSheet by rememberSaveable { mutableStateOf(false) }
     val duration = when (mode) {
         "10분" -> 10
         "25분" -> 25
         "사용자" -> customMinutes
         else -> 0
     }
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
         PageTitle("집중", "지금 할 일에 집중할 시간을 정하세요")
         FocusCard {
             SectionTitle("집중 모드")
             PeriodSelector(listOf("10분", "25분", "사용자", "자유"), mode) { mode = it }
             if (mode == "사용자") {
-                Slider(value = customMinutes.toFloat(), onValueChange = { customMinutes = (it / 5).toInt() * 5 }, valueRange = 5f..90f)
-                Text("사용자 지정 · ${customMinutes}분", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Slider(
+                    value = customMinutes.toFloat(),
+                    onValueChange = { customMinutes = (it / 5).toInt().coerceIn(1, 18) * 5 },
+                    valueRange = 5f..90f
+                )
+                Text("사용자 지정 · ${customMinutes}분", style = MaterialTheme.typography.bodySmall)
             }
-            Spacer(Modifier.height(8.dp))
-            Text(if(duration == 0) "자유 집중" else DemoData.minutesLabel(duration), fontSize = 45.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.CenterHorizontally))
-            Text(if (duration == 0) "원할 때 종료하고 기록할 수 있습니다." else "집중 시작 후 타이머가 진행됩니다.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, modifier = Modifier.align(Alignment.CenterHorizontally))
+            Spacer(Modifier.height(4.dp))
+            Text(
+                if (duration == 0) "자유 집중" else DemoData.minutesLabel(duration),
+                style = MaterialTheme.typography.displaySmall,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            )
+            Text(
+                if (duration == 0) "자유 집중은 10분 이상 기록하면 완료 보상을 받습니다."
+                else "설정한 집중 시간을 채우면 완료 보상을 받습니다.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            )
         }
         FocusCard {
             SectionTitle("집중 중 사용 기록")
             Text("방해 앱 ${selectedDistractions}개 선택됨", fontWeight = FontWeight.Medium)
-            Text("일반 앱 권한으로 다른 앱을 강제로 차단하지 않습니다. 실제 방해 앱 사용 감지·중단 판정은 후속 기능입니다.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+            Text(
+                "선택한 앱은 관리 대상으로 저장됩니다. 실제 방해 앱 사용 감지나 강제 차단은 지원하지 않습니다.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall
+            )
+            when {
+                !usageAccessGranted -> Text(
+                    "사용 정보 접근 권한이 없어 앱 목록을 볼 수 없습니다. 집중 타이머는 이용할 수 있습니다.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                availableApps.isEmpty() -> Text(
+                    "실제 사용 기록이 있는 앱이 없습니다. 기록 수집 후 선택할 수 있습니다.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            OutlinedButton(
+                onClick = { showDistractionSheet = true },
+                enabled = usageAccessGranted && availableApps.isNotEmpty(),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+            ) { Text("방해 앱 선택") }
         }
         FocusCard {
             SectionTitle("집중 후 보상")
-            Text("집중 시간을 완료하면 정원이 성장합니다.", fontSize = 13.sp)
-            Text("완료 기록과 보상은 기기에 저장되며 세션당 한 번만 지급됩니다.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+            Text("완료 기록과 보상은 기기에 저장됩니다.", style = MaterialTheme.typography.bodyMedium)
+            Text(
+                "실제 완료 세션당 한 번만 경험치와 성장 포인트가 지급됩니다.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall
+            )
         }
         ActionButton("집중 시작", { onStart(duration) })
+    }
+    if (showDistractionSheet) {
+        ModalBottomSheet(onDismissRequest = { showDistractionSheet = false }) {
+            Column(
+                Modifier.fillMaxWidth().heightIn(max = 540.dp)
+                    .verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                SectionTitle("방해 앱 선택")
+                Text(
+                    "실제 사용 기록이 있는 앱만 표시합니다. 선택해도 앱이 자동 차단되지 않습니다.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                availableApps.distinctBy { it.id }.forEach { app ->
+                    val selected = app.id in selectedDistractionIds
+                    Row(
+                        Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                            .clickable { onDistractionChange(app.id, !selected) },
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(app.name, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                        Checkbox(checked = selected, onCheckedChange = null)
+                    }
+                }
+                TextButton(
+                    onClick = { showDistractionSheet = false },
+                    modifier = Modifier.align(Alignment.End).heightIn(min = 48.dp)
+                ) { Text("완료") }
+            }
+        }
     }
 }
 
@@ -92,27 +174,54 @@ fun FocusRunningScreen(minutes: Int, seconds: Int, paused: Boolean, restoredAfte
 }
 
 @Composable
-fun FocusResultScreen(completed: Boolean, elapsedSeconds: Int, onHome: () -> Unit, onGarden: () -> Unit) {
+fun FocusResultScreen(
+    completed: Boolean,
+    elapsedSeconds: Int,
+    rewardExperience: Int,
+    rewardPoints: Int,
+    onHome: () -> Unit,
+    onGarden: () -> Unit
+) {
+    val earned = rewardExperience > 0 || rewardPoints > 0
     Column(
-        Modifier.fillMaxSize().padding(24.dp),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceBetween
+        verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Spacer(Modifier.height(32.dp))
-            Text(if (completed) "집중 완료" else "집중 기록", fontWeight = FontWeight.Bold, fontSize = 30.sp)
-            Image(painterResource(R.drawable.garden_illustration), "정원 성장 이미지", Modifier.fillMaxWidth().height(210.dp))
-            Text(DemoData.minutesLabel(elapsedSeconds / 60), fontSize = 42.sp, fontWeight = FontWeight.Bold)
-            Text(if(completed) "설정한 집중 시간을 달성했습니다." else "집중 기록을 확인했습니다.", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            FocusCard {
-                Text("이번 세션 보상", fontWeight = FontWeight.Bold)
-                Text(if(completed) "경험치 +30 · 성장 포인트 +20" else "중단된 세션 · 보상 없음", color = MaterialTheme.colorScheme.secondary)
-                Text("세션과 보상은 기기 내부 Room 데이터베이스에 저장됩니다.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
-            }
+        Spacer(Modifier.height(16.dp))
+        Text(if (completed) "집중 완료" else "집중 기록", style = MaterialTheme.typography.headlineMedium)
+        Image(
+            painterResource(R.drawable.garden_illustration),
+            contentDescription = "정원 일러스트",
+            modifier = Modifier.fillMaxWidth().height(180.dp)
+        )
+        Text(
+            "${elapsedSeconds / 60}분 ${(elapsedSeconds % 60).toString().padStart(2, '0')}초",
+            style = MaterialTheme.typography.displaySmall
+        )
+        Text(
+            if (completed) "설정한 집중 시간을 달성했습니다." else "설정 시간 전에 종료한 집중 기록입니다.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        FocusCard {
+            SectionTitle("이번 세션 보상")
+            Text(
+                if (earned) "경험치 +${rewardExperience} · 성장 포인트 +${rewardPoints}"
+                else "완료 조건 미충족 · 지급된 보상 없음",
+                color = if (earned) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                "완료·중단 기록은 기기에 저장되며 보상은 세션당 한 번만 지급됩니다.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
-        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            ActionButton("홈으로", onHome)
-            TextButton(onClick = onGarden, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text("정원 보기") }
+        Spacer(Modifier.height(8.dp))
+        ActionButton("홈으로", onHome)
+        TextButton(onClick = onGarden, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+            Text("정원 보기")
         }
     }
 }
