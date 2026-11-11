@@ -2,7 +2,7 @@
 
 기준: Google Drive [전체 화면 디자인 설계 v1.0](https://docs.google.com/document/d/160M4wHLgML5FHsKuORsU73akWD5ktMAAQp6nRbLW4W4/edit), D01 · UI-R00 기준 캡처 37장 · UI-R01 공통 토큰.
 대상: `com.haebi.focuslock` (Kotlin / Jetpack Compose).
-상태: PR 변경 및 자동 검증 대상. 최종 병합·Play 배포는 CI와 시각 검수 결과에 따라 판단.
+상태: Android CI·API36 계측 QA 통과, PR #23 main 병합 완료. Google Play 미배포.
 
 ## 구조 결정 — 3단계 유지
 
@@ -37,3 +37,14 @@
 - 기존 목표 바텀 시트 저장 및 홈·앱 상세 회귀 검증.
 - 실제 목표를 지정할 앱이 없는 기기에서는 데이터 없음이 정상 상태임을 명시. 실기기, 폴더블, 160% 글꼴·API29/35는 UI-R08에서 확대 검증.
 - PR 동일 SHA CI와 캡처를 검토한 후에만 `main` 병합. Google Play 배포는 별도 승인 범위에서 실시.
+
+## 최종 실행 결과 (2026-11-11)
+
+- [PR #23](https://github.com/hebi10/FocusLock/pull/23): `d48420b6d00ab2fe2e658d3fa315fb4e46ea620e` 검증 후 `main` squash `91da378dae5767c2268e16036979e0e0f9176571` 병합.
+- [Android CI #42971894847](https://github.com/hebi10/FocusLock/actions/runs/42971894847): 성공 — Kotlin 단위 테스트, Lint, Debug APK 및 자동화 가드.
+- [Android API36 QA #42971894949](https://github.com/hebi10/FocusLock/actions/runs/42971894949): 성공 — 기존 37개 실제 캡처 37/37, 원본/스크롤 상태 확인, 권한·저장 계측 통과.
+- 신규 계측: 권한 거부·목표 건너뛰기·집중 진입과 Android 사용 정보 설정 복귀 후 허용 상태 반영 모두 통과.
+- 실제 앱 사용 기록은 아직 1개 앱·짧은 기간에 한정됩니다. 다중 앱·장기간 그래프, 실기기, 폴더블·큰 글꼴 QA는 완료하지 않았습니다.
+- 기존 기획 PNG와 신규 실제 캡처의 **사람에 의한 시각 비교는 미실시**. 기기별 시각 검수는 UI-R08 후속입니다.
+- 병합에는 `[skip ci]`를 사용했으며, 앱 버전·서명·Play 트랙 및 스토어 이미지는 변경하지 않았습니다.
+- UI-R03 PR #22는 별도 브랜치에서 진행 중이므로 병합 전 이번 온보딩 변경에 대한 최신 main 기준 회귀 확인이 필요합니다.
