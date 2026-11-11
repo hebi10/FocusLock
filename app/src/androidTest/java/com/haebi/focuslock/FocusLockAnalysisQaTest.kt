@@ -72,9 +72,9 @@ class FocusLockAnalysisQaTest {
             search.click()
             search.setText("focuslock-no-such-installed-app")
             device.pressBack()
+            capture("r04-analysis-search-empty")
             val emptyResult = findTextAfterScroll("검색어나 카테고리에 맞는 앱이 없습니다.")
             assertTrue("Search must show a truthful empty result", emptyResult.isEnabled)
-            capture("r04-analysis-search-empty")
 
             findTextAfterScroll("홈").click()
             val analysisTab = device.wait(Until.findObject(By.text("사용 분석")), 5000L)
