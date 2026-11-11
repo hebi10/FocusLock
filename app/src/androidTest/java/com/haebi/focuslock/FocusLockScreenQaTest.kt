@@ -133,6 +133,10 @@ class FocusLockScreenQaTest {
             capture("10-focus-stop-confirm")
             tapText("종료")
             capture("11-focus-result")
+            assertTrue(
+                "Early stopped focus must not claim any earned reward",
+                device.wait(Until.hasObject(By.text("완료 조건 미충족 · 지급된 보상 없음")), 4000L)
+            )
             tapText("정원 보기")
             capture("12-garden")
             captureScrolledContent("28-garden-scroll")
