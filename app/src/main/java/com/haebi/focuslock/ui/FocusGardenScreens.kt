@@ -136,7 +136,7 @@ fun GardenScreen(experience: Int, placedItem: String, onItem: (GardenItem) -> Un
                     Text("레벨 ${experience / 100 + 1}", fontWeight = FontWeight.Bold)
                     Text("경험치 ${experience % 100} / 100 · 누적 ${experience}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                ProgressBar((experience % 100) / 100f)
+                ProgressBar((experience % 100) / 100f, gardenAccent = true)
             }
             if(wide) {
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
