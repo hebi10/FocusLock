@@ -7,6 +7,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.Until
+import androidx.test.uiautomator.StaleObjectException
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -77,8 +78,19 @@ class FocusLockScreenQaTest {
             item = device.findObject(By.desc(label))
                 ?: device.wait(Until.findObject(By.text(label)), 1700L)
         }
-        requireNotNull(item) { "Could not find visible label or description: $label" }.click()
-        device.waitForIdle(1200L)
+        requireNotNull(item) { "Could not find visible label or description: $label" }
+        repeat(3) { attempt ->
+            try {
+                val current = device.findObject(By.desc(label))
+                    ?: device.wait(Until.findObject(By.text(label)), 1500L)
+                requireNotNull(current) { "Could not refind visible label or description: $label" }.click()
+                device.waitForIdle(1200L)
+                return
+            } catch (error: StaleObjectException) {
+                if (attempt == 2) throw error
+                device.waitForIdle(1200L)
+            }
+        }
     }
 
     private fun tapTag(label: String) {
