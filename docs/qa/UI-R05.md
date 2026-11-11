@@ -27,7 +27,7 @@
 - `GoalDayPolicyTest`: 이전 설정 호환성, 월요일부터 일요일까지 ISO 비트 매핑, 전체/없음, 토글.
 - Android CI: Unit + Lint + Debug APK + Play 안전 가드.
 - 기존 API36 전체 42개 화면(기본 37 + R04 5) 재검증, 목표 시트 저장, 앱 상세 진입 및 Android OS 실제 기록 확인.
-- 추가 예정: 실제 7일/30일 앱 상세 캡처, 요일 선택/저장 후 prefs 읽기 검증, 소형 화면 고정 CTA(실기기/160% 확대는 UI-R08에서 확대).
+- API36 계측: 목표 시트 첫 진입 저장 CTA 가시성, 월요일 선택 토글 후 실제 SharedPreferences 요일 마스크 저장 검증. 실제 7일/30일 앱 상세 단독 캡처, 160% 글꼴·소형 실기기·API29/35는 후속 QA로 분리.
 - API29/35, Galaxy 실기기/폴더블, 160% 글꼴은 이번 API36 QA에서 결과를 단정하지 않음.
 - `UI-R03` PR #22는 미병합, `FocusLockApp.kt`의 변경 부위가 겹치므로 병합·리베이스 전 통합 QA 필요.
 - 앱 ID, 버전·서명·AAB·Play 트랙·스토어 이미지 불변. 스토어 이미지는 UI-R09 재제작 대상으로 유지.
@@ -35,3 +35,5 @@
 **병합 조건:** 동일 HEAD SHA Android CI·API36 실화면 QA 통과, 실제 화면·데이터/요일 보존 검수, PR #22 간섭 확인 후 main 병합. Google Play 자동 배포는 별도 승인 범위.
 
 - UI QA 주의: 초기 API36 목표 시트 스크린샷에서는 부분 펼침 때문에 저장 버튼이 보이지 않았습니다. 이후 `skipPartiallyExpanded=true` 및 저장 버튼 첫 진입 가시성 계측을 추가하였고, **수정 커밋의 UI 검증 결과를 받아야 최종 완료로 판정**합니다.
+
+- UI-R05 색상 회귀 수정: 기본 Material3 보라색 선택 칩을 라이트/다크 공통 `primary/onPrimary`와 중성 `surfaceVariant`로 교체, 작은 모서리 모양을 사용합니다. 최종 동일 SHA CI·에뮬레이터 QA 성공 후 병합합니다.
