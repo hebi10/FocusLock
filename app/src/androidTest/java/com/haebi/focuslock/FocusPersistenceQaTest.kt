@@ -56,6 +56,25 @@ class FocusPersistenceQaTest {
         }
     }
 
+    @Test fun todayExperienceIsLimitedToEarnedRewardsFromLocalDay() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val db = Room.inMemoryDatabaseBuilder(context, FocusDatabase::class.java).build()
+        try {
+            val clock = FixedClock()
+            val store = FocusSessionStore(db, clock)
+            val session = store.start(10)
+            clock.monotonic += 600_000L
+            clock.wall += 600_000L
+            store.finish(session.id)
+            assertEquals(30, store.todayExperience())
+            assertEquals(30, store.totalExperience())
+
+            clock.wall += 86_400_000L
+            assertEquals(0, store.todayExperience())
+            assertEquals(30, store.totalExperience())
+        } finally { db.close() }
+    }
+
     @Test fun rebootPausesSessionAndNeverInventsCompletion() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val db = Room.inMemoryDatabaseBuilder(context, FocusDatabase::class.java).build()
