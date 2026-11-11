@@ -127,6 +127,10 @@ class FocusLockScreenQaTest {
             tapText("뒤로")
             tapText("집중")
             capture("08-focus-setup")
+            assertTrue(
+                "Focus start must be visible without scrolling the setup screen",
+                device.wait(Until.findObject(By.text("집중 시작")), 2500L) != null
+            )
             tapText("집중 시작")
             capture("09-focus-running")
             tapText("집중 종료")
