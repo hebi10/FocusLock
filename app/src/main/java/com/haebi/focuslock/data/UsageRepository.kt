@@ -40,7 +40,8 @@ data class UsageSnapshot(
     val daily30: List<Int>,
     val appDaily7: Map<String, List<Int>>,
     val hourlyToday: List<Int>?,
-    val collectedAtMillis: Long
+    val collectedAtMillis: Long,
+    val appDaily30: Map<String, List<Int>> = emptyMap()
 ) {
     fun window(period: String): UsageWindow = when (period) {
         "7일" -> last7
@@ -191,13 +192,19 @@ class UsageRepository(private val context: Context) {
             fun dayMinutes(day: LocalDate): Int = millisToMinutes(rows.filter { it.day == day }.sumOf { it.foregroundMillis })
             val daily7 = (6 downTo 0).map { dayMinutes(today.minusDays(it.toLong())) }
             val daily30 = (29 downTo 0).map { dayMinutes(today.minusDays(it.toLong())) }
-            val appDaily7 = rows.groupBy { it.packageName }.mapValues { (_, appRows) ->
+            val byApp = rows.groupBy { it.packageName }
+            val appDaily7 = byApp.mapValues { (_, appRows) ->
                 (6 downTo 0).map { offset ->
                     millisToMinutes(appRows.filter { it.day == today.minusDays(offset.toLong()) }.sumOf { it.foregroundMillis })
                 }
             }
+            val appDaily30 = byApp.mapValues { (_, appRows) ->
+                (29 downTo 0).map { offset ->
+                    millisToMinutes(appRows.filter { it.day == today.minusDays(offset.toLong()) }.sumOf { it.foregroundMillis })
+                }
+            }
             val hourly = if (sawAnyEvents) hourlyMillis.map(::millisToMinutes) else null
-            UsageLoadState.Ready(UsageSnapshot(todayWindow, last7, last30, yesterday, previous7, previous30, daily7, daily30, appDaily7, hourly, nowMillis))
+            UsageLoadState.Ready(UsageSnapshot(todayWindow, last7, last30, yesterday, previous7, previous30, daily7, daily30, appDaily7, hourly, nowMillis, appDaily30))
         } catch (_: SecurityException) {
             UsageLoadState.PermissionRequired
         } catch (_: RuntimeException) {

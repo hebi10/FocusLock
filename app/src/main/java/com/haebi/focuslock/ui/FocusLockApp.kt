@@ -33,6 +33,7 @@ import com.haebi.focuslock.data.FocusSessionStatus
 import com.haebi.focuslock.data.FocusSessionStore
 import com.haebi.focuslock.data.FocusSummary
 import com.haebi.focuslock.data.GoalAlerts
+import com.haebi.focuslock.data.GoalDayPolicy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.lifecycle.Lifecycle
@@ -110,6 +111,11 @@ fun FocusLockApp() {
     val everydayGoal = remember(prefs) {
         mutableStateMapOf<String, Boolean>().also { map ->
             prefs.all.forEach { (key, value) -> if (key.startsWith("everyday.") && value is Boolean) map[key.removePrefix("everyday.")] = value }
+        }
+    }
+    val goalDays = remember(prefs) {
+        mutableStateMapOf<String, Int>().also { map ->
+            prefs.all.forEach { (key, value) -> if (key.startsWith("goalDays.") && value is Int) map[key.removePrefix("goalDays.")] = GoalDayPolicy.normalize(value) }
         }
     }
 
@@ -317,6 +323,7 @@ fun FocusLockApp() {
                         app = selectedAppRecord!!,
                         snapshot = usageSnapshot,
                         period = selectedAppPeriod,
+                        onPeriod = { selectedAppPeriod = it },
                         goalMinutes = goals[selectedAppId],
                         isDistraction = distraction[selectedAppId] ?: false,
                         isExcluded = excluded[selectedAppId] ?: false,
@@ -388,21 +395,25 @@ fun FocusLockApp() {
                 current=goals[app.id] ?: 60,
                 initialWarn80=warningAt80[app.id] ?: true,
                 initialWarn100=warningAt100[app.id] ?: true,
-                initialEveryday=everydayGoal[app.id] ?: true,
-                onSave = { minutes, warn80, warn100, daily ->
+                initialDays=goalDays[app.id]
+                    ?: GoalDayPolicy.fromLegacyEveryday(everydayGoal[app.id] ?: true),
+                onSave = { minutes, warn80, warn100, days ->
+                    val normalizedDays = GoalDayPolicy.normalize(days)
                     goals[app.id] = minutes
                     warningAt80[app.id] = warn80
                     warningAt100[app.id] = warn100
-                    everydayGoal[app.id] = daily
+                    goalDays[app.id] = normalizedDays
+                    everydayGoal[app.id] = normalizedDays != GoalDayPolicy.NONE
                     prefs.edit()
                         .putInt("goal.${app.id}", minutes)
                         .putBoolean("warn80.${app.id}", warn80)
                         .putBoolean("warn100.${app.id}", warn100)
-                        .putBoolean("everyday.${app.id}", daily)
+                        .putInt("goalDays.${app.id}", normalizedDays)
+                        .putBoolean("everyday.${app.id}", normalizedDays != GoalDayPolicy.NONE)
                         .apply()
                     goalSettingsVersion++
                     goalSheetId = ""
-                    if ((warn80 || warn100) && Build.VERSION.SDK_INT >= 33 &&
+                    if (normalizedDays != GoalDayPolicy.NONE && (warn80 || warn100) && Build.VERSION.SDK_INT >= 33 &&
                         context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
                     ) notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 },
@@ -411,8 +422,10 @@ fun FocusLockApp() {
                     warningAt80.remove(app.id)
                     warningAt100.remove(app.id)
                     everydayGoal.remove(app.id)
+                    goalDays.remove(app.id)
                     prefs.edit().remove("goal.${app.id}").remove("warn80.${app.id}")
-                        .remove("warn100.${app.id}").remove("everyday.${app.id}").apply()
+                        .remove("warn100.${app.id}").remove("everyday.${app.id}")
+                        .remove("goalDays.${app.id}").apply()
                     goalSettingsVersion++
                     goalSheetId = ""
                 },

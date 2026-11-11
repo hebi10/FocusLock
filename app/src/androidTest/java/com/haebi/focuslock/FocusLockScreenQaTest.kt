@@ -8,6 +8,9 @@ import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.Until
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertEquals
+import com.haebi.focuslock.data.GoalDayPolicy
+import java.time.DayOfWeek
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
@@ -146,7 +149,23 @@ class FocusLockScreenQaTest {
             captureScrolledContent("33-app-detail-scroll")
             tapText("사용 목표")
             capture("19-goal-sheet")
+            assertTrue(
+                "Goal sheet save action must be visible without scrolling",
+                device.wait(Until.hasObject(By.text("저장")), 5000L)
+            )
+            val pref = context.getSharedPreferences("focuslock_ui_prototype", 0)
+            val previousDays = if (pref.contains("goalDays.com.android.settings"))
+                pref.getInt("goalDays.com.android.settings", GoalDayPolicy.EVERY_DAY)
+            else GoalDayPolicy.fromLegacyEveryday(
+                pref.getBoolean("everyday.com.android.settings", true)
+            )
+            tapText("월")
             tapText("저장")
+            assertEquals(
+                "Changing Monday must persist exact selected notification weekdays",
+                GoalDayPolicy.toggle(previousDays, DayOfWeek.MONDAY),
+                pref.getInt("goalDays.com.android.settings", -1)
+            )
             assertTrue("Goal sheet did not close after saving", device.wait(Until.gone(By.text("사용 목표 설정")), 10000L))
             tapText("뒤로")
             tapText("리포트 보기")
