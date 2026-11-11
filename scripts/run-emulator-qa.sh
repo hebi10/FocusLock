@@ -58,7 +58,7 @@ if ! adb pull /sdcard/Android/data/com.haebi.focuslock/files/qa-r04-captures/ ca
   failed=1
 fi
 
-for name in r04-analysis-today r04-analysis-search-empty r04-analysis-sort-name; do
+for name in r04-analysis-today r04-analysis-search-empty r04-analysis-sort-name r04-analysis-week r04-analysis-month; do
   if [[ ! -s "captures/qa-r04-captures/${name}.png" ]]; then
     echo "::error::Missing UI-R04 actual Android capture: ${name}.png"
     failed=1
