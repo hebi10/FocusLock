@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ArrowBack
@@ -86,7 +87,7 @@ fun AppDetailScreen(
         }
         PeriodSelector(listOf("오늘", "7일", "30일"), period, onPeriod)
         FocusCard {
-            Metric(UsageFormat.minutesLabel(selectedApp.minutes), "$" + "{period} 사용")
+            Metric(UsageFormat.minutesLabel(selectedApp.minutes), "${period} 사용")
             if (goalMinutes != null && goalMinutes > 0) {
                 Text(
                     "일일 사용 목표 " + UsageFormat.minutesLabel(goalMinutes),
@@ -141,7 +142,7 @@ fun AppDetailScreen(
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             InfoPair(
                 "실행·전환 이벤트",
-                if (selectedApp.launches < 0) "확인 불가" else "$" + "{selectedApp.launches}회"
+                if (selectedApp.launches < 0) "확인 불가" else "${selectedApp.launches}회"
             )
             InfoPair("마지막 사용", selectedApp.lastUsed)
             Text(
@@ -195,6 +196,63 @@ fun AppDetailScreen(
                     Text("앱 목록에서 숨기며 총 사용 시간에는 포함합니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Switch(checked = isExcluded, onCheckedChange = onExcluded)
+            }
+        }
+    }
+}
+
+@Composable
+private fun AppDetailHistoryChart(values: List<Int>, startDate: LocalDate) {
+    var selectedIndex by remember(values, startDate) { mutableIntStateOf(values.lastIndex) }
+    val maximum = values.maxOrNull()?.coerceAtLeast(1) ?: 1
+    val selectedDate = startDate.plusDays(selectedIndex.toLong())
+    Text(
+        "${selectedDate.format(DateTimeFormatter.ofPattern("M월 d일", Locale.KOREAN))} · ${UsageFormat.minutesLabel(values[selectedIndex])}",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.testTag("app-history-selected")
+    )
+    Row(
+        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(FocusSpacing.xxs)
+    ) {
+        values.forEachIndexed { index, minutes ->
+            val date = startDate.plusDays(index.toLong())
+            val label = when (values.size) {
+                1 -> "오늘"
+                7 -> date.format(DateTimeFormatter.ofPattern("E", Locale.KOREAN))
+                else -> date.format(DateTimeFormatter.ofPattern("M/d", Locale.KOREAN))
+            }
+            Column(
+                modifier = Modifier.width(FocusSpacing.minTouchTarget).heightIn(min = 146.dp)
+                    .testTag("app-history-bar-$index")
+                    .clickable(role = Role.Button) { selectedIndex = index }
+                    .semantics {
+                        contentDescription =
+                            "${date.format(DateTimeFormatter.ofPattern("M월 d일 EEEE", Locale.KOREAN))}, ${UsageFormat.minutesLabel(minutes)}"
+                    },
+                verticalArrangement = Arrangement.spacedBy(FocusSpacing.xs),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    Modifier.fillMaxWidth().height(106.dp),
+                    contentAlignment = Alignment.BottomCenter
+                ) {
+                    val height = (94f * minutes / maximum).coerceAtLeast(if (minutes > 0) 3f else 0f)
+                    Box(
+                        Modifier.width(20.dp).height(height.dp)
+                            .background(
+                                MaterialTheme.colorScheme.primary.copy(alpha = if (index == selectedIndex) 1f else 0.5f),
+                                RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp)
+                            )
+                    )
+                }
+                Text(
+                    label,
+                    maxLines = 1,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }
