@@ -72,6 +72,23 @@ def verify_frozen_zip(manifest, archive):
             "pixel_size": list(EXPECTED_PIXELS), "design_count": len(manifest["design_sources"])}
 
 
+def verify_frozen_directory(manifest, directory):
+    directory = Path(directory)
+    expected = manifest["screenshot_files"]
+    actual = {p.name for p in directory.glob("*.png")}
+    if actual != set(expected):
+        raise ValueError("Frozen extracted baseline screenshot names do not match the pinned set")
+    for name, expected_hash in expected.items():
+        data = (directory / name).read_bytes()
+        png_dimensions(data)
+        if digest(data) != expected_hash:
+            raise ValueError("Frozen extracted PNG checksum mismatch: " + name)
+    return {"status": "baseline_verified", "source_workflow_run": manifest["source"]["workflow_run"],
+            "source_sha": manifest["source"]["commit"], "capture_count": len(actual),
+            "design_count": len(manifest["design_sources"]), "pixel_size": list(EXPECTED_PIXELS),
+            "note": "All individual real Android PNG SHA-256 values matched the manifest."}
+
+
 def verify_run(manifest, capture_root):
     root = Path(capture_root)
     folder = root / "qa-captures"
@@ -130,15 +147,19 @@ def main():
     parser.add_argument("mode", choices=("baseline", "run"))
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
     parser.add_argument("--baseline-archive", type=Path)
+    parser.add_argument("--baseline-dir", type=Path)
     parser.add_argument("--capture-root", type=Path, default=Path("captures"))
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     try:
         manifest = read_manifest(args.manifest)
         if args.mode == "baseline":
-            if args.baseline_archive is None:
-                parser.error("baseline mode requires --baseline-archive")
-            result = verify_frozen_zip(manifest, args.baseline_archive)
+            if args.baseline_archive is not None:
+                result = verify_frozen_zip(manifest, args.baseline_archive)
+            elif args.baseline_dir is not None:
+                result = verify_frozen_directory(manifest, args.baseline_dir)
+            else:
+                parser.error("baseline mode requires --baseline-archive or --baseline-dir")
         else:
             result = verify_run(manifest, args.capture_root)
         if args.output:
