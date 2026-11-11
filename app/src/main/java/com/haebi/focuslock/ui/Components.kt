@@ -72,13 +72,13 @@ fun Metric(value: String, hint: String, note: String? = null) {
 }
 
 @Composable
-fun ProgressBar(fraction: Float, isWarning: Boolean = false, gardenAccent: Boolean = false) {
+fun ProgressBar(fraction: Float, isWarning: Boolean = false, neutral: Boolean = false) {
     LinearProgressIndicator(
         progress = { fraction.coerceIn(0f, 1f) },
         color = when {
             isWarning -> FocusColors.Amber
-            gardenAccent -> MaterialTheme.colorScheme.secondary
-            else -> MaterialTheme.colorScheme.primary
+            neutral -> MaterialTheme.colorScheme.primary
+            else -> MaterialTheme.colorScheme.secondary
         },
         trackColor = MaterialTheme.colorScheme.surfaceVariant,
         modifier = Modifier.fillMaxWidth().height(7.dp)
@@ -121,7 +121,7 @@ fun CategoryRow(label: String, minutes: Int, total: Int) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(label, fontSize = 13.sp, modifier = Modifier.width(56.dp))
         Text(UsageFormat.minutesLabel(minutes), fontSize = 12.sp, modifier = Modifier.width(48.dp))
-        Box(Modifier.weight(1f)) { ProgressBar(if (total == 0) 0f else minutes.toFloat() / total) }
+        Box(Modifier.weight(1f)) { ProgressBar(if (total == 0) 0f else minutes.toFloat() / total, neutral = true) }
         Text("${UsageFormat.sharePercent(minutes, total)}%", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.width(34.dp))
     }
 }
