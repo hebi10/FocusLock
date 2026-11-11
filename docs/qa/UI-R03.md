@@ -1,7 +1,7 @@
 # UI-R03 — 홈 대시보드 리디자인
 
 기준일: 2026-11-11
-상태: R02·R04·R05 최신 main 통합 후보 — 병합 전 동일 SHA CI·API36 전체 QA 필수
+상태: 완료 — 동일 SHA Android CI·API36 실제 화면 QA 통과, PR #22 main 병합. Google Play 미배포.
 대상: `com.haebi.focuslock`
 
 ## 기준과 보호 범위
@@ -55,3 +55,16 @@
 - 검증: Android CI·API36 전체 화면 37장+R04 5장, R05 요일·저장 테스트, R03 오늘 XP 자정 경계 테스트가 **동일 통합 SHA**에서 모두 통과해야 main 병합 가능합니다.
 - 실제 Android UsageStats 소량 데이터는 별도 기록하며, 다중 앱·날짜/API29·35/큰 글꼴/폴더블/실기기는 UI-R08 후속입니다.
 - Google Play 바이너리·서명·트랙·이미지는 변경하지 않습니다.
+
+
+## UI-R03 최종 통합 QA 및 main 병합 (2026-11-11)
+
+- [PR #22](https://github.com/hebi10/FocusLock/pull/22): 기존 Draft 상태를 Ready로 전환한 후 통합 HEAD `24a456191a09366984f182791f3c5fc18192bb0a` 검증 완료 및 squash 병합.
+- [Android CI #42989795818](https://github.com/hebi10/FocusLock/actions/runs/42989795818): success — 단위 테스트·Lint·Debug APK 빌드/안전 가드.
+- [Android API36 QA #42989795866](https://github.com/hebi10/FocusLock/actions/runs/42989795866): success — 권한 거부·허용, Android 실사용 기록·목표·하단 스크롤, 분석 기간/검색, Room 복구·보상 검사.
+- `FocusPersistenceQaTest#todayExperienceIsLimitedToEarnedRewardsFromLocalDay`: **성공** — 오늘 보상 XP와 전체 누적 XP를 구분하고 자정 이후 오늘 XP만 0으로 초기화되는 집계 경계 검증.
+- 실제 API36 Android 화면 **42장**: R00 기준 스크린샷 **37/37**, R04 분석 전용 **5/5**. 아티팩트 [#13841179463](https://github.com/hebi10/FocusLock/actions/runs/42989795866/artifacts/13841179463), ZIP SHA256 `0c3c3b36d61b809e84ac38642c61b3b3a0e4a54540a970e6463e2a5b0edf3fb9`.
+- 실제 캡처 수동 비교: 기획 D02 홈 라이트/다크와 권한 미허용·허용 홈, 홈 하단 정원/7일 요약, R05 목표 시트의 상태 및 버튼 접근성 확인. **실제 2개 앱·2분·하루 사용 기록**만 수집되어 풍부한 통계 시안과 동일한 데이터 밀도는 검증 불가.
+- UI-R02 온보딩, R04 사용 분석(검색/이름 정렬/7·30일), R05 앱 상세·월~일 목표 알림 정책 및 저장 회귀 보존 확인.
+- main squash 커밋: `6c52e8d0c47e38d3ac0fca871a7413853f684fdf` (`[skip ci]`). Google Play AAB·서명·버전·테스트 트랙·스토어 이미지는 변경하지 않음.
+- 미검증: Android API29/35, 화면 글꼴 160%, 태블릿·폴더블·삼성 실기기, 3개 이상 앱·2일 이상 장기간 실제 사용 데이터. 이 항목은 `UI-R08`에서 검증해야 함.
