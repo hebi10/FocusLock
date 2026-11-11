@@ -18,7 +18,7 @@
 | PageTitle / SectionTitle | 24sp 페이지 / 18sp 섹션 제목으로 정리 | 기존 제목·링크·동작 |
 | FocusCard | 16dp 기본 내부 여백·12dp 요소 간격·12dp 반경 | 그림자 0, 기존 카드 구성 |
 | Metric | 36sp 큰 수치와 tabular number, 13sp 보조 | 실제 숫자와 데이터 로직 |
-| ProgressBar / BarChart | 분석/이용량 기본 막대를 무채색으로 표현, 경고 시에만 주의색 | 그래프 데이터, 계산 및 기간 구조 |
+| ProgressBar / BarChart | 분석/시간대별 막대는 무채색, 목표 진행·정원 성장 막대는 녹색, 경고는 주의색 | 그래프 데이터, 계산 및 기간 구조 |
 | ActionButton / SettingRow | 최소 높이 52dp / 48dp | onClick, 비활성 상태 |
 | PeriodSelector / AppUsageRow | 항목 최소 클릭 48dp·작은 텍스트 가독성 | 선택 상태·필터 기능 |
 | 하단 5탭 | 24dp outlined 아이콘, 12sp 레이블 | 5개 탭, 테스트 태그, 선택/전환 로직 |
