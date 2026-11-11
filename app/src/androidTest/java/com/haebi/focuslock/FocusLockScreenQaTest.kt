@@ -99,6 +99,8 @@ class FocusLockScreenQaTest {
             captureScrolledContent("25-onboarding-goal-scroll")
             tapText("FocusLock 시작")
             capture("04-home-denied")
+            assertTrue("Focus CTA must remain available without usage access",
+                device.wait(Until.findObject(By.text("집중 시작")), 3500L) != null)
             tapText("사용 분석")
             capture("05-analysis-denied")
             tapText("설정")
@@ -130,6 +132,8 @@ class FocusLockScreenQaTest {
             device.wait(Until.findObject(By.text("오늘의 FocusLock")), 15000L)
             Thread.sleep(1200L)
             capture("14-home-granted")
+            assertTrue("Usage total must appear in the home hero",
+                device.wait(Until.findObject(By.text("오늘 사용 시간")), 3500L) != null)
             captureScrolledContent("29-home-granted-scroll")
             tapText("사용 분석")
             capture("15-analysis-today")
