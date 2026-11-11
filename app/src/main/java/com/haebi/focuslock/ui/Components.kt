@@ -150,7 +150,7 @@ fun BarChart(values: List<Int>, labels: List<String>, maxValue: Int, highlight: 
                 Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.Bottom, horizontalAlignment = Alignment.CenterHorizontally) {
                     Box(
                         Modifier.fillMaxWidth().height((136f * (value.toFloat() / maxValue.coerceAtLeast(1))).coerceAtLeast(if (value > 0) 3f else 0f).dp)
-                            .background(if (i == highlight) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.30f), RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+                            .background(if (i == highlight) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.55f), RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
                     )
                 }
             }
