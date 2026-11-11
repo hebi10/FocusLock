@@ -1,6 +1,14 @@
 package com.haebi.focuslock.ui
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -227,34 +235,67 @@ fun FocusResultScreen(
 }
 
 data class GardenItem(val id: String, val name: String, val symbol: String, val requirement: Int)
-private val gardenItems = listOf(
-    GardenItem("sprout", "작은 새싹", "🌱", 0),
-    GardenItem("flowers", "꽃밭", "🌼", 60),
-    GardenItem("tree", "작은 나무", "🌳", 150),
-    GardenItem("bench", "정원 벤치", "🪑", 300)
-)
+
+internal object GardenCatalog {
+    val items = listOf(
+        GardenItem("sprout", "작은 새싹", "🌱", 0),
+        GardenItem("flowers", "꽃밭", "🌼", 60),
+        GardenItem("tree", "작은 나무", "🌳", 150),
+        GardenItem("bench", "정원 벤치", "🪑", 300)
+    )
+
+    fun fromSaved(value: String?): GardenItem =
+        items.firstOrNull { it.id == value || it.name == value } ?: items.first()
+
+    fun canPlace(id: String, experience: Int): Boolean =
+        items.any { it.id == id && experience >= it.requirement }
+
+    fun placed(value: String?, experience: Int): GardenItem =
+        fromSaved(value).takeIf { canPlace(it.id, experience) } ?: items.first()
+}
 
 @Composable
-fun GardenScreen(experience: Int, placedItem: String, onItem: (GardenItem) -> Unit, onFocus: () -> Unit) {
+fun GardenScreen(
+    experience: Int,
+    points: Int,
+    placedItem: String,
+    onItem: (GardenItem) -> Unit,
+    onFocus: () -> Unit
+) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val wide = maxWidth >= 700.dp
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            PageTitle("나의 정원", "집중 성과가 쌓일수록 성장합니다")
+        val next = GardenCatalog.items.firstOrNull { experience < it.requirement }
+        val placed = GardenCatalog.placed(placedItem, experience)
+        Column(
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            PageTitle("나의 정원", "집중 성과를 모아 나만의 정원을 가꿔보세요")
             FocusCard {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("레벨 ${experience / 100 + 1}", fontWeight = FontWeight.Bold)
-                    Text("경험치 ${experience % 100} / 100 · 누적 ${experience}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("경험치 ${experience % 100} / 100", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 ProgressBar((experience % 100) / 100f)
+                Text(
+                    "누적 ${experience} XP · 성장 포인트 ${points}P",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Text(
+                    if (next == null) "모든 정원 아이템을 해금했습니다."
+                    else "다음 해금: ${next.name} · ${next.requirement - experience} XP 남음",
+                    style = MaterialTheme.typography.bodySmall
+                )
             }
-            if(wide) {
+            if (wide) {
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    GardenScene(placedItem, Modifier.weight(1f))
-                    GardenItems(experience, onItem, Modifier.weight(1f))
+                    GardenScene(placed, Modifier.weight(1f))
+                    GardenItems(experience, placed.id, onItem, Modifier.weight(1f))
                 }
             } else {
-                GardenScene(placedItem)
-                GardenItems(experience, onItem)
+                GardenScene(placed)
+                GardenItems(experience, placed.id, onItem)
             }
             ActionButton("집중 시작", onFocus)
         }
@@ -262,39 +303,113 @@ fun GardenScreen(experience: Int, placedItem: String, onItem: (GardenItem) -> Un
 }
 
 @Composable
-private fun GardenScene(placedItem: String, modifier: Modifier = Modifier) {
+private fun GardenScene(item: GardenItem, modifier: Modifier = Modifier) {
     FocusCard(modifier) {
         SectionTitle("작은 정원")
-        Image(
-            painterResource(R.drawable.garden_illustration),
-            contentDescription = "모자를 쓴 캐릭터와 새싹이 있는 정원",
-            modifier = Modifier.fillMaxWidth().height(190.dp)
+        Box(Modifier.fillMaxWidth().height(195.dp)) {
+            Image(
+                painterResource(R.drawable.garden_illustration),
+                contentDescription = "기본 정원 배경",
+                modifier = Modifier.fillMaxSize()
+            )
+            GardenDecoration(
+                item.id,
+                Modifier.align(Alignment.BottomEnd).padding(12.dp).size(88.dp)
+                    .semantics { contentDescription = "현재 배치: ${item.name}" }
+            )
+        }
+        Text("배치 중 · ${item.name}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+        Text(
+            "아이템을 선택하면 정원 장식이 변경되며, 배치로 포인트가 차감되지 않습니다.",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodySmall
         )
-        Text("배치된 아이템: $placedItem", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-        Text("오늘의 집중으로 조금씩 자라는 공간", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
     }
 }
 
 @Composable
-private fun GardenItems(experience: Int, onItem: (GardenItem) -> Unit, modifier: Modifier = Modifier) {
+private fun GardenDecoration(itemId: String, modifier: Modifier = Modifier) {
+    Canvas(modifier) {
+        val w = size.width
+        val h = size.height
+        val leaf = Color(0xFF6E8D78)
+        val pale = Color(0xFFB5C6B7)
+        val brown = Color(0xFF89705C)
+        val gold = Color(0xFFD3B26C)
+        when (itemId) {
+            "sprout" -> {
+                drawLine(leaf, Offset(w * .5f, h * .9f), Offset(w * .5f, h * .35f), w * .065f, cap = StrokeCap.Round)
+                drawOval(leaf, Offset(w * .15f, h * .28f), Size(w * .37f, h * .25f))
+                drawOval(pale, Offset(w * .49f, h * .16f), Size(w * .38f, h * .25f))
+            }
+            "flowers" -> {
+                listOf(.25f, .5f, .75f).forEachIndexed { index, x ->
+                    val flowerY = if (index == 1) .26f else .42f
+                    drawLine(leaf, Offset(w * x, h * .9f), Offset(w * x, h * flowerY), w * .035f)
+                    listOf(
+                        Offset(-.11f, 0f), Offset(.11f, 0f),
+                        Offset(0f, -.11f), Offset(0f, .11f)
+                    ).forEach { offset ->
+                        drawCircle(pale, w * .105f, Offset(w * (x + offset.x), h * (flowerY + offset.y)))
+                    }
+                    drawCircle(gold, w * .075f, Offset(w * x, h * flowerY))
+                }
+            }
+            "tree" -> {
+                drawRoundRect(brown, Offset(w * .43f, h * .48f), Size(w * .14f, h * .45f), CornerRadius(w * .04f))
+                drawCircle(leaf, w * .29f, Offset(w * .5f, h * .34f))
+                drawCircle(pale, w * .20f, Offset(w * .34f, h * .40f))
+                drawCircle(leaf, w * .21f, Offset(w * .67f, h * .42f))
+            }
+            "bench" -> {
+                drawRoundRect(brown, Offset(w * .15f, h * .38f), Size(w * .70f, h * .24f), CornerRadius(w * .035f))
+                drawRoundRect(gold, Offset(w * .12f, h * .65f), Size(w * .76f, h * .10f), CornerRadius(w * .025f))
+                drawRect(brown, Offset(w * .23f, h * .74f), Size(w * .09f, h * .19f))
+                drawRect(brown, Offset(w * .68f, h * .74f), Size(w * .09f, h * .19f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun GardenItems(
+    experience: Int,
+    placedItemId: String,
+    onItem: (GardenItem) -> Unit,
+    modifier: Modifier = Modifier
+) {
     FocusCard(modifier) {
         SectionTitle("아이템")
-        gardenItems.chunked(2).forEach { pair ->
+        GardenCatalog.items.chunked(2).forEach { pair ->
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 pair.forEach { item ->
-                    val unlocked = experience >= item.requirement
+                    val unlocked = GardenCatalog.canPlace(item.id, experience)
                     Surface(
-                        modifier = Modifier.weight(1f).clickable { onItem(item) },
-                        shape = RoundedCornerShape(10.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.62f)
+                        modifier = Modifier.weight(1f).clickable { onItem(item) }
+                            .testTag("garden-item-${item.id}"),
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.62f)
                     ) {
-                        Column(Modifier.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(item.symbol, fontSize = 28.sp)
-                            Text(item.name, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                            Text(if (unlocked) "보유" else "${item.requirement} XP 필요", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Column(
+                            Modifier.padding(12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            GardenDecoration(item.id, Modifier.size(44.dp))
+                            Text(item.name, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
+                            Text(
+                                when {
+                                    placedItemId == item.id -> "배치 중"
+                                    unlocked -> "배치 가능"
+                                    else -> "${item.requirement - experience} XP 남음"
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
                 }
-                if(pair.size == 1) Spacer(Modifier.weight(1f))
+                if (pair.size == 1) Spacer(Modifier.weight(1f))
             }
         }
     }
@@ -302,14 +417,46 @@ private fun GardenItems(experience: Int, onItem: (GardenItem) -> Unit, modifier:
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GardenItemSheet(item: GardenItem, experience: Int, onDismiss: () -> Unit, onSelect: () -> Unit) {
-    val unlocked = experience >= item.requirement
+fun GardenItemSheet(
+    item: GardenItem,
+    experience: Int,
+    placedItemId: String,
+    onDismiss: () -> Unit,
+    onSelect: () -> Unit
+) {
+    val unlocked = GardenCatalog.canPlace(item.id, experience)
+    val placed = placedItemId == item.id
     ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(item.symbol, fontSize = 56.sp)
-            Text(item.name, fontWeight = FontWeight.Bold, fontSize = 24.sp)
-            Text(if(unlocked) "사용 가능한 정원 아이템" else "${item.requirement} 경험치를 모으면 해금됩니다.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            ActionButton(if(unlocked) "정원에 배치" else "해금 전", onClick = onSelect, enabled = unlocked)
+        Column(
+            Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            GardenDecoration(item.id, Modifier.size(72.dp))
+            Text(item.name, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.headlineMedium)
+            Text(
+                when {
+                    placed -> "현재 정원에 배치된 아이템입니다."
+                    unlocked -> "집중으로 해금된 아이템입니다. 포인트 차감 없이 배치할 수 있습니다."
+                    else -> "${item.requirement - experience} XP를 더 모으면 해금됩니다."
+                },
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center
+            )
+            Text(
+                "해금 기준 ${item.requirement} XP · 현재 ${experience} XP",
+                style = MaterialTheme.typography.bodySmall
+            )
+            ActionButton(
+                when {
+                    placed -> "배치 중"
+                    unlocked -> "정원에 배치"
+                    else -> "해금 전"
+                },
+                onClick = onSelect,
+                enabled = unlocked && !placed
+            )
         }
     }
 }
