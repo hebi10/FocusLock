@@ -1,0 +1,53 @@
+name: UI-R00 pinned Android baseline integrity
+
+on:
+  pull_request:
+    paths:
+      - 'docs/qa/UI-R00-baseline.json'
+      - 'scripts/qa/ui_r00_verify.py'
+      - 'scripts/qa/test_ui_r00_verify.py'
+      - '.github/workflows/ui-r00-baseline.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify UI-R00 local contract tests
+        run: python3 -m unittest discover -s scripts/qa -p 'test_*.py'
+      - name: Download original actual Android API36 screenshot evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p frozen
+          gh run download 42945780305 --repo "$GITHUB_REPOSITORY" \
+            --name focuslock-android-fullscreen-captures --dir frozen
+      - name: Require exact baseline screenshot SHA-256, names and size
+        run: |
+          python3 scripts/qa/ui_r00_verify.py baseline \
+            --baseline-dir frozen/qa-captures \
+            --output frozen/ui-r00-frozen-proof.json
+      - name: Upload verified source proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: focuslock-ui-r00-pinned-baseline-proof
+          path: frozen/ui-r00-frozen-proof.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Report scope
+        run: |
+          echo '23 original API36 Android screenshots verified against immutable SHA-256 list.' >> "$GITHUB_STEP_SUMMARY"
+          echo '10 Google Drive design source IDs and captured hashes recorded; no design images mistaken for real app UI.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Read-only verification; no APK/AAB or Google Play edit.' >> "$GITHUB_STEP_SUMMARY"

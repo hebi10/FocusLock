@@ -49,6 +49,20 @@ class FocusLockScreenQaTest {
         assertTrue("Screenshot failed: $name", device.takeScreenshot(File(dir, "$name.png")))
     }
 
+    private fun captureScrolledContent(name: String) {
+        val x = device.displayWidth * 2 / 3
+        val top = device.displayHeight * 30 / 100
+        val bottom = device.displayHeight * 78 / 100
+        repeat(4) {
+            device.swipe(x, bottom, x, top, 28)
+        }
+        capture(name)
+        repeat(5) {
+            device.swipe(x, top, x, bottom, 28)
+        }
+        device.waitForIdle(1200L)
+    }
+
     private fun tapText(label: String) {
         dismissEmulatorSystemUiAnr()
         // Content descriptions (for icon-only back buttons) must be checked before scrolling.
@@ -77,18 +91,22 @@ class FocusLockScreenQaTest {
     fun onboardingAndPermissionDeniedScreens() {
         launch(onboardingCompleted = false).use {
             capture("01-onboarding-intro")
+            captureScrolledContent("24-onboarding-intro-scroll")
             tapText("시작하기")
             capture("02-onboarding-permission")
             tapText("나중에")
             capture("03-onboarding-goal")
+            captureScrolledContent("25-onboarding-goal-scroll")
             tapText("FocusLock 시작")
             capture("04-home-denied")
             tapText("사용 분석")
             capture("05-analysis-denied")
             tapText("설정")
             capture("06-settings")
+            captureScrolledContent("26-settings-scroll")
             tapText("사용 정보 및 알림 권한")
             capture("07-permission-management-denied")
+            captureScrolledContent("27-permissions-denied-scroll")
             tapText("뒤로")
             tapText("집중")
             capture("08-focus-setup")
@@ -100,6 +118,7 @@ class FocusLockScreenQaTest {
             capture("11-focus-result")
             tapText("정원 보기")
             capture("12-garden")
+            captureScrolledContent("28-garden-scroll")
             tapText("작은 새싹")
             capture("13-garden-item")
         }
@@ -111,15 +130,20 @@ class FocusLockScreenQaTest {
             device.wait(Until.findObject(By.text("오늘의 FocusLock")), 15000L)
             Thread.sleep(1200L)
             capture("14-home-granted")
+            captureScrolledContent("29-home-granted-scroll")
             tapText("사용 분석")
             capture("15-analysis-today")
+            captureScrolledContent("30-analysis-today-scroll")
             tapText("7일")
             capture("16-analysis-week")
+            captureScrolledContent("31-analysis-week-scroll")
             tapText("30일")
             capture("17-analysis-month")
+            captureScrolledContent("32-analysis-month-scroll")
             tapText("오늘")
             tapText("Settings")
             capture("18-app-detail")
+            captureScrolledContent("33-app-detail-scroll")
             tapText("사용 목표")
             capture("19-goal-sheet")
             tapText("저장")
@@ -127,16 +151,20 @@ class FocusLockScreenQaTest {
             tapText("뒤로")
             tapText("리포트 보기")
             capture("20-report")
+            captureScrolledContent("34-report-scroll")
             tapText("뒤로")
             tapText("설정")
             tapText("다크")
             capture("21-dark-settings")
+            captureScrolledContent("35-dark-settings-scroll")
             tapText("홈")
             capture("22-dark-home")
+            captureScrolledContent("36-dark-home-scroll")
             tapText("설정")
             tapText("라이트")
             tapText("사용 정보 및 알림 권한")
             capture("23-permission-management-granted")
+            captureScrolledContent("37-permissions-granted-scroll")
         }
     }
 }

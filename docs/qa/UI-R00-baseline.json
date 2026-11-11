@@ -1,0 +1,171 @@
+{
+  "task": "UI-R00",
+  "package": "com.haebi.focuslock",
+  "reference_date": "2026-11-11",
+  "source": {
+    "repository": "hebi10/FocusLock",
+    "commit": "c485fecff504f40ad7555cce58443a49f0d844e9",
+    "workflow_run": 42945780305,
+    "artifact_id": 13822457943,
+    "artifact_sha256": "04252c9d6f974b7d66911a78a573f4ec4562123b6e92196e721398b9139327c0",
+    "android_api": 36,
+    "emulator": "Pixel 6",
+    "original_count": 23
+  },
+  "design_folder": "https://drive.google.com/drive/folders/1Y30NtM4eK-kQuQCa5hF8SPRX4bCSyrUa",
+  "design_sources": [
+    {
+      "name": "01_온보딩_소개.png",
+      "google_drive_file_id": "1_SyouLdGZ31bsqIHghMjbru-cwvp9R6D",
+      "actual_baseline_files": [
+        "01-onboarding-intro.png"
+      ],
+      "code": "OnboardingScreens.kt",
+      "initial_classification": "layout",
+      "sha256": "2e52881f9514df5e15eeaba475c784f7bfcc49f2748a320d32858bb6e944b1f0",
+      "size_bytes": 1553379
+    },
+    {
+      "name": "02_온보딩_권한.png",
+      "google_drive_file_id": "1IxYFINI6VFf_ng4ne38y5Xj-mp5BcT-m",
+      "actual_baseline_files": [
+        "02-onboarding-permission.png"
+      ],
+      "code": "OnboardingScreens.kt",
+      "initial_classification": "layout",
+      "sha256": "dd540fd6de31747dc7d7f58028fb5097d50b774f8c91cbf478cff2f484867fb9",
+      "size_bytes": 1456606
+    },
+    {
+      "name": "03_온보딩_목표.png",
+      "google_drive_file_id": "1RIs7Pa3rtszyAKDUHnVkZNnk2DM7LhoA",
+      "actual_baseline_files": [
+        "03-onboarding-goal.png"
+      ],
+      "code": "OnboardingScreens.kt",
+      "initial_classification": "data-limited",
+      "sha256": "4612a5f87856ec6ad3a14f75c55c6809185d65560faecf1bbbad44d5737c5927",
+      "size_bytes": 1477625
+    },
+    {
+      "name": "04_홈_라이트.png",
+      "google_drive_file_id": "1p1lfWMWT6631tC0nxSex5HyxblhWQ_47",
+      "actual_baseline_files": [
+        "14-home-granted.png"
+      ],
+      "code": "HomeAnalysisScreens.kt",
+      "initial_classification": "data-limited",
+      "sha256": "c74755a7a114ec629656033aa579efde631453604af06e7d4955504f2a6d7ab6",
+      "size_bytes": 1317609
+    },
+    {
+      "name": "05_홈_다크.png",
+      "google_drive_file_id": "1Z8rYjTy__TJHsg7HhjlooJZAP_Zq8Bg7",
+      "actual_baseline_files": [
+        "22-dark-home.png"
+      ],
+      "code": "Theme.kt / HomeAnalysisScreens.kt",
+      "initial_classification": "layout",
+      "sha256": "8fa1ec0dbd798ef7d79bf309208fd3697dd0c44484a597d5907a48f8465e9e01",
+      "size_bytes": 1471073
+    },
+    {
+      "name": "06_사용분석_오늘.png",
+      "google_drive_file_id": "1DsCU4jkSgSJUg7IahbiVfvlIKjnRSD5M",
+      "actual_baseline_files": [
+        "15-analysis-today.png"
+      ],
+      "code": "HomeAnalysisScreens.kt / Components.kt",
+      "initial_classification": "data-limited",
+      "sha256": "9e31678a176cb23d8be0c490505246adaabd8e20bebb717de276c47e5cdb9820",
+      "size_bytes": 1489186
+    },
+    {
+      "name": "07_사용분석_7일.png",
+      "google_drive_file_id": "1qidotO1cEo-ZrMdub5zFiWDKqGFRmFb8",
+      "actual_baseline_files": [
+        "16-analysis-week.png"
+      ],
+      "code": "HomeAnalysisScreens.kt / Components.kt",
+      "initial_classification": "data-limited",
+      "sha256": "3e4ac321d3c73e81188ead7a13801f7f0b9da0847c15542199ecf6e1228dc054",
+      "size_bytes": 1431150
+    },
+    {
+      "name": "08_앱상세_사용기록.png",
+      "google_drive_file_id": "1DTQ9wcshXduN7jTU06fktR4cktKct83i",
+      "actual_baseline_files": [
+        "18-app-detail.png"
+      ],
+      "code": "AppDetailScreens.kt",
+      "initial_classification": "partial-feature",
+      "sha256": "59d34f9ebd5bee5d4dfdeb1a78c098d627791273f6b4dc67db422470385059e7",
+      "size_bytes": 1410253
+    },
+    {
+      "name": "09_앱상세_권한영향.png",
+      "google_drive_file_id": "1rha_-TU2l6bqp0b2DZ5UQLCVz87p4bz9",
+      "actual_baseline_files": [
+        "18-app-detail.png"
+      ],
+      "code": "AppDetailScreens.kt",
+      "initial_classification": "needs-scroll",
+      "sha256": "3dbbc105eca27f58c0c873a8663bb036877bdf4172f5915fb6cf3a108bbb0239",
+      "size_bytes": 1507992
+    },
+    {
+      "name": "10_목표설정_시트.png",
+      "google_drive_file_id": "1DqcGrpYR7ekxnk2rvpaxbOY0Cx6YS2oD",
+      "actual_baseline_files": [
+        "19-goal-sheet.png"
+      ],
+      "code": "AppDetailScreens.kt",
+      "initial_classification": "partial-feature",
+      "sha256": "5301f8f8c2ff1519e06986d92da6475b50e9a0f9ac92d9ffbec4259915c19995",
+      "size_bytes": 1461433
+    }
+  ],
+  "screenshot_files": {
+    "01-onboarding-intro.png": "affb0fcdaf10845f95a3947601fc229fa27832b47336417de30969c69c5d5bc7",
+    "02-onboarding-permission.png": "c369f1e0888121dc2c044c636be8afde61ff0894b66eef07a855f6aa0be9c11e",
+    "03-onboarding-goal.png": "555a1b4a53c90a1bdc1c31d1ec024230c356e2cb386d7a7185589e49e3e54c3c",
+    "04-home-denied.png": "57995bf78834c6add5032d037f921ce952f863dc166dbb6609a6ce7717c730bd",
+    "05-analysis-denied.png": "5a6f915fed6163f95367ea758817bc40e2cd333d652ed5d39430451fe88d7a69",
+    "06-settings.png": "cb92e3e0b622cc045729cb1b7f77582a0e95156eefcdd4553b8119efc92c03f4",
+    "07-permission-management-denied.png": "9b5e29f8ed31280c3109775e22feadf039a11b31beddd72a20deada771fe6822",
+    "08-focus-setup.png": "a8cb9ef688041b9f37c3b0cfc4fecf8cc88ad9264706ea57715f2726ade2fe54",
+    "09-focus-running.png": "d14346a8f51dcb61bec70b4fb4555527d68b42b7c7be5fb10878f4e6387c1a29",
+    "10-focus-stop-confirm.png": "85b93477c79351d5edce20089415e977dc5a0a4521ce28f6fb86dcc1d93e1d93",
+    "11-focus-result.png": "b0b149db5430e4173292a0ae18f5f456f2c60b172db61f3e746d5687f45d29cc",
+    "12-garden.png": "78dcbcf2dd61e5fed233a3cd037c188f3a0e0128125183d1fb08c18375e418f7",
+    "13-garden-item.png": "8725650de2fddb198e273034c85a9b625e5c74dfb02a1b8bde96f703dca0d2f1",
+    "14-home-granted.png": "4cf81d4f6d22f8875ae7fbf54b3d1ac6b2ae621016fc083426adafbdfc0af5b6",
+    "15-analysis-today.png": "8c7d5dddedba99c7abe562eab8515c73381ec2cf5cc992e260d54486a3f60a23",
+    "16-analysis-week.png": "4bc2bacc67409b1dcf3d1c3275611093be38ac5647de21558bff751d744e4d87",
+    "17-analysis-month.png": "b446676c2be089776af9aef40a800f359156dc0b759d2e55873ee029830fe922",
+    "18-app-detail.png": "c142ecd54e4d782f0ac5c6c389f65babe90709b3a2a92f60ed5a6a49c936fe7d",
+    "19-goal-sheet.png": "2dc51ee0f45ac407142eeee7015fc79445a45dab3ba11be1c12cec64ad3229c5",
+    "20-report.png": "61ea96095a8e8d4e9aaeaecd143287e4dfc425b592436cdb80734f3b00cd1baf",
+    "21-dark-settings.png": "2142e0a28d915a42e6a2d8b0a5cd45763d4f69e45f3912fb9de6e980754625d3",
+    "22-dark-home.png": "833ffec120132e5a8089dceab0e2e3dd2153d45dd73cb9b5714d30f6012be38d",
+    "23-permission-management-granted.png": "205fab4be7f82a02558771ccc236e416c97f1527299b78c615346588b8980167"
+  },
+  "supplemental_scroll_captures": {
+    "24-onboarding-intro-scroll.png": "01-onboarding-intro.png",
+    "25-onboarding-goal-scroll.png": "03-onboarding-goal.png",
+    "26-settings-scroll.png": "06-settings.png",
+    "27-permissions-denied-scroll.png": "07-permission-management-denied.png",
+    "28-garden-scroll.png": "12-garden.png",
+    "29-home-granted-scroll.png": "14-home-granted.png",
+    "30-analysis-today-scroll.png": "15-analysis-today.png",
+    "31-analysis-week-scroll.png": "16-analysis-week.png",
+    "32-analysis-month-scroll.png": "17-analysis-month.png",
+    "33-app-detail-scroll.png": "18-app-detail.png",
+    "34-report-scroll.png": "20-report.png",
+    "35-dark-settings-scroll.png": "21-dark-settings.png",
+    "36-dark-home-scroll.png": "22-dark-home.png",
+    "37-permissions-granted-scroll.png": "23-permission-management-granted.png"
+  },
+  "usage_data_policy": "Use Android UsageStatsManager real OS samples; never present DemoData, synthetic samples or design reference numbers as captured production usage.",
+  "design_qa_note": "Design PNG SHA-256 is from user's Drive current 2026-11-11 copy; these images are conceptual reference, not actual Android captures."
+}
