@@ -156,7 +156,7 @@ fun AnalysisScreen(
                             }
                         }
                     } else {
-                        AnalysisChart(snapshot, period)
+                        if (query.isBlank()) AnalysisChart(snapshot, period)
                         AnalysisAppList(selected, period, excluded, category, sort, query,
                             onCategory = { category = it }, onSort = { sort = it },
                             onQuery = { query = it }, onApp = onApp, onReport = onReport)
