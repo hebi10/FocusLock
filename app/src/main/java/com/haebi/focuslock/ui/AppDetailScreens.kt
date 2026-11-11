@@ -1,5 +1,8 @@
 package com.haebi.focuslock.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -11,6 +14,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -19,8 +26,10 @@ import com.haebi.focuslock.data.AppPermissionRepository
 import com.haebi.focuslock.data.PermissionLookup
 import com.haebi.focuslock.data.UsageFormat
 import com.haebi.focuslock.data.UsageSnapshot
+import com.haebi.focuslock.data.GoalDayPolicy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -30,6 +39,7 @@ fun AppDetailScreen(
     app: AppUsage,
     snapshot: UsageSnapshot,
     period: String,
+    onPeriod: (String) -> Unit,
     goalMinutes: Int?,
     isDistraction: Boolean,
     isExcluded: Boolean,
@@ -45,30 +55,100 @@ fun AppDetailScreen(
     LaunchedEffect(app.id) {
         permissions = withContext(Dispatchers.IO) { AppPermissionRepository(context.applicationContext).inspect(app.packageName) }
     }
-    val history = snapshot.appDaily7[app.id]
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    val selectedApp = snapshot.window(period).apps.firstOrNull { it.id == app.id }
+        ?: app.copy(minutes = 0, launches = -1, lastUsed = "확인 불가")
+    val todayMinutes = snapshot.today.apps.firstOrNull { it.id == app.id }?.minutes ?: 0
+    val values = when (period) {
+        "오늘" -> listOf(todayMinutes)
+        "7일" -> snapshot.appDaily7[app.id]
+        else -> snapshot.appDaily30[app.id]
+    }
+
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+            .padding(horizontal = FocusSpacing.md, vertical = FocusSpacing.md),
+        verticalArrangement = Arrangement.spacedBy(FocusSpacing.md)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(FocusSpacing.xs)
+        ) {
             IconButton(onClick = onBack) { Icon(Icons.Outlined.ArrowBack, "뒤로") }
             AppSymbol(app, 48.dp)
-            Column {
-                Text(app.name, fontSize = 25.sp, fontWeight = FontWeight.Bold)
-                Text(app.category, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+            Column(Modifier.weight(1f)) {
+                Text(app.name, style = MaterialTheme.typography.headlineMedium)
+                Text(
+                    app.category,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
+        PeriodSelector(listOf("오늘", "7일", "30일"), period, onPeriod)
         FocusCard {
-            Metric(UsageFormat.minutesLabel(app.minutes), "$period 사용")
-            Text(if (goalMinutes != null) "일일 목표 ${UsageFormat.minutesLabel(goalMinutes)}" else "설정된 일일 목표 없음", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (goalMinutes != null) Text("목표 달성률은 사용 분석의 ‘오늘’에서 확인합니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            SettingRow("사용 목표", "목표를 초과해도 다른 앱을 강제 종료하지 않습니다.", "수정", onGoal)
+            Metric(UsageFormat.minutesLabel(selectedApp.minutes), "$" + "{period} 사용")
+            if (goalMinutes != null && goalMinutes > 0) {
+                Text(
+                    "일일 사용 목표 " + UsageFormat.minutesLabel(goalMinutes),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (period == "오늘") {
+                    ProgressBar(
+                        todayMinutes.toFloat() / goalMinutes,
+                        isWarning = todayMinutes > goalMinutes
+                    )
+                    Text(
+                        if (todayMinutes > goalMinutes)
+                            "오늘 목표보다 " + UsageFormat.minutesLabel(todayMinutes - goalMinutes) + " 초과"
+                        else "오늘 목표까지 " + UsageFormat.minutesLabel(goalMinutes - todayMinutes) + " 남음",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (todayMinutes > goalMinutes) MaterialTheme.colorScheme.error
+                            else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    Text(
+                        "일일 목표 진행률은 '오늘' 기간에서 확인할 수 있습니다.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                Text(
+                    "설정된 일일 사용 목표가 없습니다.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            SettingRow(
+                "사용 목표",
+                "시간 초과 시 알림만 제공하며 앱을 강제로 종료하지 않습니다.",
+                if (goalMinutes == null) "설정" else "수정",
+                onGoal
+            )
         }
         FocusCard {
-            SectionTitle("사용 패턴 · 최근 7일")
-            if (!history.isNullOrEmpty()) BarChart(history, (6 downTo 0).map { LocalDate.now().minusDays(it.toLong()).format(DateTimeFormatter.ofPattern("E", Locale.KOREAN)) }, (history.maxOrNull() ?: 1).coerceAtLeast(1), -1)
-            else Text("기간별 앱 사용 기록 없음", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            SectionTitle(if (period == "오늘") "오늘 사용 기록" else "사용 패턴 · 최근 $period")
+            if (values == null || values.none { it > 0 }) {
+                Text(
+                    "선택한 기간에 확인된 앱 사용 기록이 없습니다.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                AppDetailHistoryChart(values, snapshot.window(period).startDate)
+            }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            InfoPair("실행·전환 이벤트", if (app.launches < 0) "확인 불가" else "${app.launches}회")
-            InfoPair("마지막 사용", app.lastUsed)
-            Text("실행 횟수는 Android에 남아 있는 최근 사용 이벤트를 기반으로 집계하며 일부 누락될 수 있습니다.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            InfoPair(
+                "실행·전환 이벤트",
+                if (selectedApp.launches < 0) "확인 불가" else "$" + "{selectedApp.launches}회"
+            )
+            InfoPair("마지막 사용", selectedApp.lastUsed)
+            Text(
+                "실행 횟수는 Android에서 조회 가능한 최근 사용 이벤트 기준이며 실제 실행과 차이가 있을 수 있습니다.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
         FocusCard {
             SectionTitle("요청 권한")
@@ -95,8 +175,8 @@ fun AppDetailScreen(
                 Text("배터리 소비량 측정이 아닌 사용 패턴 정보입니다.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             val referenceTotal = snapshot.window(period).totalMinutes
-            InfoPair("해당 기간 앱 사용 비중", "${UsageFormat.sharePercent(app.minutes, referenceTotal)}%")
-            InfoPair("사용 이벤트", if (app.launches < 0) "확인 불가" else "${app.launches}회")
+            InfoPair("해당 기간 앱 사용 비중", "${UsageFormat.sharePercent(selectedApp.minutes, referenceTotal)}%")
+            InfoPair("사용 이벤트", if (selectedApp.launches < 0) "확인 불가" else "${selectedApp.launches}회")
             SettingRow("배터리 정보 확인", "시스템 앱 정보 화면에서 배터리 사용량을 확인합니다.", onClick = onSystemSettings)
         }
         FocusCard {
