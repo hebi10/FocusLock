@@ -13,7 +13,7 @@ object GoalDayPolicy {
     fun normalize(mask: Int): Int = mask and EVERY_DAY
 
     fun selected(mask: Int, day: DayOfWeek): Boolean =
-        normalize(mask) and (1 shl (day.value - 1)) != 0
+        (normalize(mask) and (1 shl (day.value - 1))) != 0
 
     fun selected(mask: Int, date: LocalDate): Boolean = selected(mask, date.dayOfWeek)
 
