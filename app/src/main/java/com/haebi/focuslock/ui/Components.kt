@@ -136,6 +136,7 @@ fun PeriodSelector(options: List<String>, selected: String, onSelected: (String)
             val active = selected == option
             Box(
                 Modifier.weight(1f).heightIn(min = FocusSpacing.minTouchTarget)
+                    .testTag("period-option-$option")
                     .background(if (active) MaterialTheme.colorScheme.primary else Color.Transparent, MaterialTheme.shapes.small)
                     .clickable { onSelected(option) }.padding(vertical = FocusSpacing.xs),
                 contentAlignment = Alignment.Center
