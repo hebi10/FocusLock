@@ -56,6 +56,7 @@ fun FocusLockApp() {
     }
     val lifecycleOwner = LocalLifecycleOwner.current
     var reloadToken by remember { mutableIntStateOf(0) }
+    val usageAccessGranted = remember(reloadToken) { hasUsageAccess(context) }
     var usageState by remember { mutableStateOf<UsageLoadState>(UsageLoadState.Loading) }
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -277,13 +278,19 @@ fun FocusLockApp() {
                         onNext = { onboarding = 1 }, onExplore = ::endOnboarding
                     )
                     onboarding == 1 -> OnboardingPermission(
+                        permissionGranted = usageAccessGranted,
                         onOpenSettings = { openUsageSettings(context) },
                         onNext = { onboarding = 2 }
                     )
                     onboarding == 2 -> OnboardingGoal(
-                        apps = usageSnapshot?.today?.apps ?: emptyList(),
+                        apps = usageSnapshot?.today?.apps?.takeIf { it.isNotEmpty() }
+                            ?: usageSnapshot?.last7?.apps.orEmpty(),
                         goals = goals,
+                        usageState = usageState,
+                        sourceLabel = if (usageSnapshot?.today?.apps.isNullOrEmpty()) "최근 7일 사용한 앱" else "오늘 사용한 앱",
                         onSetGoal = { goalSheetId = it.id },
+                        onOpenSettings = { openUsageSettings(context) },
+                        onRefresh = { reloadToken++ },
                         onFinish = ::endOnboarding
                     )
                     focusPhase == "running" -> FocusRunningScreen(
