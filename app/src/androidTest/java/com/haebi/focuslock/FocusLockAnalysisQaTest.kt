@@ -103,9 +103,15 @@ class FocusLockAnalysisQaTest {
                 device.wait(Until.hasObject(By.text("정렬: 이름")), 5000L))
             capture("r04-analysis-sort-name")
 
-            device.findObject(By.res("nav-HOME"))?.click()
-            val analysisNav = device.wait(Until.findObject(By.res("nav-ANALYSIS")), 5000L)
-            requireNotNull(analysisNav) { "Analysis bottom navigation tab unavailable" }.click()
+        }
+    }
+
+    @Test
+    fun periodTabsShowWeeklyAndMonthlyCharts() {
+        launch().use {
+            val analysis = device.wait(Until.findObject(By.text("사용 분석")), 15000L)
+            requireNotNull(analysis) { "Analysis tab unavailable" }.click()
+            assertTrue(device.wait(Until.hasObject(By.text("총 사용 시간")), 15000L))
             selectPeriod("7일")
             assertTrue(device.wait(Until.hasObject(By.text("일별 사용 시간")), 5000L))
             capture("r04-analysis-week")
