@@ -257,8 +257,8 @@ fun FocusLockApp() {
                                 modifier = Modifier.testTag("nav-${item.name}"),
                                 selected = tab == item.name,
                                 onClick = { goMain(item) },
-                                icon = { Icon(icon, contentDescription = item.label) },
-                                label = { Text(item.label) },
+                                icon = { Icon(icon, contentDescription = item.label, modifier = Modifier.size(FocusSpacing.icon)) },
+                                label = { Text(item.label, style = MaterialTheme.typography.labelSmall) },
                                 alwaysShowLabel = true,
                                 colors = NavigationBarItemDefaults.colors(
                                     selectedIconColor = MaterialTheme.colorScheme.primary,

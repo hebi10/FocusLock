@@ -72,7 +72,7 @@ fun FocusRunningScreen(minutes: Int, seconds: Int, paused: Boolean, restoredAfte
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(20.dp)) {
             val clock = "%02d:%02d".format(seconds / 60, seconds % 60)
             Text(clock, fontSize = 69.sp, lineHeight = 76.sp, fontWeight = FontWeight.Bold)
-            if (minutes > 0) ProgressBar(1f - seconds.toFloat() / (minutes * 60).coerceAtLeast(1))
+            if (minutes > 0) ProgressBar(1f - seconds.toFloat() / (minutes * 60).coerceAtLeast(1), neutral = true)
             Text(
                 when {
                     restoredAfterReboot -> "기기 재시작으로 일시정지되었습니다. 계속 집중을 누르면 이어집니다."
