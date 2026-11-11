@@ -1,7 +1,7 @@
 # UI-R04 — 사용 분석 리디자인
 
 기준: [Drive D03 전체 화면 기획](https://docs.google.com/document/d/160M4wHLgML5FHsKuORsU73akWD5ktMAAQp6nRbLW4W4/edit), [UI-R00 실화면·데이터 기준선](UI-R00.md), [UI-R01 디자인 시스템](UI-R01.md).
-대상: FocusLock `com.haebi.focuslock`. 현재 상태는 PR 검증 단계.
+대상: FocusLock `com.haebi.focuslock`. 상태: Android CI + API36 계측 QA 통과, PR #24 main 병합. Play 미배포.
 
 ## 작업 범위
 
@@ -34,3 +34,16 @@
 - 변경: `HomeAnalysisScreens.kt` 분석 화면만, 신규 `AnalysisModels.kt` / `AnalysisComponents.kt`, 신규 단위·계측 테스트, `run-emulator-qa.sh`, 본 문서.
 - 유지: Android 앱 ID/서명/버전, Room/UsageStats 통계 산식, 사용자 설정, 홈 UI-R03 기능, 앱 상세 UI-R05, Play 이미지/테스트 트랙.
 - 완료 판정: 동일 PR head SHA에서 Android CI + API36 전체 37장/추가 3장 성공 및 시각 QA 후에만 `main` 병합. Play 재배포는 별도 단계.
+
+## 최종 QA 및 병합 결과 (2026-11-11)
+
+- PR: https://github.com/hebi10/FocusLock/pull/24
+- 최종 검증 HEAD: `289ce33259512bbe6d1b80cbc956f446aa4f2060`.
+- Android CI: https://github.com/hebi10/FocusLock/actions/runs/42979309775 — **success**.
+- API36 실제 Android 전체 화면 QA: https://github.com/hebi10/FocusLock/actions/runs/42979309863 — **success**.
+- 실제 캡처: 기존 37장 + R04 전용 5장(오늘, 7일, 30일, 앱 이름순 정렬, 검색 결과 없음) = **42장**, ZIP artifact `13836738874`, SHA256 `84b23d359a78e9ccf4d2b0c063e086831e47e3593312e91576d57dc72f6bf027`.
+- 신규 두 계측: 검색/이름순 정렬, 7일/30일 기간 선택 독립 수행 모두 성공.
+- 시각 검수: 모바일 정보 위계, 선택된 기간, 실제 앱 이름순, 검색 결과 빈 상태, 검정/중성 회색 토큰 확인.
+- Android 에뮬레이터 실제 데이터는 소량으로 `limited_real_data`; 앱 3종 이상·날짜 2일 이상 QA, 160% 글꼴·태블릿·폴더블·삼성 실기기는 UI-R08 잔여로 유지.
+- `main` squash 병합: `e580b1932e7b5f1fc37b598058102d840966db78` (`[skip ci]`).
+- Google Play용 서명 바이너리/AAB·트랙·스토어 이미지·버전코드 불변. UI-R03 PR #22는 미병합이며 이번 변경을 기반으로 재검증해야 합니다.
