@@ -121,6 +121,7 @@ fun FocusLockApp() {
     var paused by rememberSaveable { mutableStateOf(false) }
     var completed by rememberSaveable { mutableStateOf(false) }
     var experience by rememberSaveable { mutableIntStateOf(0) }
+    var todayExperience by remember { mutableIntStateOf(0) }
     var stopConfirm by rememberSaveable { mutableStateOf(false) }
     var focusSessionId by remember { mutableStateOf<String?>(null) }
     var focusRestoreMessage by remember { mutableStateOf(false) }
@@ -138,9 +139,14 @@ fun FocusLockApp() {
         focusPhase = "running"
     }
 
+    LaunchedEffect(reloadToken) {
+        todayExperience = withContext(Dispatchers.IO) { focusStore.todayExperience() }
+    }
+
     LaunchedEffect(Unit) {
         val recovered = withContext(Dispatchers.IO) { focusStore.restore() }
         experience = withContext(Dispatchers.IO) { focusStore.totalExperience() }
+        todayExperience = withContext(Dispatchers.IO) { focusStore.todayExperience() }
         focusReport = withContext(Dispatchers.IO) { focusStore.report() }
         recovered.session?.let {
             applySession(it)
@@ -196,6 +202,7 @@ fun FocusLockApp() {
             completed = result.reward != null
             elapsedSeconds = result.session.elapsedSeconds
             experience = withContext(Dispatchers.IO) { focusStore.totalExperience() }
+            todayExperience = withContext(Dispatchers.IO) { focusStore.todayExperience() }
             focusReport = withContext(Dispatchers.IO) { focusStore.report() }
             focusSessionId = null
             focusPhase = "result"
@@ -339,6 +346,9 @@ fun FocusLockApp() {
                             state = usageState,
                             goals = goals,
                             excluded = excluded,
+                            todayExperience = todayExperience,
+                            totalExperience = experience,
+                            onSetGoal = { goalSheetId = it.id },
                             onFocus = {goMain(MainTab.FOCUS)},
                             onAnalysis = {goMain(MainTab.ANALYSIS)},
                             onApp = { selectedAppId=it.id;selectedAppRecord=it;selectedAppPeriod="오늘";detail="app" },
