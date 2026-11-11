@@ -273,51 +273,164 @@ fun GoalSheet(
     current: Int,
     initialWarn80: Boolean,
     initialWarn100: Boolean,
-    initialEveryday: Boolean,
-    onSave: (Int, Boolean, Boolean, Boolean) -> Unit,
+    initialDays: Int,
+    onSave: (Int, Boolean, Boolean, Int) -> Unit,
     onClear: () -> Unit,
     onDismiss: () -> Unit
 ) {
     var minutes by remember(app.id) { mutableIntStateOf(current.coerceIn(15, 240)) }
     var warn80 by remember(app.id) { mutableStateOf(initialWarn80) }
     var warn100 by remember(app.id) { mutableStateOf(initialWarn100) }
-    var weekdays by remember(app.id) { mutableStateOf(initialEveryday) }
+    var selectedDays by remember(app.id) { mutableIntStateOf(GoalDayPolicy.normalize(initialDays)) }
+
     ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Text("사용 목표 설정", fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                AppSymbol(app)
-                Text(app.name, fontWeight = FontWeight.SemiBold)
-            }
-            FocusCard {
-                Text("하루 제한 시간", fontWeight = FontWeight.SemiBold)
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedButton(onClick = { minutes = (minutes - 15).coerceAtLeast(15) }) { Text("− 15분") }
-                    Text(UsageFormat.minutesLabel(minutes), fontWeight = FontWeight.Bold)
-                    OutlinedButton(onClick = { minutes = (minutes + 15).coerceAtMost(240) }) { Text("+ 15분") }
+        Column(
+            Modifier.fillMaxWidth().fillMaxHeight(0.9f)
+                .padding(horizontal = FocusSpacing.md).padding(bottom = FocusSpacing.md),
+            verticalArrangement = Arrangement.spacedBy(FocusSpacing.sm)
+        ) {
+            Column(
+                Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(FocusSpacing.md)
+            ) {
+                Text("사용 목표 설정", style = MaterialTheme.typography.headlineMedium)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(FocusSpacing.sm)) {
+                    AppSymbol(app)
+                    Text(app.name, style = MaterialTheme.typography.titleMedium)
+                }
+                FocusCard {
+                    Text("하루 사용 목표", style = MaterialTheme.typography.titleMedium)
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(FocusSpacing.xs),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedButton(
+                            onClick = { minutes = (minutes - 15).coerceAtLeast(15) },
+                            modifier = Modifier.weight(1f).heightIn(min = FocusSpacing.minTouchTarget)
+                        ) { Text("− 15분") }
+                        Text(
+                            UsageFormat.minutesLabel(minutes),
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.weight(1.3f),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        OutlinedButton(
+                            onClick = { minutes = (minutes + 15).coerceAtMost(240) },
+                            modifier = Modifier.weight(1f).heightIn(min = FocusSpacing.minTouchTarget)
+                        ) { Text("+ 15분") }
+                    }
+                    Text("15분부터 4시간까지 15분 단위로 설정할 수 있습니다.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                FocusCard {
+                    Text("요일별 알림 적용", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "사용 목표 자체는 저장되며, 선택한 요일에만 자동 목표 경고를 확인합니다.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(FocusSpacing.xxs)
+                    ) {
+                        (1..4).forEach { value ->
+                            val day = DayOfWeek.of(value)
+                            GoalWeekdayChip(day, GoalDayPolicy.selected(selectedDays, day),
+                                modifier = Modifier.weight(1f),
+                                onClick = { selectedDays = GoalDayPolicy.toggle(selectedDays, day) })
+                        }
+                    }
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(FocusSpacing.xxs)
+                    ) {
+                        (5..7).forEach { value ->
+                            val day = DayOfWeek.of(value)
+                            GoalWeekdayChip(day, GoalDayPolicy.selected(selectedDays, day),
+                                modifier = Modifier.weight(1f),
+                                onClick = { selectedDays = GoalDayPolicy.toggle(selectedDays, day) })
+                        }
+                    }
+                    TextButton(onClick = {
+                        selectedDays = if (selectedDays == GoalDayPolicy.EVERY_DAY)
+                            GoalDayPolicy.NONE else GoalDayPolicy.EVERY_DAY
+                    }) {
+                        Text(if (selectedDays == GoalDayPolicy.EVERY_DAY) "모든 요일 해제" else "모든 요일 선택")
+                    }
+                    if (selectedDays == GoalDayPolicy.NONE) {
+                        Text(
+                            "요일을 선택하지 않으면 자동 목표 경고가 발송되지 않습니다.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                FocusCard {
+                    Text("경고 알림", style = MaterialTheme.typography.titleMedium)
+                    Row(
+                        Modifier.fillMaxWidth().heightIn(min = FocusSpacing.minTouchTarget),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("목표 80% 도달", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                        Switch(checked = warn80, onCheckedChange = { warn80 = it })
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    Row(
+                        Modifier.fillMaxWidth().heightIn(min = FocusSpacing.minTouchTarget),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("목표 100% 도달", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                        Switch(checked = warn100, onCheckedChange = { warn100 = it })
+                    }
+                    Text(
+                        "Android 사용 정보와 알림 권한이 허용된 경우에만 주기적으로 확인합니다. 절전 상태에서는 알림이 지연될 수 있습니다.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
-            FocusCard {
-                Text("경고 알림", fontWeight = FontWeight.SemiBold)
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text("80% 도달", fontSize = 13.sp)
-                    Switch(checked = warn80, onCheckedChange = { warn80 = it })
-                    Text("100% 도달", fontSize = 13.sp)
-                    Switch(checked = warn100, onCheckedChange = { warn100 = it })
+            Column(
+                Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(FocusSpacing.xxs)
+            ) {
+                ActionButton(
+                    "저장",
+                    { onSave(minutes, warn80, warn100, selectedDays) },
+                    modifier = Modifier.testTag("goal-save")
+                )
+                TextButton(
+                    onClick = onClear,
+                    modifier = Modifier.heightIn(min = FocusSpacing.minTouchTarget)
+                ) {
+                    Text("목표 해제", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Text("알림 권한이 허용된 경우 사용 목표를 주기적으로 확인해 알립니다. Android 절전 상태에서는 지연될 수 있습니다.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            FocusCard {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text("매일 적용", modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
-                    Switch(checked = weekdays, onCheckedChange = { weekdays = it })
-                }
-                if(!weekdays) Text("매일 적용을 끄면 자동 목표 경고를 중지합니다. 요일별 적용은 후속 기능입니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            ActionButton("저장", { onSave(minutes, warn80, warn100, weekdays) })
-            TextButton(onClick = onClear, modifier = Modifier.align(Alignment.CenterHorizontally)) {
-                Text("목표 해제", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
+}
+
+@Composable
+private fun GoalWeekdayChip(
+    day: DayOfWeek,
+    selected: Boolean,
+    modifier: Modifier,
+    onClick: () -> Unit
+) {
+    val label = when (day) {
+        DayOfWeek.MONDAY -> "월"
+        DayOfWeek.TUESDAY -> "화"
+        DayOfWeek.WEDNESDAY -> "수"
+        DayOfWeek.THURSDAY -> "목"
+        DayOfWeek.FRIDAY -> "금"
+        DayOfWeek.SATURDAY -> "토"
+        DayOfWeek.SUNDAY -> "일"
+    }
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = { Text(label, style = MaterialTheme.typography.labelMedium) },
+        modifier = modifier.heightIn(min = FocusSpacing.minTouchTarget)
+            .testTag("goal-day-${day.value}")
+    )
 }
