@@ -298,6 +298,7 @@ jobs:
     env:
       MIN_CLOSED_VERSION_CODE: '4'
       EXPECTED_CLOSED_VERSION_CODE: ${{ inputs.expected_internal_version_code || '' }}
+      PLAY_REQUESTED_MODE: ${{ inputs.mode || '' }}
     timeout-minutes: 20
     environment: google-play
     permissions:
