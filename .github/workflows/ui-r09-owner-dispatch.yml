@@ -1,0 +1,59 @@
+name: UI-R09 owner-approved test and store workflow commands
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+jobs:
+  dispatch:
+    if: >-
+      github.repository == 'hebi10/FocusLock' &&
+      github.event.issue.number == 14 &&
+      github.event.comment.user.login == 'hebi10' &&
+      (github.event.comment.body == '/ui-r09-capture' ||
+       github.event.comment.body == '/ui-r09-android-ci' ||
+       github.event.comment.body == '/ui-r09-images-check' ||
+       github.event.comment.body == '/ui-r09-images-upload' ||
+       github.event.comment.body == '/ui-r09-internal' ||
+       github.event.comment.body == '/ui-r09-closed')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - name: Trigger only approved main workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMAND: ${{ github.event.comment.body }}
+        run: |
+          set -euo pipefail
+          case "$COMMAND" in
+            /ui-r09-capture)
+              gh workflow run emulator-smoke.yml --ref main --repo "$GITHUB_REPOSITORY"
+              ;;
+            /ui-r09-android-ci)
+              gh workflow run android-ci.yml --ref main --repo "$GITHUB_REPOSITORY"
+              ;;
+            /ui-r09-images-check)
+              gh workflow run store-01-images.yml --ref main --repo "$GITHUB_REPOSITORY" -f mode=check
+              ;;
+            /ui-r09-images-upload)
+              gh workflow run store-01-images.yml --ref main --repo "$GITHUB_REPOSITORY" -f mode=upload
+              ;;
+            /ui-r09-internal)
+              gh workflow run play-internal.yml --ref main --repo "$GITHUB_REPOSITORY" -f mode=deploy -f release_status=completed
+              ;;
+            /ui-r09-closed)
+              gh workflow run play-internal.yml --ref main --repo "$GITHUB_REPOSITORY" -f mode=closed
+              ;;
+            *)
+              echo "::error::Unapproved UI-R09 workflow command"
+              exit 1
+              ;;
+          esac
+          echo "Issued explicitly approved FocusLock command: $COMMAND" >> "$GITHUB_STEP_SUMMARY"
+          echo "Target branch: main. Inspect the target workflow run; dispatch does not prove publication." >> "$GITHUB_STEP_SUMMARY"
