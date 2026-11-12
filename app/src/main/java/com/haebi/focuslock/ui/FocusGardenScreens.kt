@@ -34,6 +34,7 @@ import com.haebi.focuslock.data.DemoData
 @Composable
 fun FocusSetupScreen(
     onStart: (Int) -> Unit,
+    onGarden: () -> Unit,
     selectedDistractions: Int,
     availableApps: List<AppUsage>,
     selectedDistractionIds: Set<String>,
@@ -104,13 +105,19 @@ fun FocusSetupScreen(
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
             ) { Text("방해 앱 선택") }
         }
-        FocusCard {
-            SectionTitle("집중 후 보상")
-            Text("완료 기록과 보상은 기기에 저장됩니다.", style = MaterialTheme.typography.bodyMedium)
+null
             Text(
                 "실제 완료 세션당 한 번만 경험치와 성장 포인트가 지급됩니다.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall
+            )
+        }
+        FocusCard {
+            SectionTitle("나의 정원", "정원 보기", onGarden)
+            Text(
+                "집중 성과로 해금한 아이템과 정원 배치를 확인합니다.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         }
