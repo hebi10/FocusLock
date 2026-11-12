@@ -52,6 +52,15 @@ fun HomeScreen(
 ) {
     val snapshot = (state as? UsageLoadState.Ready)?.snapshot
     val visibleApps = snapshot?.today?.apps.orEmpty().filter { excluded[it.id] != true }
+    val topApp = visibleApps.firstOrNull { it.minutes > 0 }
+    val peakHour = snapshot?.hourlyToday?.let(HomeInsightPolicy::observedPeakHour)
+    val topShare = if (snapshot != null && topApp != null) {
+        HomeInsightPolicy.topAppShare(topApp.minutes, snapshot.today.totalMinutes)
+    } else null
+    val totalGoals = goals.values.filter { it > 0 }.sum()
+    val managedMinutes = snapshot?.today?.apps.orEmpty()
+        .filter { (goals[it.id] ?: 0) > 0 }
+        .sumOf { it.minutes }
 
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState())
@@ -65,87 +74,36 @@ fun HomeScreen(
         if (snapshot == null) {
             UsageStatus(state, onUsageSettings, onRefresh)
         } else {
-            val totalGoals = goals.values.filter { it > 0 }.sum()
-            val managedMinutes = snapshot.today.apps
-                .filter { (goals[it.id] ?: 0) > 0 }
-                .sumOf { it.minutes }
             FocusCard {
                 Metric(UsageFormat.minutesLabel(snapshot.today.totalMinutes), "오늘 사용 시간")
                 if (snapshot.today.apps.isEmpty()) {
                     Text(
-                        "오늘 확인된 앱 사용 기록이 없습니다.",
+                        "아직 확인된 앱 사용 기록이 없습니다. 다른 앱을 사용한 뒤 다시 확인해 주세요.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 } else {
                     Text(
                         UsageFormat.comparison(snapshot.today.totalMinutes, snapshot.yesterday.totalMinutes)
-                            ?.replace("이전 기간", "어제") ?: "어제 비교 기록 없음",
+                            ?.replace("이전 기간", "어제") ?: "어제와 비교할 사용 기록이 부족합니다.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                if (totalGoals > 0) {
-                    Text(
-                        "관리 앱 목표 진행률",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        UsageFormat.minutesLabel(managedMinutes) + " / " + UsageFormat.minutesLabel(totalGoals),
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                    ProgressBar(managedMinutes.toFloat() / totalGoals, isWarning = managedMinutes > totalGoals)
-                    Text(
-                        if (managedMinutes > totalGoals) "합산 목표보다 " + UsageFormat.minutesLabel(managedMinutes - totalGoals) + " 초과"
-                        else "합산 목표까지 " + UsageFormat.minutesLabel(totalGoals - managedMinutes) + " 남음",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (managedMinutes > totalGoals) MaterialTheme.colorScheme.error
-                            else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    val editable = listOf(snapshot.today, snapshot.last7, snapshot.last30)
-                        .asSequence().flatMap { it.apps.asSequence() }
-                        .firstOrNull { (goals[it.id] ?: 0) > 0 }
-                    if (editable != null) {
-                        TextButton(onClick = { onSetGoal(editable) }) { Text("앱 목표 수정") }
-                    }
-                } else {
-                    Text(
-                        "설정한 앱별 사용 목표가 없습니다.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    val firstApp = visibleApps.firstOrNull()
-                    if (firstApp != null) {
-                        TextButton(onClick = { onSetGoal(firstApp) }) {
-                            Text("가장 많이 사용한 앱 목표 설정")
-                        }
-                    } else {
-                        TextButton(onClick = onAnalysis) { Text("사용 분석에서 앱 확인") }
-                    }
-                }
-                ActionButton("집중 시작", onFocus)
-            }
-        }
-
-        if (snapshot == null) ActionButton("집중 시작", onFocus)
-
-        if (snapshot != null) {
-            if (snapshot.today.apps.isEmpty()) {
-                InfoState(
-                    "사용 기록 확인",
-                    "Android에 오늘 사용량이 기록되지 않았습니다. 다른 앱을 이용한 뒤 새로고침해 주세요.",
-                    "새로고침",
-                    onRefresh
+                Text(
+                    "Android에서 제공한 기기 사용 통계입니다.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            } else {
+                TextButton(onClick = onAnalysis) { Text("사용 현황 자세히 보기") }
+            }
+
+            if (snapshot.today.apps.isNotEmpty()) {
                 FocusCard {
                     SectionTitle("많이 사용한 앱", "전체 보기", onAnalysis)
                     if (visibleApps.isEmpty()) {
                         Text(
-                            "분석에 포함된 앱이 없습니다.",
+                            "표시할 앱이 없습니다. 제외 설정은 사용 분석에서 확인할 수 있습니다.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -181,29 +139,96 @@ fun HomeScreen(
                     }
                 }
             }
-        }
 
-        FocusCard {
-            SectionTitle("나의 정원", "정원 열기", onGarden)
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Image(
-                    painterResource(R.drawable.garden_illustration),
-                    "정원 캐릭터와 새싹",
-                    modifier = Modifier.weight(1f).height(95.dp)
-                )
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("오늘 획득 " + todayExperience + " XP", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        "누적 " + totalExperience + " XP · 집중 완료 보상",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+            if (peakHour != null || topShare != null) {
+                FocusCard {
+                    SectionTitle("오늘의 사용 패턴")
+                    if (peakHour != null) {
+                        Text(
+                            "오늘 확인된 기록에서는 " + peakHour + "시~" + (peakHour + 1) +
+                                "시의 사용 시간이 가장 많았습니다.",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            "Android에서 관측된 사용 이벤트를 기준으로 계산했습니다.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else if (topApp != null && topShare != null) {
+                        Text(
+                            "오늘 가장 오래 사용한 앱은 " + topApp.name +
+                                "이며 전체 사용 시간의 " + topShare + "%입니다.",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            "Android에서 제공한 앱 사용 시간을 기준으로 계산했습니다.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
         }
+
+        if (snapshot != null) {
+            FocusCard {
+                SectionTitle("사용 목표")
+                if (totalGoals > 0) {
+                    Text(
+                        "설정한 앱별 목표의 합계 " + UsageFormat.minutesLabel(totalGoals),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        UsageFormat.minutesLabel(managedMinutes) + " / " +
+                            UsageFormat.minutesLabel(totalGoals),
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                    ProgressBar(
+                        managedMinutes.toFloat() / totalGoals,
+                        isWarning = managedMinutes > totalGoals
+                    )
+                    Text(
+                        if (managedMinutes > totalGoals)
+                            "목표를 설정한 앱의 합산 사용 시간이 " +
+                                UsageFormat.minutesLabel(managedMinutes - totalGoals) + " 초과했습니다."
+                        else "설정된 앱 목표 합계까지 " +
+                            UsageFormat.minutesLabel(totalGoals - managedMinutes) + " 남았습니다.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (managedMinutes > totalGoals) MaterialTheme.colorScheme.error
+                            else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    val editable = listOf(snapshot.today, snapshot.last7, snapshot.last30)
+                        .asSequence().flatMap { it.apps.asSequence() }
+                        .firstOrNull { (goals[it.id] ?: 0) > 0 }
+                    if (editable != null) {
+                        TextButton(onClick = { onSetGoal(editable) }) { Text("앱 목표 수정") }
+                    }
+                } else {
+                    Text(
+                        "사용 목표는 선택 사항입니다. 필요할 때 앱별로 설정할 수 있습니다.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (topApp != null) {
+                        TextButton(onClick = { onSetGoal(topApp) }) { Text("앱별 사용 목표 설정") }
+                    } else {
+                        TextButton(onClick = onAnalysis) { Text("사용 분석에서 앱 확인") }
+                    }
+                }
+            }
+        }
+
+        FocusCard {
+            SectionTitle("필요할 때 집중하기")
+            Text(
+                "집중이 필요하면 10분·25분·자유 집중 타이머를 선택할 수 있습니다.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            ActionButton("집중 시작", onFocus)
+        }
+
         if (snapshot != null) {
             FocusCard {
                 SectionTitle("지난 7일 변화", "리포트 보기", onReport)
@@ -213,11 +238,20 @@ fun HomeScreen(
                 )
                 Text(
                     UsageFormat.comparison(snapshot.last7.totalMinutes, snapshot.previous7.totalMinutes)
-                        ?.replace("이전 기간", "이전 7일") ?: "이전 7일 비교 기록 없음",
+                        ?.replace("이전 기간", "이전 7일") ?: "이전 7일과 비교할 기록이 부족합니다.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+        }
+
+        FocusCard {
+            SectionTitle("정원·집중 성과", "정원 열기", onGarden)
+            Text(
+                "오늘 획득 " + todayExperience + " XP · 누적 " + totalExperience + " XP",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

@@ -51,6 +51,7 @@ run_case 'com.haebi.focuslock.FocusPersistenceQaTest#todayExperienceIsLimitedToE
 run_case 'com.haebi.focuslock.FocusPersistenceQaTest#rebootPausesSessionAndNeverInventsCompletion' room-reboot-recovery
 run_case 'com.haebi.focuslock.FocusPersistenceQaTest#repeatedStartKeepsActiveSessionAndEarlyStopNeverEarnsRewards' room-duplicate-start-and-early-stop
 run_case 'com.haebi.focuslock.RenewNavigationQaTest#reportsAreTopLevelAndGardenRetainsFocusTab' renew-02a-navigation
+run_case 'com.haebi.focuslock.RenewHomeQaTest#homePresentsUsageBeforeOptionalFocusAndAllowsAnalysis' renew-02b-home
 
 if ! adb pull /sdcard/Android/data/com.haebi.focuslock/files/qa-r00/ captures/; then
   echo "::error::Could not pull UI-R00 real usage evidence"
