@@ -13,7 +13,7 @@ import androidx.compose.material.icons.outlined.Assessment
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.TrackChanges
-import androidx.compose.material.icons.outlined.Yard
+import androidx.compose.material.icons.outlined.DateRange
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -44,7 +44,14 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-private enum class MainTab(val label: String) { HOME("홈"), ANALYSIS("사용 분석"), FOCUS("집중"), GARDEN("정원"), SETTINGS("설정") }
+internal enum class MainTab(val label: String) {
+    HOME("홈"), ANALYSIS("사용 분석"), REPORT("리포트"), FOCUS("집중"), SETTINGS("설정")
+}
+
+internal fun restoredMainTab(value: String): MainTab = when (value) {
+    "GARDEN" -> MainTab.FOCUS
+    else -> MainTab.entries.firstOrNull { it.name == value } ?: MainTab.HOME
+}
 
 @Composable
 fun FocusLockApp() {
@@ -76,6 +83,13 @@ fun FocusLockApp() {
     var onboarding by rememberSaveable { mutableIntStateOf(if (prefs.getBoolean("onboarding_completed", false)) -1 else 0) }
     var theme by rememberSaveable { mutableStateOf(prefs.getString("theme", "시스템") ?: "시스템") }
     var tab by rememberSaveable { mutableStateOf(MainTab.HOME.name) }
+    var focusGardenOpen by rememberSaveable { mutableStateOf(tab == "GARDEN") }
+    LaunchedEffect(tab) {
+        if (tab == "GARDEN") {
+            focusGardenOpen = true
+            tab = MainTab.FOCUS.name
+        }
+    }
     var detail by rememberSaveable { mutableStateOf("") }
     var selectedAppId by rememberSaveable { mutableStateOf("") }
     var selectedAppPeriod by rememberSaveable { mutableStateOf("오늘") }
@@ -180,8 +194,8 @@ fun FocusLockApp() {
         if (usageState is UsageLoadState.Ready)
             withContext(Dispatchers.IO) { GoalAlerts.checkNow(context.applicationContext) }
     }
-    LaunchedEffect(detail, focusPhase) {
-        if (detail == "report" || focusPhase == "result")
+    LaunchedEffect(detail, focusPhase, tab) {
+        if (detail == "report" || tab == MainTab.REPORT.name || focusPhase == "result")
             focusReport = withContext(Dispatchers.IO) { focusStore.report() }
     }
     DisposableEffect(lifecycleOwner, focusSessionId) {
@@ -199,7 +213,13 @@ fun FocusLockApp() {
 
     fun goMain(destination: MainTab) {
         detail = ""
+        focusGardenOpen = false
         tab = destination.name
+    }
+    fun openGarden() {
+        detail = ""
+        focusGardenOpen = true
+        tab = MainTab.FOCUS.name
     }
     fun endOnboarding() {
         prefs.edit().putBoolean("onboarding_completed", true).apply()
@@ -218,6 +238,7 @@ fun FocusLockApp() {
                 focusRestoreMessage = false
                 stopConfirm = false
                 detail = ""
+                focusGardenOpen = false
                 tab = MainTab.FOCUS.name
             } finally {
                 startInProgress = false
@@ -273,13 +294,13 @@ fun FocusLockApp() {
         }
     }
 
-    BackHandler(enabled = onboarding >= 0 || detail.isNotEmpty() || focusPhase != "setup") {
+    BackHandler(enabled = onboarding > 0 || detail.isNotEmpty() || focusPhase != "setup" || focusGardenOpen) {
         when {
             onboarding > 0 -> onboarding--
-            onboarding == 0 -> endOnboarding()
             focusPhase == "running" -> stopConfirm = true
             focusPhase == "result" -> { focusPhase = "setup"; goMain(MainTab.HOME) }
             detail.isNotEmpty() -> detail = ""
+            focusGardenOpen -> focusGardenOpen = false
         }
     }
 
@@ -295,13 +316,13 @@ fun FocusLockApp() {
                             val icon = when(item) {
                                 MainTab.HOME -> Icons.Outlined.Home
                                 MainTab.ANALYSIS -> Icons.Outlined.Assessment
+                                MainTab.REPORT -> Icons.Outlined.DateRange
                                 MainTab.FOCUS -> Icons.Outlined.TrackChanges
-                                MainTab.GARDEN -> Icons.Outlined.Yard
                                 MainTab.SETTINGS -> Icons.Outlined.Settings
                             }
                             NavigationBarItem(
                                 modifier = Modifier.testTag("nav-${item.name}"),
-                                selected = tab == item.name,
+                                selected = restoredMainTab(tab) == item,
                                 onClick = { goMain(item) },
                                 icon = { Icon(icon, contentDescription = item.label, modifier = Modifier.size(FocusSpacing.icon)) },
                                 label = {
@@ -370,7 +391,7 @@ fun FocusLockApp() {
                         rewardExperience = resultExperience,
                         rewardPoints = resultPoints,
                         onHome = { focusPhase = "setup"; goMain(MainTab.HOME) },
-                        onGarden = { focusPhase = "setup"; goMain(MainTab.GARDEN) }
+                        onGarden = { focusPhase = "setup"; openGarden() }
                     )
                     detail == "app" && usageSnapshot != null && selectedAppRecord != null -> AppDetailScreen(
                         app = selectedAppRecord!!,
@@ -401,7 +422,7 @@ fun FocusLockApp() {
                         onUsageSettings = {openUsageSettings(context)},
                         onNotificationSettings = {openNotificationSettings(context)}
                     ) }
-                    else -> when(MainTab.valueOf(tab)) {
+                    else -> when(restoredMainTab(tab)) {
                         MainTab.HOME -> HomeScreen(
                             state = usageState,
                             goals = goals,
@@ -412,36 +433,56 @@ fun FocusLockApp() {
                             onFocus = {goMain(MainTab.FOCUS)},
                             onAnalysis = {goMain(MainTab.ANALYSIS)},
                             onApp = { selectedAppId=it.id;selectedAppRecord=it;selectedAppPeriod="오늘";detail="app" },
-                            onGarden = {goMain(MainTab.GARDEN)},
-                            onReport = {detail="report"},
+                            onGarden = ::openGarden,
+                            onReport = {goMain(MainTab.REPORT)},
                             onSettings = {goMain(MainTab.SETTINGS)},
                             onUsageSettings = {openUsageSettings(context)}, onRefresh = {reloadToken++}
                         )
                         MainTab.ANALYSIS -> AnalysisScreen(
                             state = usageState,
                             excluded = excluded,
-                            onApp = { app, period -> selectedAppId=app.id; selectedAppRecord=app; selectedAppPeriod=period;detail="app" }, onReport = {detail="report"},
+                            onApp = { app, period -> selectedAppId=app.id; selectedAppRecord=app; selectedAppPeriod=period;detail="app" }, onReport = {goMain(MainTab.REPORT)},
                             onUsageSettings = {openUsageSettings(context)}, onRefresh = {reloadToken++}
                         )
-                        MainTab.FOCUS -> FocusSetupScreen(
-                            onStart = ::startFocus,
-                            selectedDistractions = distraction.values.count { it },
-                            availableApps = (usageSnapshot?.last7?.apps.orEmpty() +
-                                usageSnapshot?.today?.apps.orEmpty()).distinctBy { it.id },
-                            selectedDistractionIds = distraction.filterValues { it }.keys,
-                            onDistractionChange = { id, selected ->
-                                distraction[id] = selected
-                                prefs.edit().putBoolean("distraction.$id", selected).apply()
+                        MainTab.REPORT -> ReportScreen(
+                            state = usageState,
+                            excluded = excluded,
+                            focusSummary = focusReport,
+                            onBack = null,
+                            onApp = { app, period ->
+                                selectedAppId = app.id
+                                selectedAppRecord = app
+                                selectedAppPeriod = period
+                                detail = "app"
                             },
-                            usageAccessGranted = usageAccessGranted
+                            onUsageSettings = { openUsageSettings(context) },
+                            onRefresh = { reloadToken++ }
                         )
-                        MainTab.GARDEN -> GardenScreen(
-                            experience = experience,
-                            points = growthPoints,
-                            placedItem = placedGardenItemId,
-                            onItem = { selectedGardenItemId = it.id },
-                            onFocus = { goMain(MainTab.FOCUS) }
-                        )
+                        MainTab.FOCUS -> {
+                            if (focusGardenOpen) {
+                                GardenScreen(
+                                    experience = experience,
+                                    points = growthPoints,
+                                    placedItem = placedGardenItemId,
+                                    onItem = { selectedGardenItemId = it.id },
+                                    onFocus = { goMain(MainTab.FOCUS) }
+                                )
+                            } else {
+                                FocusSetupScreen(
+                                    onStart = ::startFocus,
+                                    onGarden = ::openGarden,
+                                    selectedDistractions = distraction.values.count { it },
+                                    availableApps = (usageSnapshot?.last7?.apps.orEmpty() +
+                                        usageSnapshot?.today?.apps.orEmpty()).distinctBy { it.id },
+                                    selectedDistractionIds = distraction.filterValues { it }.keys,
+                                    onDistractionChange = { id, selected ->
+                                        distraction[id] = selected
+                                        prefs.edit().putBoolean("distraction.$id", selected).apply()
+                                    },
+                                    usageAccessGranted = usageAccessGranted
+                                )
+                            }
+                        }
                         MainTab.SETTINGS -> SettingsScreen(
                             theme = theme,
                             onTheme = { theme=it;prefs.edit().putString("theme",it).apply() },

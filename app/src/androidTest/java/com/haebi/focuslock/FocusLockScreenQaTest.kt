@@ -195,7 +195,7 @@ class FocusLockScreenQaTest {
             tapText("리포트 보기")
             capture("20-report")
             captureScrolledContent("34-report-scroll")
-            tapText("뒤로")
+            tapText("홈")
             tapText("설정")
             tapText("다크")
             capture("21-dark-settings")

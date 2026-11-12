@@ -21,11 +21,13 @@ import com.haebi.focuslock.data.UsageLoadState
 import com.haebi.focuslock.data.FocusSummary
 
 @Composable
-fun ReportScreen(state: UsageLoadState, excluded: Map<String, Boolean>, focusSummary: FocusSummary, onBack: () -> Unit, onApp: (AppUsage, String) -> Unit, onUsageSettings: () -> Unit, onRefresh: () -> Unit) {
+fun ReportScreen(state: UsageLoadState, excluded: Map<String, Boolean>, focusSummary: FocusSummary, onBack: (() -> Unit)?, onApp: (AppUsage, String) -> Unit, onUsageSettings: () -> Unit, onRefresh: () -> Unit) {
     var period by rememberSaveable { mutableStateOf("7일") }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(Icons.Outlined.ArrowBack, "뒤로") }
+            if (onBack != null) {
+                IconButton(onClick = onBack) { Icon(Icons.Outlined.ArrowBack, "뒤로") }
+            }
             Text("사용 리포트", fontSize = 24.sp, fontWeight = FontWeight.Bold)
         }
         PeriodSelector(listOf("7일", "30일"), period) { period = it }
