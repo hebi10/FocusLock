@@ -49,8 +49,11 @@ fun ReportScreen(state: UsageLoadState, excluded: Map<String, Boolean>, focusSum
                 SectionTitle("사용 시간 추이")
                 val values = snapshot.chart(period) ?: emptyList()
                 if (values.any { it > 0 }) {
-                    val labels = if (period == "7일") listOf("6일 전", "5일 전", "4일 전", "3일 전", "2일 전", "어제", "오늘") else List(values.size) { if (it % 5 == 0 || it == values.lastIndex) "${values.size - it - 1}일 전" else "" }
+                    val labels = if (period == "7일") listOf("6일 전", "5일 전", "4일 전", "3일 전", "2일 전", "어제", "오늘") else thirtyDayAxisLabels(values.size)
                     BarChart(values, labels, (values.maxOrNull() ?: 1).coerceAtLeast(1), -1)
+                    if (period == "30일") {
+                        Text("가로축 숫자는 오늘 기준 며칠 전인지를 표시합니다. (0 = 오늘)", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 } else Text("선택 기간의 일별 사용 기록이 없습니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             FocusCard {
@@ -143,3 +146,8 @@ fun PermissionManagementScreen(onBack: () -> Unit, onUsageSettings: () -> Unit, 
         Text("Android 설정에서 돌아오면 권한 상태를 다시 확인합니다. 표시가 갱신되지 않으면 상단 새로고침을 눌러주세요.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
+
+internal fun thirtyDayAxisLabels(count: Int): List<String> =
+    List(count) { index ->
+        if (index % 5 == 0 || index == count - 1) (count - index - 1).toString() else ""
+    }
