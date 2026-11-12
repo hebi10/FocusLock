@@ -1,5 +1,7 @@
 package com.haebi.focuslock.ui
 
+import kotlin.math.roundToInt
+
 internal object HomeInsightPolicy {
     /** UsageEvents-derived peak hour is optional and must never be invented. */
     fun observedPeakHour(hourlyMinutes: List<Int>?): Int? {
@@ -12,6 +14,6 @@ internal object HomeInsightPolicy {
     /** Shares are omitted when Android supplies no valid daily total. */
     fun topAppShare(topMinutes: Int, totalMinutes: Int): Int? {
         if (totalMinutes <= 0 || topMinutes <= 0 || topMinutes > totalMinutes) return null
-        return ((topMinutes.toDouble() / totalMinutes) * 100).toInt().coerceIn(0, 100)
+        return (topMinutes.toDouble() / totalMinutes * 100).roundToInt().coerceIn(0, 100)
     }
 }
