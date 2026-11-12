@@ -54,11 +54,13 @@ class OwnerReleaseTests(unittest.TestCase):
         ))
 
     def test_closed_only_resume_rechecks_main_and_does_not_republish_images_or_aab(self):
-        with mock.patch("ui_r09_release_all.main_sha", return_value=SHA), \\
-             mock.patch("ui_r09_release_all.launch", side_effect=[14, 15, 16]) as launch, \\
-             mock.patch("ui_r09_release_all.assert_current"), \\
-             mock.patch("ui_r09_release_all.play_readback", return_value=4) as readback, \\
-             mock.patch("ui_r09_release_all.summary"):
+        with (
+            mock.patch("ui_r09_release_all.main_sha", return_value=SHA),
+            mock.patch("ui_r09_release_all.launch", side_effect=[14, 15, 16]) as launch,
+            mock.patch("ui_r09_release_all.assert_current"),
+            mock.patch("ui_r09_release_all.play_readback", return_value=4) as readback,
+            mock.patch("ui_r09_release_all.summary"),
+        ):
             resume_closed_only()
         self.assertEqual(launch.call_count, 3)
         self.assertEqual(
