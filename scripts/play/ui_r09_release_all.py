@@ -161,7 +161,9 @@ def store_readback(run_id):
 def play_readback(run_id, filename, track, expected=None):
     with tempfile.TemporaryDirectory(prefix="focuslock-track-") as name:
         folder = Path(name)
-        artifact(run_id, "focuslock-play-report-" + str(run_id), folder)
+        report_artifact = ("focuslock-play-report-" if track == "internal"
+                           else "focuslock-closed-promotion-") + str(run_id)
+        artifact(run_id, report_artifact, folder)
         data = json.loads(find_unique(folder, filename).read_text(encoding="utf-8"))
     code = data.get("versionCode")
     allowed = {"internal": ("api_committed_and_verified",),
