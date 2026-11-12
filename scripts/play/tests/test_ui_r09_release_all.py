@@ -1,6 +1,10 @@
 import unittest
-from ui_r09_release_all import eligible_run, allowed_owner, ReleaseSequenceError, workflow_runs
+from pathlib import Path
+import sys
 from unittest import mock
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from ui_r09_release_all import eligible_run, allowed_owner, ReleaseSequenceError, workflow_runs
 
 
 SHA = "a" * 40
