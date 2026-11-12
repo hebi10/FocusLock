@@ -63,3 +63,15 @@ https://github.com/hebi10/FocusLock/actions/workflows/ui-r09-full-release.yml
 - 승인된 딱 한 명의 이슈 #14 명령을 요구하므로 외부 댓글/다른 이슈/PR은 무효
 - Play API `completed`는 Play Console 심사/테스터 실제 설치 성공의 충분조건이 아니며, 이 둘은 별도 확인
 - 이 릴리스에서 기존 AAB를 재서명하거나 스토어 아이콘·다른 언어·사용자 데이터를 변경하지 않음
+
+## UI-R09 비공개 테스트 단독 복구 — 2026-11-12
+
+기존 [통합 배포 #43164023725](https://github.com/hebi10/FocusLock/actions/runs/43164023725)의 스토어 한국어 PNG 8장+대표 1장과 내부 AAB `versionCode 4` 등록은 Play API fresh readback으로 확인됐다. 비공개 승격 #43167332673은 `closed_promotion.validate_context`의 런타임 `PLAY_REQUESTED_MODE=closed` 값 전달이 빠져 API 요청 이전의 preflight에서 실패했다. 따라서 신규 AAB 업로드나 스토어 이미지 변경 없이 복구한다.
+
+- `.github/workflows/play-internal.yml`: closed job의 `PLAY_REQUESTED_MODE: ${{ inputs.mode || '' }}` 주입
+- `.github/workflows/ui-r09-full-release.yml`: 기존 저장소 소유자·Issue #14의 정확한 새 명령 `/ui-r09-resume-closed-v4`만 추가 허용
+- `scripts/play/ui_r09_release_all.py`: 새 명령은 **이미 완료한 이미지와 내부 AAB를 건드리지 않고** 최신 main의 `android-ci.yml`과 `emulator-smoke.yml`만 검증한 뒤 `play-internal.yml`을 `mode=closed, expected_internal_version_code=4`로 호출
+- `closed_promotion.py`가 현재 완료된 내부 AAB의 코드 4 일치, 기존 비공개 alpha 버전/상태, 새 AAB 업로드 없음, 다른 릴리스 트랙 불변을 검증한 뒤 API 변경 및 새 edit readback 확인
+- 비공개 트랙의 Play API readback이 실패하거나 Console에 심사 중 변경이 있다면 안전 정지. 내부 테스트는 그대로 유지
+
+GitHub PR QA green을 확인한 후 `[skip ci]` 병합, 실제 시작 명령을 **한 번만** 실행한다. 비공개 Play API 결과의 `completed`는 Console 심사/테스터 설치 가능성과 별개다.

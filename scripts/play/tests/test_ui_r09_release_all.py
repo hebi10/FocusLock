@@ -5,7 +5,10 @@ import sys
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from ui_r09_release_all import eligible_run, allowed_owner, ReleaseSequenceError, workflow_runs
+from ui_r09_release_all import (
+    eligible_run, allowed_owner, allowed_owner_closed_resume,
+    resume_closed_only, ReleaseSequenceError, workflow_runs
+)
 
 
 SHA = "a" * 40
@@ -35,6 +38,40 @@ class OwnerReleaseTests(unittest.TestCase):
         for env, event in variants:
             with self.subTest(event=event):
                 self.assertFalse(allowed_owner(env, event))
+
+    def test_closed_only_resume_requires_exact_owner_command(self):
+        command = {**EVENT, "comment": {
+            "user": {"login": "hebi10"},
+            "body": "/ui-r09-resume-closed-v4"
+        }}
+        self.assertTrue(allowed_owner_closed_resume(ENV, command))
+        self.assertFalse(allowed_owner_closed_resume(ENV, EVENT))
+        self.assertFalse(allowed_owner_closed_resume(
+            ENV, {**command, "comment": {"user": {"login": "someone"}, "body": "/ui-r09-resume-closed-v4"}}
+        ))
+        self.assertFalse(allowed_owner_closed_resume(
+            ENV, {**command, "issue": {"number": 12}}
+        ))
+
+    def test_closed_only_resume_rechecks_main_and_does_not_republish_images_or_aab(self):
+        with (
+            mock.patch("ui_r09_release_all.main_sha", return_value=SHA),
+            mock.patch("ui_r09_release_all.launch", side_effect=[14, 15, 16]) as launch,
+            mock.patch("ui_r09_release_all.assert_current"),
+            mock.patch("ui_r09_release_all.play_readback", return_value=4) as readback,
+            mock.patch("ui_r09_release_all.summary"),
+        ):
+            resume_closed_only()
+        self.assertEqual(launch.call_count, 3)
+        self.assertEqual(
+            [call.args[0] for call in launch.call_args_list],
+            ["android-ci.yml", "emulator-smoke.yml", "play-internal.yml"]
+        )
+        self.assertEqual(
+            launch.call_args_list[-1].args[2],
+            {"mode": "closed", "expected_internal_version_code": 4}
+        )
+        readback.assert_called_once_with(16, "play-closed-promotion.json", "alpha", expected=4)
 
     def test_identifies_only_new_exact_sha_manual_main_run(self):
         self.assertTrue(eligible_run(record(), {100}, SHA))

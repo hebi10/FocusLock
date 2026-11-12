@@ -181,6 +181,20 @@ class ClosedPromotionTests(unittest.TestCase):
             self.assertFalse(server.committed)
             self.assertFalse(any(method == 'PUT' for method, _, _ in server.calls))
 
+    def test_closed_job_injects_requested_mode_into_runtime(self):
+        workflow = (pathlib.Path(__file__).resolve().parents[3] /
+                    '.github/workflows/play-internal.yml').read_text(encoding='utf-8')
+        self.assertIn('\n  closed:\n', workflow)
+        closed_job = workflow.split('\n  closed:\n', 1)[1]
+        self.assertIn("PLAY_REQUESTED_MODE: " + "${{ inputs.mode || '' }}", closed_job)
+        self.assertIn("EXPECTED_CLOSED_VERSION_CODE: " +
+                      "${{ inputs.expected_internal_version_code || '' }}", closed_job)
+
+    def test_manual_closed_without_requested_mode_fails_before_play_api(self):
+        env = {**ENV, 'GITHUB_EVENT_NAME': 'workflow_dispatch', 'GITHUB_SHA': SHA}
+        with self.assertRaisesRegex(publisher.ReleaseError, 'trusted main mode'):
+            closed_promotion.validate_context(env)
+
     def test_manual_closed_context_requires_exact_main_sha(self):
         with tempfile.TemporaryDirectory() as folder:
             event_file = pathlib.Path(folder) / 'event.json'
