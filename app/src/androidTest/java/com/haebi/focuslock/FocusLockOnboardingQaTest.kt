@@ -28,6 +28,21 @@ class FocusLockOnboardingQaTest {
     private fun visible(text: String): Boolean =
         device.wait(Until.findObject(By.text(text)), 8000L) != null
 
+    private fun visibleAfterScroll(text: String): Boolean {
+        if (visible(text)) return true
+        repeat(9) {
+            device.swipe(
+                device.displayWidth * 2 / 3,
+                device.displayHeight * 3 / 4,
+                device.displayWidth * 2 / 3,
+                device.displayHeight / 4,
+                24
+            )
+            if (device.wait(Until.hasObject(By.text(text)), 1200L)) return true
+        }
+        return false
+    }
+
     private fun tap(text: String) {
         val item = device.wait(Until.findObject(By.text(text)), 8000L)
         requireNotNull(item) { "Onboarding action not visible: $text" }.click()
@@ -46,7 +61,10 @@ class FocusLockOnboardingQaTest {
             tap("나중에 설정")
             assertTrue(context.getSharedPreferences("focuslock_ui_prototype", 0)
                 .getBoolean("onboarding_completed", false))
-            assertTrue(visible("집중 시작"))
+            assertTrue(
+                "Optional focus start must remain reachable on the redesigned home",
+                visibleAfterScroll("집중 시작")
+            )
         }
     }
 
@@ -65,7 +83,10 @@ class FocusLockOnboardingQaTest {
             tap("목표 설정으로")
             assertTrue(visible("관리할 앱 선택"))
             tap("FocusLock 시작")
-            assertTrue(visible("집중 시작"))
+            assertTrue(
+                "Optional focus start must remain reachable on the redesigned home",
+                visibleAfterScroll("집중 시작")
+            )
         }
     }
 }
