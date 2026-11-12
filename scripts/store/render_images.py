@@ -129,8 +129,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--captures", type=Path)
     parser.add_argument("--output", type=Path, default=Path("assets/play-store/ko-KR"))
-    parser.add_argument("--source-sha", default=os.getenv("SOURCE_SHA", "c485fecff504f40ad7555cce58443a49f0d844e9"))
-    parser.add_argument("--source-run", default=os.getenv("SOURCE_RUN", "42945780305"))
+    parser.add_argument("--source-sha", default=os.getenv("SOURCE_SHA"))
+    parser.add_argument("--source-run", default=os.getenv("SOURCE_RUN"))
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
     if args.check:
@@ -138,6 +138,8 @@ def main():
     else:
         if not args.captures:
             parser.error("--captures required for rendering")
+        if not args.source_sha or not args.source_run:
+            parser.error("Explicit verified source SHA and workflow run ID are required")
         generate(args.captures, args.output, args.source_sha, args.source_run)
     print(f"STORE-01 verified: {args.output}")
 
