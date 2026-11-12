@@ -43,8 +43,10 @@ class RenewHomeQaTest {
             reachable("많이 사용한 앱")
             reachable("필요할 때 집중하기")
             reachable("집중 시작")
-            val navAnalysis = requireNotNull(device.wait(
-                Until.findObject(By.res("nav-ANALYSIS")), 5000L))
+            val navAnalysis = requireNotNull(
+                device.wait(Until.findObject(By.desc("사용 분석")), 5000L)
+                    ?: device.wait(Until.findObject(By.text("사용 분석")), 3000L)
+            ) { "Analysis bottom navigation must remain accessible" }
             navAnalysis.click()
             assertTrue("Analysis tab must remain reachable from the dashboard",
                 device.wait(Until.hasObject(By.text("사용 분석")), 9000L))
