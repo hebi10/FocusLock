@@ -77,12 +77,12 @@ class FocusLockResponsiveQaTest {
             val option30 = device.wait(Until.findObject(By.res("period-option-30일")), 6000L)
                 ?: find("30일")
             option30.click()
-            device.waitForIdle(1500L)
-            capture("report-30")
             assertTrue(
                 "Selecting 30 days must display the 30-day report, not the default 7-day report",
                 device.wait(Until.hasObject(By.text("최근 30일 총 사용 시간")), 8000L)
             )
+            device.waitForIdle(1800L)
+            capture("report-30")
             device.pressBack()
             device.waitForIdle(1200L)
             tap("설정")
