@@ -196,7 +196,9 @@ fun AnalysisAppList(
             Box(Modifier.weight(1f)) {
                 OutlinedButton(
                     onClick = { sortMenu = true },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = FocusSpacing.minTouchTarget)
+                    modifier = Modifier.fillMaxWidth()
+                        .heightIn(min = FocusSpacing.minTouchTarget)
+                        .testTag("analysis-sort-button")
                 ) {
                     Text("정렬: $sort", maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
@@ -204,7 +206,8 @@ fun AnalysisAppList(
                     AnalysisModels.sorts.forEach { item ->
                         DropdownMenuItem(
                             text = { Text(item) },
-                            onClick = { onSort(item); sortMenu = false }
+                            onClick = { onSort(item); sortMenu = false },
+                            modifier = Modifier.testTag("analysis-sort-option-$item")
                         )
                     }
                 }
