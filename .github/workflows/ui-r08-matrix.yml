@@ -1,0 +1,74 @@
+name: UI-R08 Android compatibility and responsive QA
+
+on:
+  pull_request:
+    paths:
+      - 'app/src/androidTest/**'
+      - 'scripts/qa/ui_r08_matrix.sh'
+      - 'docs/qa/UI-R08.md'
+      - '.github/workflows/ui-r08-matrix.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: focuslock-ui-r08-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compatibility:
+    name: ${{ matrix.label }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 65
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: api29-phone
+            api: 29
+          - label: api35-phone
+            api: 35
+          - label: api36-viewport-matrix
+            api: 36
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: '13114758'
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - name: Install compilation SDK
+        run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.5.0'
+      - name: Build app and instrumented UI tests
+        run: gradle --no-daemon :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Run API compatibility, Room and real UI viewport QA
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          script: bash scripts/qa/ui_r08_matrix.sh ${{ matrix.api }}
+      - name: Preserve real screenshots and instrumentation logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-r08-${{ matrix.label }}
+          path: captures/ui-r08-api${{ matrix.api }}/
+          if-no-files-found: warn
+          retention-days: 14
