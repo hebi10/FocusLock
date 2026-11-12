@@ -30,15 +30,17 @@ object UsageMetrics {
             .roundToLong().coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
 
     /** Aggregate original OS milliseconds before one display rounding operation. */
-    fun totalMinutes(values: Iterable<Long>): Int {
+    fun totalMillis(values: Iterable<Long>): Long {
         var total = 0L
         values.forEach { value ->
             if (value > 0L) {
                 total = if (Long.MAX_VALUE - total < value) Long.MAX_VALUE else total + value
             }
         }
-        return roundedMinutes(total)
+        return total
     }
+
+    fun totalMinutes(values: Iterable<Long>): Int = roundedMinutes(totalMillis(values))
 
     fun rawSharePercent(partMillis: Long, totalMillis: Long): Int? {
         if (partMillis <= 0L || totalMillis <= 0L || partMillis > totalMillis) return null
