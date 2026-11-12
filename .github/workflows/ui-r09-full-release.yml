@@ -17,7 +17,8 @@ jobs:
       github.repository == 'hebi10/FocusLock' &&
       github.event.issue.number == 14 &&
       github.event.comment.user.login == 'hebi10' &&
-      github.event.comment.body == '/ui-r09-all'
+      (github.event.comment.body == '/ui-r09-all' ||
+       github.event.comment.body == '/ui-r09-resume-closed-v4')
     runs-on: ubuntu-latest
     timeout-minutes: 180
     permissions:
