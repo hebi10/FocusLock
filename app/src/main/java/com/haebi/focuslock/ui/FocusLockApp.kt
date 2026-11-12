@@ -22,6 +22,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.haebi.focuslock.data.AppUsage
@@ -302,7 +304,16 @@ fun FocusLockApp() {
                                 selected = tab == item.name,
                                 onClick = { goMain(item) },
                                 icon = { Icon(icon, contentDescription = item.label, modifier = Modifier.size(FocusSpacing.icon)) },
-                                label = { Text(item.label, style = MaterialTheme.typography.labelSmall) },
+                                label = {
+                                    val navigationLabel = if (LocalDensity.current.fontScale >= 1.4f && item == MainTab.ANALYSIS) "분석" else item.label
+                                    Text(
+                                        navigationLabel,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                },
                                 alwaysShowLabel = true,
                                 colors = NavigationBarItemDefaults.colors(
                                     selectedIconColor = MaterialTheme.colorScheme.primary,
