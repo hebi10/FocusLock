@@ -202,7 +202,9 @@ def execute():
                       {"mode": "deploy", "release_status": "completed"}, timeout=5400)
     version_code = play_readback(internal, "play-release.json", "internal")
     assert_current(sha)
-    closed = launch("play-internal.yml", sha, {"mode": "closed"}, timeout=3600)
+    closed = launch("play-internal.yml", sha,
+                    {"mode": "closed", "expected_internal_version_code": version_code},
+                    timeout=3600)
     play_readback(closed, "play-closed-promotion.json", "alpha", expected=version_code)
     summary("## Google Play internal and closed alpha API readback verified")
     summary("Console review/approval and actual tester installability remain separate checks.")
