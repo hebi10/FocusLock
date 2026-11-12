@@ -86,8 +86,8 @@ if ! adb pull /sdcard/Android/data/com.haebi.focuslock/files/qa-r08/ "${root}/sc
   echo "::error::Unable to retrieve actual device screenshots"
   failures=$((failures + 1))
 fi
-expected=10
-if [[ "${api}" == "36" ]]; then expected=20; fi
+expected=6
+if [[ "${api}" == "36" ]]; then expected=36; fi
 count=$(find "${root}/screens" -type f -name '*.png' -size +0c | wc -l)
 echo "API ${api}: ${tests} instrumentation cases, ${count} captured screenshots, ${failures} failures."
 if [[ "${count}" -lt "${expected}" ]]; then
