@@ -1,3 +1,4 @@
+import json
 import unittest
 from pathlib import Path
 import sys
@@ -48,6 +49,25 @@ class OwnerReleaseTests(unittest.TestCase):
         ]:
             with self.subTest(candidate=candidate):
                 self.assertFalse(eligible_run(candidate, old, expected))
+
+
+    def test_closed_report_uses_closed_promotion_artifact(self):
+        from ui_r09_release_all import play_readback
+        cases = [
+            ("internal", "play-release.json", "focuslock-play-report-152",
+             "api_committed_and_verified"),
+            ("alpha", "play-closed-promotion.json", "focuslock-closed-promotion-152",
+             "closed_api_committed_and_verified"),
+        ]
+        for track, filename, expected_artifact, status in cases:
+            with self.subTest(track=track):
+                def download(run_id, name, output):
+                    self.assertEqual(name, expected_artifact)
+                    (output / filename).write_text(json.dumps({
+                        "track": track, "versionCode": 5, "status": status
+                    }), encoding="utf-8")
+                with mock.patch("ui_r09_release_all.artifact", side_effect=download):
+                    self.assertEqual(play_readback(152, filename, track), 5)
 
     def test_unapproved_workflow_never_contacts_github(self):
         with mock.patch("ui_r09_release_all.gh_api") as api:
