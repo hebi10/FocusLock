@@ -1,0 +1,40 @@
+name: UI-R09 sequenced store + internal + closed release
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: focuslock-ui-r09-sequenced-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: >-
+      github.repository == 'hebi10/FocusLock' &&
+      github.event.issue.number == 14 &&
+      github.event.comment.user.login == 'hebi10' &&
+      github.event.comment.body == '/ui-r09-all'
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    permissions:
+      contents: read
+      actions: write
+      issues: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install exact image verifier
+        run: python3 -m pip install 'Pillow==12.0.0'
+      - name: Execute fail-closed release sequence on exact main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/play/ui_r09_release_all.py

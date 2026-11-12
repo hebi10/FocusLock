@@ -41,3 +41,25 @@ GitHub Issue #14에 저장소 소유자 `hebi10` 계정이 아래 **정확한 �
 - 소유자 댓글 명령: https://github.com/hebi10/FocusLock/issues/14
 
 이 문서는 사용자 승인된 릴리스 순서를 기록한 것으로, 실제 실행·검증이 완료되지 않은 단계를 성공이라고 선언하지 않습니다.
+
+
+## 한 번의 승인으로 전체 비공개 테스트까지 자동 실행
+소유자 `hebi10`가 Issue #14에 **정확히 `/ui-r09-all`** 댓글을 등록하면
+`.github/workflows/ui-r09-full-release.yml`의 단일 순차 배포 워크플로가 시작됩니다.
+
+실행 순서와 안전 정지 조건:
+1. 현재 main SHA를 확인하고 API36 실화면 캡처 Actions 실행 및 성공 확인
+2. 스토어 이미지 `check`에서 생성된 **8장+대표 1장**과 manifest 원본 SHA/run ID/이미지 규격·SHA256 검증
+3. 동일 manifest SHA를 입력한 `upload` 실행으로 **검증한 이미지와 동일할 때만** Play ko-KR 이미지 갱신, API readback 확인
+4. 이미지 저장으로 변경됐을 수 있는 최신 main에서 **Android CI 및 API36 QA 각각 다시 성공** 확인
+5. `mode=deploy`로 기존 서명 사용, 새 versionCode AAB 내부 테스트 올리기 및 API readback
+6. 내부 code4+ 완료 확인 후 `mode=closed`로 **같은 AAB**를 비공개 alpha로 승격, API readback
+7. 하나라도 실패하거나 main HEAD가 바뀌면 이후 단계 실행 금지. 단일 Actions 작업 요약에 마지막 성공 지점 및 실행 링크 출력
+
+전체 실행 확인 링크:
+https://github.com/hebi10/FocusLock/actions/workflows/ui-r09-full-release.yml
+
+- 실행 코드는 `scripts/play/ui_r09_release_all.py`
+- 승인된 딱 한 명의 이슈 #14 명령을 요구하므로 외부 댓글/다른 이슈/PR은 무효
+- Play API `completed`는 Play Console 심사/테스터 실제 설치 성공의 충분조건이 아니며, 이 둘은 별도 확인
+- 이 릴리스에서 기존 AAB를 재서명하거나 스토어 아이콘·다른 언어·사용자 데이터를 변경하지 않음

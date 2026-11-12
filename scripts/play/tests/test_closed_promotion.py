@@ -202,6 +202,14 @@ class ClosedPromotionTests(unittest.TestCase):
         self.assertFalse(server.committed)
         self.assertFalse(any(method == 'PUT' for method, _, _ in server.calls))
 
+    def test_expected_closed_version_code_prevents_promoting_other_internal_aab(self):
+        server = Server(internal_code=5, alpha_code=2)
+        with mock.patch.dict(closed_promotion.os.environ, {'EXPECTED_CLOSED_VERSION_CODE': '4'}):
+            with self.assertRaisesRegex(publisher.ReleaseError, 'approved closed'):
+                closed_promotion.promote(server)
+        self.assertFalse(server.committed)
+        self.assertFalse(any(method == 'PUT' for method, _, _ in server.calls))
+
     def test_latest_internal_four_promotes_older_closed_two_without_new_upload(self):
         server = Server(internal_code=4, alpha_code=2)
         result = closed_promotion.promote(server)

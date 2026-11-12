@@ -26,6 +26,10 @@ on:
         description: 'Keep committed changes pending explicit Console review submission'
         type: boolean
         default: false
+      expected_internal_version_code:
+        description: 'Optional expected completed internal versionCode for exact closed promotion'
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -293,6 +297,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       MIN_CLOSED_VERSION_CODE: '4'
+      EXPECTED_CLOSED_VERSION_CODE: ${{ inputs.expected_internal_version_code || '' }}
     timeout-minutes: 20
     environment: google-play
     permissions:

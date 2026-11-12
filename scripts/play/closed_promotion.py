@@ -93,6 +93,9 @@ def snapshot(publisher, edit):
             or not 2 <= int(codes[0]) <= 2100000000):
         raise ReleaseError('Internal release must have one valid registered versionCode')
     code = codes[0]
+    expected = os.environ.get('EXPECTED_CLOSED_VERSION_CODE', '')
+    if expected and (not expected.isascii() or not expected.isdigit() or expected != code):
+        raise ReleaseError('Internal AAB version differs from explicitly approved closed promotion')
     minimum = os.environ.get('MIN_CLOSED_VERSION_CODE', '2')
     if (not minimum.isascii() or not minimum.isdigit()
             or not 2 <= int(minimum) <= 2100000000):
