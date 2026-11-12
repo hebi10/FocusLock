@@ -2,96 +2,96 @@
   "app": "FocusLock",
   "package": "com.haebi.focuslock",
   "locale": "ko-KR",
-  "source_commit": "c485fecff504f40ad7555cce58443a49f0d844e9",
-  "source_workflow_run": "42945780305",
+  "source_commit": "60f398f056fa6efec5e8efe667473cdf87884e47",
+  "source_workflow_run": "43164040635",
   "provenance": "Actual Android API 36 instrumentation captures; promotional text outside the UI; no simulated data or in-app edits",
   "screenshots": [
     {
       "file": "01-home.png",
       "source": "14-home-granted.png",
-      "source_sha256": "4cf81d4f6d22f8875ae7fbf54b3d1ac6b2ae621016fc083426adafbdfc0af5b6",
+      "source_sha256": "29e72fd2257702e34c27eb88db628ff39c2bafabe44b27522852afc1a5eb434c",
       "dimensions": [
         1350,
         2400
       ],
-      "sha256": "8565e73731db3411d4eaae6191bcc4488d873f9794a5cb010f849ab0dd22eeb5",
+      "sha256": "bf4e8b0d3016324989437b63302457caf8e44ae8436a9eb64a8423ed6fca1bd9",
       "title": "스마트폰 사용 습관"
     },
     {
       "file": "02-analysis.png",
       "source": "15-analysis-today.png",
-      "source_sha256": "8c7d5dddedba99c7abe562eab8515c73381ec2cf5cc992e260d54486a3f60a23",
+      "source_sha256": "91a0400242e98497a5d2d80b8265efc058f4a91028a848a415a6a52e2a3bc626",
       "dimensions": [
         1350,
         2400
       ],
-      "sha256": "efa3d16be13a41962d28cb1bd208b01aaa6e635cdd05932c583801b7cc0f9c0b",
+      "sha256": "786407b826f922bf7df7d57e5145c9ec91c6d18815a0d2ad2fda364fbae1df31",
       "title": "오늘부터 30일까지"
     },
     {
       "file": "03-app-detail.png",
       "source": "18-app-detail.png",
-      "source_sha256": "c142ecd54e4d782f0ac5c6c389f65babe90709b3a2a92f60ed5a6a49c936fe7d",
+      "source_sha256": "4af63f51770d8f6a327850d6309f2ca554f027a0c2ef1095a5a482293225da15",
       "dimensions": [
         1350,
         2400
       ],
-      "sha256": "f7a9dbf280106b3a0995650af631f8eac143695ce48058c0f9d19f606c9acb2e",
+      "sha256": "67a411246d4b769a7924b89a65d42b3ee482741f0681491207abd85a70cc23a3",
       "title": "앱별 이용 기록"
     },
     {
       "file": "04-goals.png",
       "source": "19-goal-sheet.png",
-      "source_sha256": "2dc51ee0f45ac407142eeee7015fc79445a45dab3ba11be1c12cec64ad3229c5",
+      "source_sha256": "3f60da7b8718452ed0fa7d522d8cd09f62a48bffd7b6e86b2d064c2e1bedcc7e",
       "dimensions": [
         1350,
         2400
       ],
-      "sha256": "06f54499b318d7ab38d54b16737460a60bde29b29c546a49fb7df734e14df2de",
+      "sha256": "27ab0ac3100a1f1c31fce169137a22f315b860249f2682f1a9029fbaea43421e",
       "title": "앱별 사용 목표"
     },
     {
       "file": "05-focus.png",
       "source": "09-focus-running.png",
-      "source_sha256": "d14346a8f51dcb61bec70b4fb4555527d68b42b7c7be5fb10878f4e6387c1a29",
+      "source_sha256": "91e0ef3b510503ac6b0a31963ca5b08168fdfa2b2479fde6f8edc14040272077",
       "dimensions": [
         1350,
         2400
       ],
-      "sha256": "1a7b036e13ce3729e7b499dc2c5661fd9185f6f56b3b88164849b2314dec6322",
+      "sha256": "313f943bb5673fa212733f215003abc96a14eaab90665b5bc46aba5f6affee29",
       "title": "집중 시간을 기록"
     },
     {
       "file": "06-result.png",
       "source": "11-focus-result.png",
-      "source_sha256": "b0b149db5430e4173292a0ae18f5f456f2c60b172db61f3e746d5687f45d29cc",
+      "source_sha256": "6119b2378b2d0f6560f4e1be205433f34273c22bc3b3a83e9354f2930c52f188",
       "dimensions": [
         1350,
         2400
       ],
-      "sha256": "d0036643e619e2fa2741b32814e86528d14d841f4b4c6d53851e135f185c9334",
+      "sha256": "9b0101975339b77bdac3418339399846c801bb1059cab14b633ae072ea9d27f7",
       "title": "집중 기록 저장"
     },
     {
       "file": "07-garden.png",
       "source": "12-garden.png",
-      "source_sha256": "78dcbcf2dd61e5fed233a3cd037c188f3a0e0128125183d1fb08c18375e418f7",
+      "source_sha256": "4055fc90448c7c4e3524766b82596a7475188fbda2deac27ecf83cb7fba9db58",
       "dimensions": [
         1350,
         2400
       ],
-      "sha256": "b2cb6b228224e7b32e6bdb5642a44e173d00ec378c3f42cbe5a09c7e739e68ed",
+      "sha256": "9a84e0e4a70d6fa59e7ef73c14d3d15f4e32c9f5c81c4b32612fdb74bb3e333b",
       "title": "집중하며 정원 성장"
     },
     {
       "file": "08-report.png",
       "source": "20-report.png",
-      "source_sha256": "61ea96095a8e8d4e9aaeaecd143287e4dfc425b592436cdb80734f3b00cd1baf",
+      "source_sha256": "fc0451f8630f78f2d623c6f5383d845fad0c048e5ee83b483ac454fc1e68bda1",
       "dimensions": [
         1350,
         2400
       ],
-      "sha256": "3a6d8537524218d19f687650af1b83bf2b9b8ddc2b2a7661c6ee9fcf04129ee9",
+      "sha256": "64d82f7a1e17cd8a53694d3a6334521407edbbadedd4b90fbf31b0b1c222185b",
       "title": "집중 리포트"
     }
   ],
@@ -101,6 +101,6 @@
       1024,
       500
     ],
-    "sha256": "ba62f979cf3a35ab42a1e87274c87f09d193f5d68b903b26e28048a2bfdbfe91"
+    "sha256": "3c4ea5d8ac1afecc61db860454a303f4224914c9c137cf638f87b26185f79b6d"
   }
 }
