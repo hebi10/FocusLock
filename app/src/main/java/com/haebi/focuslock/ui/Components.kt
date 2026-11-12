@@ -14,6 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -128,20 +129,33 @@ fun CategoryRow(label: String, minutes: Int, total: Int) {
 
 @Composable
 fun PeriodSelector(options: List<String>, selected: String, onSelected: (String) -> Unit) {
-    Row(
+    val largeFontFourOptions = options.size >= 4 && LocalDensity.current.fontScale >= 1.35f
+    val optionRows = if (largeFontFourOptions) options.chunked(2) else listOf(options)
+    Column(
         Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(10.dp)).padding(3.dp),
-        horizontalArrangement = Arrangement.spacedBy(3.dp)
+        verticalArrangement = Arrangement.spacedBy(3.dp)
     ) {
-        options.forEach { option ->
-            val active = selected == option
-            Box(
-                Modifier.weight(1f).heightIn(min = FocusSpacing.minTouchTarget)
-                    .testTag("period-option-$option")
-                    .background(if (active) MaterialTheme.colorScheme.primary else Color.Transparent, MaterialTheme.shapes.small)
-                    .clickable { onSelected(option) }.padding(vertical = FocusSpacing.xs),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(option, color = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal)
+        optionRows.forEach { rowOptions ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                rowOptions.forEach { option ->
+                    val active = selected == option
+                    Box(
+                        Modifier.weight(1f).heightIn(min = FocusSpacing.minTouchTarget)
+                            .testTag("period-option-$option")
+                            .background(if (active) MaterialTheme.colorScheme.primary else Color.Transparent, MaterialTheme.shapes.small)
+                            .clickable { onSelected(option) }.padding(vertical = FocusSpacing.xs),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            option,
+                            color = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
             }
         }
     }
