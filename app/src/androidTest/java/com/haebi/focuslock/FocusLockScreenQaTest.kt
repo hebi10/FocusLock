@@ -121,7 +121,7 @@ class FocusLockScreenQaTest {
             tapText("설정")
             capture("06-settings")
             captureScrolledContent("26-settings-scroll")
-            tapText("사용 정보 및 알림 권한")
+            tapText("사용 정보·알림 권한 관리")
             capture("07-permission-management-denied")
             captureScrolledContent("27-permissions-denied-scroll")
             tapText("뒤로")
@@ -205,7 +205,7 @@ class FocusLockScreenQaTest {
             captureScrolledContent("36-dark-home-scroll")
             tapText("설정")
             tapText("라이트")
-            tapText("사용 정보 및 알림 권한")
+            tapText("사용 정보·알림 권한 관리")
             capture("23-permission-management-granted")
             captureScrolledContent("37-permissions-granted-scroll")
         }

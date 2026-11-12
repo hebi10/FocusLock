@@ -40,29 +40,30 @@ fun ReportScreen(state: UsageLoadState, excluded: Map<String, Boolean>, focusSum
         } else {
             val selected = snapshot.window(period)
             val prev = snapshot.prior(period)
+            val visibleApps = selected.apps.filter { excluded[it.id] != true }
             FocusCard {
-                Metric(UsageFormat.minutesLabel(selected.totalMinutes), "총 사용 시간")
+                Metric(UsageFormat.minutesLabel(selected.totalMinutes), "최근 ${period} 총 사용 시간")
                 Text(UsageFormat.comparison(selected.totalMinutes, prev.totalMinutes) ?: "비교할 이전 기록이 없습니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             FocusCard {
                 SectionTitle("사용 시간 추이")
                 val values = snapshot.chart(period) ?: emptyList()
                 if (values.any { it > 0 }) {
-                    val labels = if(period == "7일") listOf("1", "2", "3", "4", "5", "6", "7") else List(30) { if(it % 5 == 0) "${it + 1}" else "" }
+                    val labels = if (period == "7일") listOf("6일 전", "5일 전", "4일 전", "3일 전", "2일 전", "어제", "오늘") else List(values.size) { if (it % 5 == 0 || it == values.lastIndex) "${values.size - it - 1}일 전" else "" }
                     BarChart(values, labels, (values.maxOrNull() ?: 1).coerceAtLeast(1), -1)
                 } else Text("선택 기간의 일별 사용 기록이 없습니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             FocusCard {
                 SectionTitle("사용량 상위 앱")
-                if (selected.apps.isEmpty()) Text("사용 기록 없음", fontSize = 12.sp)
-                selected.apps.filter { excluded[it.id] != true }.take(5).forEachIndexed { index, app ->
+                if (visibleApps.isEmpty()) Text(if (selected.apps.isEmpty()) "선택 기간의 앱 사용 기록이 없습니다." else "분석 제외 설정으로 표시할 앱이 없습니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                visibleApps.take(5).forEachIndexed { index, app ->
                     AppUsageRow(app, totalMinutes = selected.totalMinutes, onClick = { onApp(app, period) })
-                    if(index < minOf(5, selected.apps.count { excluded[it.id] != true }) - 1) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    if(index < minOf(5, visibleApps.size) - 1) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 }
             }
         }
         FocusCard {
-            SectionTitle("집중 성과")
+            SectionTitle("집중 성과 · ${period}")
             val focus = focusSummary.forPeriod(period)
             if (focus.completedCount == 0) {
                 Text("선택 기간에 완료된 집중 세션이 없습니다.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -70,7 +71,7 @@ fun ReportScreen(state: UsageLoadState, excluded: Map<String, Boolean>, focusSum
                 InfoPairReport("완료 세션", "${focus.completedCount}회")
                 InfoPairReport("완료 집중 시간", UsageFormat.minutesLabel(focus.minutes))
                 InfoPairReport("획득 경험치", "${focus.experience} XP")
-                Text("중단된 세션은 완료 횟수와 경험치에 포함하지 않습니다.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("선택한 기간의 완료 기록만 집계합니다. 중단된 세션은 완료 횟수와 경험치에 포함하지 않습니다.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -90,7 +91,7 @@ fun SettingsScreen(theme: String, onTheme: (String) -> Unit, onPermissions: () -
         PageTitle("설정", "FocusLock의 사용 환경을 관리합니다")
         FocusCard {
             SectionTitle("권한")
-            SettingRow("사용 정보 및 알림 권한", "현재 허용 상태 확인과 Android 설정으로 이동", onClick = onPermissions)
+            SettingRow("사용 정보·알림 권한 관리", "권한별 허용 상태, 용도 및 시스템 설정 확인", onClick = onPermissions)
         }
         FocusCard {
             SectionTitle("화면")
@@ -99,11 +100,12 @@ fun SettingsScreen(theme: String, onTheme: (String) -> Unit, onPermissions: () -
         }
         FocusCard {
             SectionTitle("알림")
-            Text("설정한 목표의 80%·100% 도달 시 알림을 보냅니다. WorkManager는 약 15분 간격으로 확인하며 절전 정책에 따라 지연될 수 있습니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("앱별 목표 설정에서 80%·100% 경고 및 적용 요일을 선택합니다. WorkManager는 최소 약 15분 간격으로 확인하며 Android 절전 정책에 따라 알림이 지연될 수 있습니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         FocusCard {
             SectionTitle("데이터")
-            Text("사용 기록은 Android 시스템에서 기기 내부로 읽습니다. FocusLock의 집중 세션·보상은 Room에 저장되며 서버로 전송하지 않습니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("사용 기록은 Android 시스템에서 읽으며, FocusLock의 집중 세션·보상과 목표 설정은 기기에 저장됩니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("전체 데이터 삭제 기능은 현재 제공하지 않습니다. Android 앱 정보의 저장공간 메뉴에서 앱 데이터 초기화가 가능하지만 모든 앱 설정과 기록이 삭제됩니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         FocusCard {
             SectionTitle("앱 정보")
@@ -138,6 +140,6 @@ fun PermissionManagementScreen(onBack: () -> Unit, onUsageSettings: () -> Unit, 
             Text("앱별 목표 도달 알림을 받으려면 허용이 필요합니다. Android 백그라운드 제한으로 알림이 지연될 수 있습니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             OutlinedButton(onClick = onNotificationSettings, modifier = Modifier.fillMaxWidth()) { Text("Android 알림 설정") }
         }
-        Text("Android 설정에서 돌아오면 사용 통계와 권한 상태가 다시 갱신됩니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Android 설정에서 돌아오면 권한 상태를 다시 확인합니다. 표시가 갱신되지 않으면 상단 새로고침을 눌러주세요.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
