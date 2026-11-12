@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Promote exactly the existing FocusLock internal version 2 to closed testing."""
+"""Safely promote the current completed internal AAB to closed alpha testing."""
 import argparse
 import json
 import os
@@ -13,15 +13,18 @@ import source
 
 TRACK = 'alpha'
 SOURCE_TRACK = 'internal'
-VERSION = '2'
+VERSION = '2'  # legacy test policy default; live target comes from verified internal
 
 
 def validate_context(env):
+    event_name = env.get('GITHUB_EVENT_NAME')
+    manual = event_name == 'workflow_dispatch' and env.get('PLAY_REQUESTED_MODE') == 'closed'
+    automatic = event_name == 'workflow_run'
     if (env.get('GITHUB_REPOSITORY') != 'hebi10/FocusLock'
             or env.get('GITHUB_REF') != 'refs/heads/main'
-            or env.get('GITHUB_EVENT_NAME') != 'workflow_run'
-            or env.get('PLAY_RELEASE_MODE') != 'closed'):
-        raise ReleaseError('Closed promotion requires the explicit trusted main workflow-run mode')
+            or env.get('PLAY_RELEASE_MODE') != 'closed'
+            or not (manual or automatic)):
+        raise ReleaseError('Closed promotion requires explicit trusted main mode')
     if not re.fullmatch(r'[a-f0-9]{40}', env.get('SOURCE_SHA', '')):
         raise ReleaseError('Verified source SHA is missing')
     try:
@@ -31,20 +34,19 @@ def validate_context(env):
         subject = subprocess.run(['git', 'show', '-s', '--format=%s', env['SOURCE_SHA']],
                                  capture_output=True, check=False, text=True)
         if subject.returncode or source.release_mode(env, event, subject.stdout) != 'closed':
-            raise ReleaseError('One-time [promote-play-closed] main commit marker is required')
-    except (source.SourceError, OSError, ValueError, KeyError) as error:
-        if isinstance(error, ReleaseError):
-            raise
+            raise ReleaseError('Manual closed input or one-time [promote-play-closed] marker is required')
+    except (source.SourceError, OSError, ValueError, KeyError):
         raise ReleaseError('Closed promotion source metadata could not be verified') from None
 
 
-def release_is(release, status):
+def release_is(release, status, version=VERSION):
     return (isinstance(release, dict)
             and release.get('status') == status
-            and [str(value) for value in release.get('versionCodes', [])] == [VERSION])
+            and [str(value) for value in (release.get('versionCodes') or [])] == [str(version)])
 
 
-def alpha_release_policy(releases):
+def alpha_release_policy(releases, version=VERSION):
+    version = str(version)
     if not releases:
         return 'empty'
     if len(releases) != 1 or not isinstance(releases[0], dict):
@@ -52,14 +54,13 @@ def alpha_release_policy(releases):
     release = releases[0]
     codes = [str(value) for value in (release.get('versionCodes') or [])]
     status = release.get('status')
-    if codes == [VERSION] and status == 'completed':
+    if codes == [version] and status == 'completed':
         return 'already'
-    if codes == [VERSION] and status == 'draft':
+    if codes == [version] and status == 'draft':
         return 'same_version_draft'
-    # One previously registered code 1 is safe to replace when explicitly
-    # promoting already verified code 2. Never override paused/in-progress,
-    # higher-code, multiple-code, or malformed closed releases.
-    if codes == ['1'] and status in ('draft', 'completed'):
+    if (len(codes) == 1 and codes[0].isascii() and codes[0].isdigit()
+            and int(codes[0]) >= 1 and int(codes[0]) < int(version)
+            and status in ('draft', 'completed')):
         return 'older_version'
     if not codes and status == 'draft':
         return 'empty_draft'
@@ -73,9 +74,6 @@ def snapshot(publisher, edit):
     if (not isinstance(bundles, list) or not isinstance(apks, list)
             or not isinstance(tracks, list)):
         raise ReleaseError('Play inventory returned an invalid structure')
-    codes = [str(item.get('versionCode')) for item in bundles if isinstance(item, dict)]
-    if codes.count(VERSION) != 1:
-        raise ReleaseError('Verified internal release AAB versionCode 2 is not registered exactly once')
     by_name = {}
     for track in tracks:
         if not isinstance(track, dict) or not isinstance(track.get('track'), str):
@@ -85,27 +83,42 @@ def snapshot(publisher, edit):
             raise ReleaseError('Duplicate Play tracks prevent safe promotion')
         by_name[name] = track
     internal = by_name.get(SOURCE_TRACK)
-    if (not internal or not isinstance(internal.get('releases'), list)
-            or not any(release_is(release, 'completed') for release in internal['releases'])):
-        raise ReleaseError('Internal track does not contain completed versionCode 2')
+    if not internal or not isinstance(internal.get('releases'), list):
+        raise ReleaseError('Internal track is absent or malformed')
+    active = internal['releases']
+    if len(active) != 1 or not isinstance(active[0], dict) or active[0].get('status') != 'completed':
+        raise ReleaseError('Exactly one completed internal release is required before closed promotion')
+    codes = [str(value) for value in (active[0].get('versionCodes') or [])]
+    if (len(codes) != 1 or not codes[0].isascii() or not codes[0].isdigit()
+            or not 2 <= int(codes[0]) <= 2100000000):
+        raise ReleaseError('Internal release must have one valid registered versionCode')
+    code = codes[0]
+    minimum = os.environ.get('MIN_CLOSED_VERSION_CODE', '2')
+    if (not minimum.isascii() or not minimum.isdigit()
+            or not 2 <= int(minimum) <= 2100000000):
+        raise ReleaseError('Invalid minimum closed promotion version policy')
+    if int(code) < int(minimum):
+        raise ReleaseError('Latest completed internal release is older than the approved minimum version')
+    bundle_codes = [str(item.get('versionCode')) for item in bundles if isinstance(item, dict)]
+    if bundle_codes.count(code) != 1:
+        raise ReleaseError('Current completed internal AAB is not registered exactly once')
     if TRACK not in by_name:
         raise ReleaseError('Closed testing alpha track is absent; set it up in Play Console first')
-    closed = by_name[TRACK]
-    releases = closed.get('releases', [])
+    releases = by_name[TRACK].get('releases', [])
     if not isinstance(releases, list):
         raise ReleaseError('Closed testing releases are malformed')
-    alpha_release_policy(releases)
+    alpha_release_policy(releases, code)
     other = {name: value for name, value in by_name.items() if name != TRACK}
-    return releases, other
+    return releases, other, code
 
 
 def inspect(transport):
     publisher = Publisher(transport)
     with publisher.initial_stage('inventory'), publisher.edit(ignore_delete_error=False) as edit:
-        releases, _ = snapshot(publisher, edit)
-    ready = alpha_release_policy(releases) != 'already'
+        releases, _, code = snapshot(publisher, edit)
+    ready = alpha_release_policy(releases, code) != 'already'
     return {'package': PACKAGE, 'sourceTrack': SOURCE_TRACK, 'targetTrack': TRACK,
-            'versionCode': int(VERSION),
+            'versionCode': int(code),
             'status': 'ready_for_closed_promotion' if ready else 'already_on_closed',
             'deployment': 'not_attempted', 'testers': 'requires_console_check'}
 
@@ -116,16 +129,16 @@ def promote(transport):
     review_parameter_omitted = False
     with publisher.initial_stage('edit_create'), publisher.edit() as edit:
         with publisher.initial_stage('inventory'):
-            releases, previous_tracks = snapshot(publisher, edit)
-        if releases and release_is(releases[0], 'completed'):
+            releases, previous_tracks, code = snapshot(publisher, edit)
+        if releases and release_is(releases[0], 'completed', code):
             return {'package': PACKAGE, 'sourceTrack': SOURCE_TRACK, 'targetTrack': TRACK,
-                    'versionCode': int(VERSION), 'releaseStatus': 'completed',
+                    'versionCode': int(code), 'releaseStatus': 'completed',
                     'status': 'already_on_closed', 'deployment': 'not_attempted',
                     'testers': 'requires_console_check'}
         with publisher.initial_stage('track_update'):
             publisher.request('PUT', edit + '/tracks/' + TRACK,
                               {'track': TRACK, 'releases': [
-                                  {'name': '0.3.0 (2)', 'versionCodes': [VERSION],
+                                  {'name': f'0.3.0 ({code})', 'versionCodes': [code],
                                    'status': 'completed'}]})
         with publisher.initial_stage('commit'):
             response = publisher.commit(edit, fail_if_in_review=True)
@@ -134,8 +147,9 @@ def promote(transport):
 
     try:
         with publisher.initial_stage('readback'), publisher.edit(ignore_delete_error=False) as edit:
-            releases, current_tracks = snapshot(publisher, edit)
-            if (len(releases) != 1 or not release_is(releases[0], 'completed')
+            releases, current_tracks, readback_code = snapshot(publisher, edit)
+            if (readback_code != code or len(releases) != 1
+                    or not release_is(releases[0], 'completed', code)
                     or current_tracks != previous_tracks):
                 raise ReleaseError('Closed track or unaffected track readback mismatch')
     except (ReleaseError, KeyError, TypeError, ValueError) as error:
@@ -148,12 +162,13 @@ def promote(transport):
         raise failure from None
 
     return {'package': PACKAGE, 'sourceTrack': SOURCE_TRACK, 'targetTrack': TRACK,
-            'versionCode': int(VERSION), 'releaseStatus': 'completed',
+            'versionCode': int(code), 'releaseStatus': 'completed',
             'status': 'closed_api_committed_and_verified',
             'availability': 'requires_console_review_and_testers',
             'testers': 'requires_console_check', 'newBundleUploaded': False,
             'internalTrackPreserved': True,
             'reviewHoldParameterOmitted': review_parameter_omitted}
+
 
 
 def main():
@@ -162,7 +177,7 @@ def main():
     parser.add_argument('command', choices=['inspect', 'promote'])
     args = parser.parse_args()
     report = {'package': PACKAGE, 'sourceTrack': SOURCE_TRACK, 'targetTrack': TRACK,
-              'versionCode': int(VERSION), 'status': 'closed_promotion_blocked',
+              'versionCode': None, 'status': 'closed_promotion_blocked',
               'availability': 'not_verified'}
     try:
         validate_context(os.environ)

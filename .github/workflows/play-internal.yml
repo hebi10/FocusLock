@@ -8,11 +8,11 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'check = Play access; icon = approved store icon only; build = signed AAB; initialize = initial draft; deploy = internal update'
+        description: 'check = Play access; icon = icon; build = AAB; initialize = draft; deploy = internal; closed = promote latest completed internal to closed'
         required: true
         type: choice
         default: check
-        options: [check, icon, build, initialize, deploy]
+        options: [check, icon, build, initialize, deploy, closed]
       version_code:
         description: 'Build-only versionCode (minimum/default 1); deploy allocates above all Play artifacts'
         type: string
@@ -287,10 +287,12 @@ jobs:
           retention-days: 30
 
   closed:
-    name: Promote existing version 2 to closed testing
+    name: Promote latest completed internal release to closed testing
     needs: [source, gates]
     if: needs.source.outputs.mode == 'closed'
     runs-on: ubuntu-latest
+    env:
+      MIN_CLOSED_VERSION_CODE: '4'
     timeout-minutes: 20
     environment: google-play
     permissions:
@@ -326,7 +328,7 @@ jobs:
           token_format: access_token
           access_token_scopes: https://www.googleapis.com/auth/androidpublisher
           create_credentials_file: false
-      - name: Inspect existing internal version 2 and closed alpha track (read only)
+      - name: Inspect latest completed internal bundle and existing closed alpha track (read only)
         env:
           PLAY_ACCESS_TOKEN: ${{ steps.wif.outputs.access_token }}
           PLAY_RELEASE_MODE: closed
@@ -337,7 +339,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           SOURCE_SHA: ${{ needs.source.outputs.sha }}
         run: python3 scripts/play/source.py --assert-current "$SOURCE_SHA"
-      - name: Promote existing code 2 to closed alpha without another AAB upload
+      - name: Promote verified latest internal release to closed alpha without another AAB upload
         env:
           PLAY_ACCESS_TOKEN: ${{ steps.wif.outputs.access_token }}
           PLAY_RELEASE_MODE: closed
