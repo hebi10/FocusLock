@@ -291,6 +291,8 @@ jobs:
     needs: [source, gates]
     if: needs.source.outputs.mode == 'closed'
     runs-on: ubuntu-latest
+    env:
+      MIN_CLOSED_VERSION_CODE: '4'
     timeout-minutes: 20
     environment: google-play
     permissions:
