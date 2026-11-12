@@ -96,11 +96,20 @@ class FocusLockAnalysisQaTest {
             findTextAfterScroll("홈").click()
             val analysisTab = device.wait(Until.findObject(By.text("사용 분석")), 5000L)
             requireNotNull(analysisTab).click()
-            findTextAfterScroll("정렬: 사용 시간").click()
-            val byName = device.wait(Until.findObject(By.text("이름")), 5000L)
-            requireNotNull(byName).click()
-            assertTrue("Name sort cannot be selected",
-                device.wait(Until.hasObject(By.text("정렬: 이름")), 5000L))
+            val sortButton = findAfterScroll("analysis-sort-button")
+            assertTrue("Analysis sort button must be clickable", sortButton.isClickable)
+            sortButton.click()
+            capture("r04-analysis-sort-menu-open")
+            val byName = device.wait(
+                Until.findObject(By.res("analysis-sort-option-이름")), 7000L
+            ) ?: device.wait(Until.findObject(By.text("이름")), 3000L)
+            if (byName == null) capture("r04-analysis-sort-menu-failure")
+            requireNotNull(byName) {
+                "Analysis sort menu opened without a visible name option; failure capture saved"
+            }.click()
+            findAfterScroll("analysis-sort-button")
+            assertTrue("Name sort selection must be reflected in the actual UI",
+                device.wait(Until.hasObject(By.text("정렬: 이름")), 7000L))
             capture("r04-analysis-sort-name")
 
         }
