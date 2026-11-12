@@ -93,6 +93,12 @@ def snapshot(publisher, edit):
             or not 2 <= int(codes[0]) <= 2100000000):
         raise ReleaseError('Internal release must have one valid registered versionCode')
     code = codes[0]
+    minimum = os.environ.get('MIN_CLOSED_VERSION_CODE', '2')
+    if (not minimum.isascii() or not minimum.isdigit()
+            or not 2 <= int(minimum) <= 2100000000):
+        raise ReleaseError('Invalid minimum closed promotion version policy')
+    if int(code) < int(minimum):
+        raise ReleaseError('Latest completed internal release is older than the approved minimum version')
     bundle_codes = [str(item.get('versionCode')) for item in bundles if isinstance(item, dict)]
     if bundle_codes.count(code) != 1:
         raise ReleaseError('Current completed internal AAB is not registered exactly once')
