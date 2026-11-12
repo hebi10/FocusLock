@@ -46,6 +46,7 @@ run_case 'com.haebi.focuslock.FocusLockScreenQaTest#grantedUsageAndDetailScreens
 run_case 'com.haebi.focuslock.FocusLockAnalysisQaTest#usageAnalysisSearchSortAndPeriodAreOperableWithRealAndroidData' ui-r04-analysis-search-sort
 run_case 'com.haebi.focuslock.FocusLockAnalysisQaTest#periodTabsShowWeeklyAndMonthlyCharts' ui-r04-periods
 run_case 'com.haebi.focuslock.FocusLockUsageStateAuditTest#permissionGrantedCapturesRealUsageCoverage' ui-r00-usage-granted
+run_case 'com.haebi.focuslock.RenewUsageCoverageQaTest#actualAndroidUsageSummaryKeepsRawTotalsAndCoverageHonest' renew-03-usage-coverage
 run_case 'com.haebi.focuslock.FocusPersistenceQaTest#storedRewardSurvivesDatabaseReopenAndIsNotDuplicated' room-reopen-reward
 run_case 'com.haebi.focuslock.FocusPersistenceQaTest#todayExperienceIsLimitedToEarnedRewardsFromLocalDay' room-today-experience
 run_case 'com.haebi.focuslock.FocusPersistenceQaTest#rebootPausesSessionAndNeverInventsCompletion' room-reboot-recovery
