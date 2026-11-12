@@ -62,6 +62,14 @@ def allowed_owner(env, event):
             event.get("comment", {}).get("body") == "/ui-r09-all")
 
 
+def allowed_owner_closed_resume(env, event):
+    return (env.get("GITHUB_REPOSITORY") == REPO and
+            env.get("GITHUB_EVENT_NAME") == "issue_comment" and
+            event.get("issue", {}).get("number") == 14 and
+            event.get("comment", {}).get("user", {}).get("login") == "hebi10" and
+            event.get("comment", {}).get("body") == "/ui-r09-resume-closed-v4")
+
+
 def eligible_run(candidate, before, sha):
     return (isinstance(candidate, dict) and
             type(candidate.get("id")) is int and candidate["id"] not in before and
@@ -212,9 +220,32 @@ def execute():
     summary("Console review/approval and actual tester installability remain separate checks.")
 
 
+def resume_closed_only():
+    """Revalidate the latest main and promote existing internal code 4; never rebuild or upload."""
+    sha = main_sha()
+    summary("# FocusLock UI-R09 closed-alpha-only recovery")
+    summary("Current main: " + sha)
+    summary("Original image upload and internal AAB code 4 are preserved.")
+    launch("android-ci.yml", sha, timeout=3600)
+    launch("emulator-smoke.yml", sha, timeout=3600)
+    assert_current(sha)
+    closed = launch(
+        "play-internal.yml", sha,
+        {"mode": "closed", "expected_internal_version_code": 4},
+        timeout=3600
+    )
+    play_readback(closed, "play-closed-promotion.json", "alpha", expected=4)
+    summary("Google Play closed alpha API verified for existing internal code 4.")
+    summary("Play Console review and tester installation remain separate checks.")
+
+
 def main():
     try:
-        execute()
+        event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text(encoding="utf-8"))
+        if allowed_owner_closed_resume(os.environ, event):
+            resume_closed_only()
+        else:
+            execute()
         return 0
     except (ReleaseSequenceError, OSError, ValueError, KeyError) as exc:
         summary("BLOCKED: " + str(exc))
