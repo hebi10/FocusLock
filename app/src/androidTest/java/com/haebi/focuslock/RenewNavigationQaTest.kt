@@ -16,6 +16,10 @@ class RenewNavigationQaTest {
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
     private val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
 
+    private fun navItem(label: String) =
+        device.wait(Until.findObject(By.desc(label)), 5000L)
+            ?: device.wait(Until.findObject(By.text(label)), 3000L)
+
     @Test
     fun reportsAreTopLevelAndGardenRetainsFocusTab() {
         context.getSharedPreferences("focuslock_ui_prototype", 0)
@@ -24,16 +28,16 @@ class RenewNavigationQaTest {
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
         ActivityScenario.launch<MainActivity>(intent).use {
             assertTrue(device.wait(Until.hasObject(By.text("오늘의 FocusLock")), 15000L))
-            val report = requireNotNull(device.wait(Until.findObject(By.res("nav-REPORT")), 5000L))
+            val report = requireNotNull(navItem("리포트")) { "Report navigation icon is not accessible" }
             report.click()
             assertTrue("Report must open as a top-level destination",
                 device.wait(Until.hasObject(By.text("사용 리포트")), 7000L))
             assertTrue("Report tab must remain in bottom navigation",
-                device.hasObject(By.res("nav-REPORT")))
+                device.hasObject(By.desc("리포트")) || device.hasObject(By.text("리포트")))
             assertTrue("Garden must not remain a standalone bottom tab",
-                !device.hasObject(By.res("nav-GARDEN")))
+                !device.hasObject(By.desc("정원")))
 
-            val focus = requireNotNull(device.wait(Until.findObject(By.res("nav-FOCUS")), 5000L))
+            val focus = requireNotNull(navItem("집중")) { "Focus navigation icon is not accessible" }
             focus.click()
             assertTrue(device.wait(Until.hasObject(By.text("집중 모드")), 8000L))
             var garden = device.wait(Until.findObject(By.text("정원 보기")), 2000L)
@@ -47,7 +51,7 @@ class RenewNavigationQaTest {
             requireNotNull(garden) { "Nested garden action must be available inside Focus" }.click()
             assertTrue(device.wait(Until.hasObject(By.text("나의 정원")), 6000L))
             assertTrue("Nested garden must preserve Focus as the selected main tab",
-                device.hasObject(By.res("nav-FOCUS")))
+                device.hasObject(By.desc("집중")) || device.hasObject(By.text("집중")))
             device.pressBack()
             assertTrue("Back from nested garden must return to Focus setup",
                 device.wait(Until.hasObject(By.text("집중 모드")), 7000L))
