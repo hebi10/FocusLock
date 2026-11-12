@@ -181,6 +181,27 @@ class ClosedPromotionTests(unittest.TestCase):
             self.assertFalse(server.committed)
             self.assertFalse(any(method == 'PUT' for method, _, _ in server.calls))
 
+    def test_manual_closed_context_requires_exact_main_sha(self):
+        with tempfile.TemporaryDirectory() as folder:
+            event_file = pathlib.Path(folder) / 'event.json'
+            event_file.write_text('{}', encoding='utf-8')
+            env = {**ENV, 'GITHUB_EVENT_NAME': 'workflow_dispatch',
+                   'GITHUB_SHA': SHA, 'PLAY_REQUESTED_MODE': 'closed',
+                   'GITHUB_EVENT_PATH': str(event_file)}
+            with mock.patch.object(closed_promotion.subprocess, 'run',
+                                   return_value=mock.Mock(returncode=0, stdout='ordinary')):
+                self.assertIsNone(closed_promotion.validate_context(env))
+                with self.assertRaises(publisher.ReleaseError):
+                    closed_promotion.validate_context({**env, 'GITHUB_SHA': 'b' * 40})
+
+    def test_minimum_code_four_blocks_old_internal_bundle(self):
+        server = Server(internal_code=3, alpha_code=2)
+        with mock.patch.dict(closed_promotion.os.environ, {'MIN_CLOSED_VERSION_CODE': '4'}):
+            with self.assertRaisesRegex(publisher.ReleaseError, 'older than'):
+                closed_promotion.promote(server)
+        self.assertFalse(server.committed)
+        self.assertFalse(any(method == 'PUT' for method, _, _ in server.calls))
+
     def test_latest_internal_four_promotes_older_closed_two_without_new_upload(self):
         server = Server(internal_code=4, alpha_code=2)
         result = closed_promotion.promote(server)
