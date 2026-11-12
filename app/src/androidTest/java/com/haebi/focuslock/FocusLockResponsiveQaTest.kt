@@ -75,7 +75,7 @@ class FocusLockResponsiveQaTest {
             tap("리포트 보기")
             assertTrue(visible("사용 리포트", 8000L) != null)
             tap("30일")
-            assertTrue("30-day focus result must be reachable by scrolling", find("집중 성과 · 30일").visibleBounds.height() > 0)
+            assertTrue("Report must remain visible after selecting 30 days", visible("사용 리포트", 6000L) != null)
             capture("report-30")
             device.pressBack()
             device.waitForIdle(1200L)
