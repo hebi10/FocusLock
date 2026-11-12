@@ -99,6 +99,7 @@ class FocusLockAnalysisQaTest {
             val sortButton = findAfterScroll("analysis-sort-button")
             assertTrue("Analysis sort button must be clickable", sortButton.isClickable)
             sortButton.click()
+            capture("r04-analysis-sort-menu-open")
             val byName = device.wait(
                 Until.findObject(By.res("analysis-sort-option-이름")), 7000L
             ) ?: device.wait(Until.findObject(By.text("이름")), 3000L)
