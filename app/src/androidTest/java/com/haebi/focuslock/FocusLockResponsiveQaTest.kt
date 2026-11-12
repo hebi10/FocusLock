@@ -83,8 +83,7 @@ class FocusLockResponsiveQaTest {
             )
             device.waitForIdle(1800L)
             capture("report-30")
-            device.pressBack()
-            device.waitForIdle(1200L)
+            tap("홈")
             tap("설정")
             assertTrue(visible("사용 정보·알림 권한 관리", 7000L) != null)
             capture("settings")
@@ -101,8 +100,8 @@ class FocusLockResponsiveQaTest {
             tap("집중")
             assertVisibleAction("집중 시작")
             capture("focus-setup")
-            tap("정원")
-            assertTrue(visible("정원", 6000L) != null)
+            tap("정원 보기")
+            assertTrue(visible("나의 정원", 6000L) != null)
             capture("garden")
         }
     }
