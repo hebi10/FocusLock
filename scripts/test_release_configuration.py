@@ -6,12 +6,14 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class ReleaseConfigurationTests(unittest.TestCase):
-    def test_internal_workflow_uses_focuslock_package_and_waits_for_both_ci_sources(self):
+    def test_internal_workflow_requires_explicit_dispatch_after_renew_freeze(self):
         path = ROOT / '.github/workflows/play-internal.yml'
         self.assertTrue(path.is_file(), 'FocusLock internal release workflow is required')
         workflow = path.read_text()
         self.assertIn('group: play-com-haebi-focuslock', workflow)
-        self.assertIn('workflows: ["Android CI"]', workflow)
+        self.assertIn('workflow_dispatch:', workflow)
+        self.assertNotIn('workflow_run:', workflow.split('permissions:', 1)[0])
+        self.assertIn("    if: github.event_name == 'workflow_dispatch'", workflow)
         self.assertIn('PLAY_CI_WAIT_SECONDS:', workflow)
         self.assertNotIn('PLAY_SERVICE_ACCOUNT_JSON', workflow)
         self.assertNotIn('promote --', workflow)
