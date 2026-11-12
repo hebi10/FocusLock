@@ -41,6 +41,32 @@ class AnalysisModelsTest {
             AnalysisModels.visibleApps(apps, emptyMap(), "전체", "", "사용 시간").map { it.id })
     }
 
+    @Test
+    fun launchEventSortNeverInventsUnavailableCounts() {
+        val unknown = apps.map { it.copy(launches = -1) }
+        assertEquals("사용 시간", AnalysisModels.effectiveSort(unknown, "실행 횟수"))
+        assertEquals("실행 횟수", AnalysisModels.effectiveSort(apps, "실행 횟수"))
+        assertEquals("이름", AnalysisModels.effectiveSort(unknown, "이름"))
+        assertEquals(
+            listOf("video", "social", "browser", "game"),
+            AnalysisModels.visibleApps(unknown, emptyMap(), "전체", "", "실행 횟수")
+                .map { it.id }
+        )
+    }
+
+    @Test
+    fun durationSortUsesOriginalOSMillisWhenRoundedMinutesAreEqual() {
+        val nearMinute = listOf(
+            app("a", "앱 A", "기타", 1, -1).copy(foregroundMillis = 32_000L),
+            app("b", "앱 B", "기타", 1, -1).copy(foregroundMillis = 58_000L)
+        )
+        assertEquals(
+            listOf("b", "a"),
+            AnalysisModels.visibleApps(nearMinute, emptyMap(), "전체", "", "사용 시간")
+                .map { it.id }
+        )
+    }
+
     private fun window(from: LocalDate, to: LocalDate) = UsageWindow(apps, apps.sumOf { it.minutes }, from, to)
     private val snapshot: UsageSnapshot
         get() = UsageSnapshot(

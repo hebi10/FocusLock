@@ -26,7 +26,8 @@ data class UsageWindow(
     val apps: List<AppUsage>,
     val totalMinutes: Int,
     val startDate: LocalDate,
-    val endDate: LocalDate
+    val endDate: LocalDate,
+    val totalForegroundMillis: Long = 0L
 )
 
 data class UsageSnapshot(
@@ -41,7 +42,8 @@ data class UsageSnapshot(
     val appDaily7: Map<String, List<Int>>,
     val hourlyToday: List<Int>?,
     val collectedAtMillis: Long,
-    val appDaily30: Map<String, List<Int>> = emptyMap()
+    val appDaily30: Map<String, List<Int>> = emptyMap(),
+    val coverage: UsageCoverage? = null
 ) {
     fun window(period: String): UsageWindow = when (period) {
         "7일" -> last7
@@ -171,17 +173,20 @@ class UsageRepository(private val context: Context) {
                     val meta = appMeta.getOrPut(pkg) { describeApp(pkg) }
                     val date = samples.maxOf { it.lastTimeUsed }
                     val count = if (includeEvents && events != null) {
-                        launched.filterKeys { it.pkg == pkg && !it.day.isBefore(start) && !it.day.isAfter(end) }.values.sum()
+                        launched.filterKeys { it.pkg == pkg && !it.day.isBefore(start) && !it.day.isAfter(end) }
+                            .values.sum().takeIf { it > 0 } ?: -1
                     } else -1
                     AppUsage(
                         id = pkg, name = meta.name, category = meta.category,
                         minutes = millisToMinutes(millis), launches = count,
                         lastUsed = if (date > 0L) Instant.ofEpochMilli(date).atZone(zone).format(fmt) else "확인 불가",
                         symbol = meta.name.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
-                        tint = 0xFF666666, packageName = pkg
+                        tint = 0xFF666666, packageName = pkg,
+                        foregroundMillis = millis
                     )
-                }.filter { it.minutes > 0 }.sortedByDescending { it.minutes }
-                UsageWindow(apps, apps.sumOf { it.minutes }, start, end)
+                }.sortedWith(compareByDescending<AppUsage> { it.foregroundMillis }.thenBy { it.name })
+                val totalMillis = UsageMetrics.totalMillis(grouped.values.flatMap { it }.map { it.foregroundMillis })
+                UsageWindow(apps, UsageMetrics.roundedMinutes(totalMillis), start, end, totalMillis)
             }
             val todayWindow = window(0, 0, true)
             val last7 = window(6, 0, true)
@@ -204,7 +209,11 @@ class UsageRepository(private val context: Context) {
                 }
             }
             val hourly = if (sawAnyEvents) hourlyMillis.map(::millisToMinutes) else null
-            UsageLoadState.Ready(UsageSnapshot(todayWindow, last7, last30, yesterday, previous7, previous30, daily7, daily30, appDaily7, hourly, nowMillis, appDaily30))
+            val coverage = UsageCoverage(rows.map { it.day }.toSet())
+            UsageLoadState.Ready(UsageSnapshot(
+                todayWindow, last7, last30, yesterday, previous7, previous30,
+                daily7, daily30, appDaily7, hourly, nowMillis, appDaily30, coverage
+            ))
         } catch (_: SecurityException) {
             UsageLoadState.PermissionRequired
         } catch (_: RuntimeException) {
@@ -249,5 +258,5 @@ class UsageRepository(private val context: Context) {
         AppMeta(packageName, "기타")
     }
 
-    private fun millisToMinutes(millis: Long): Int = (millis.coerceAtLeast(0L) / 60000.0).roundToInt().coerceAtLeast(0)
+    private fun millisToMinutes(millis: Long): Int = UsageMetrics.roundedMinutes(millis)
 }
