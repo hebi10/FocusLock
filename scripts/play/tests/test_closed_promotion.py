@@ -27,13 +27,13 @@ def track(name, code=None, status='completed'):
 
 
 class Server:
-    def __init__(self, bundles=True, alpha=True, internal=True, alpha_code=None, stale_readback=False):
+    def __init__(self, bundles=True, alpha=True, internal=True, alpha_code=None, stale_readback=False, internal_code=2):
         self.tracks = [track('production'), track('beta')]
         if internal:
-            self.tracks.append(track('internal', 2))
+            self.tracks.append(track('internal', internal_code))
         if alpha:
             self.tracks.append(track('alpha', alpha_code))
-        self.bundles = [{'versionCode': 2, 'sha256': 'a' * 64}] if bundles else []
+        self.bundles = [{'versionCode': internal_code, 'sha256': 'a' * 64}] if bundles else []
         self.pending = None
         self.committed = False
         self.stale_readback = stale_readback
@@ -83,12 +83,13 @@ class ClosedPromotionTests(unittest.TestCase):
                 source.release_mode(env, {'workflow_run': {**EVENT['workflow_run'], field: value}},
                                     '[promote-play-closed]')
 
-    def test_manual_dispatch_cannot_promote_even_with_commit_marker(self):
+    def test_manual_dispatch_requires_explicit_closed_mode_and_main(self):
         env = {'GITHUB_REPOSITORY': 'hebi10/FocusLock', 'GITHUB_REF': 'refs/heads/main',
                'GITHUB_EVENT_NAME': 'workflow_dispatch', 'GITHUB_SHA': SHA,
                'PLAY_REQUESTED_MODE': 'closed'}
+        self.assertEqual(source.release_mode(env, {}, 'ordinary'), 'closed')
         with self.assertRaises(source.SourceError):
-            source.release_mode(env, {}, '[promote-play-closed]')
+            source.release_mode({**env, 'PLAY_REQUESTED_MODE': 'other'}, {}, 'ordinary')
 
     def test_runtime_identity_blocks_untrusted_context_without_api(self):
         for key, value in (('GITHUB_REPOSITORY', 'other/FocusLock'),
@@ -175,6 +176,31 @@ class ClosedPromotionTests(unittest.TestCase):
         blocked[1].tracks[-1]['releases'].append(
             {'status': 'completed', 'versionCodes': ['2']})
         for server in blocked:
+            with self.assertRaises(publisher.ReleaseError):
+                closed_promotion.promote(server)
+            self.assertFalse(server.committed)
+            self.assertFalse(any(method == 'PUT' for method, _, _ in server.calls))
+
+    def test_latest_internal_four_promotes_older_closed_two_without_new_upload(self):
+        server = Server(internal_code=4, alpha_code=2)
+        result = closed_promotion.promote(server)
+        self.assertEqual(result['versionCode'], 4)
+        self.assertEqual(result['status'], 'closed_api_committed_and_verified')
+        self.assertEqual(server.tracks[-1]['releases'][0]['versionCodes'], ['4'])
+        self.assertFalse(any('uploadType' in path for _, path, _ in server.calls))
+
+    def test_latest_internal_five_already_on_closed_does_not_write(self):
+        server = Server(internal_code=5, alpha_code=5)
+        result = closed_promotion.promote(server)
+        self.assertEqual(result['versionCode'], 5)
+        self.assertEqual(result['status'], 'already_on_closed')
+        self.assertFalse(server.committed)
+
+    def test_higher_code_or_multiple_internal_releases_never_modify_closed(self):
+        higher = Server(internal_code=4, alpha_code=5)
+        multiple = Server(internal_code=4, alpha_code=2)
+        multiple.tracks[-2]['releases'].append({'versionCodes': ['3'], 'status': 'completed'})
+        for server in (higher, multiple):
             with self.assertRaises(publisher.ReleaseError):
                 closed_promotion.promote(server)
             self.assertFalse(server.committed)
