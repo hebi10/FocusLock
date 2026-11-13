@@ -9,6 +9,11 @@ on:
       - 'docs/play-store/UI-R09.md'
   workflow_dispatch:
     inputs:
+      ops01_release_approved:
+        description: 'Only after all planned features and final QA have passed'
+        type: boolean
+        required: true
+        default: false
       mode:
         description: Validate screenshots or upload the approved Korean images
         type: choice
@@ -20,9 +25,6 @@ on:
         type: string
         required: false
         default: ''
-  issue_comment:
-    types: [created]
-
 permissions:
   contents: read
 
@@ -130,6 +132,8 @@ jobs:
   publish:
     needs: generate
     if: >-
+      github.event_name == 'workflow_dispatch' && inputs.ops01_release_approved == true &&
+      (
       github.repository == 'hebi10/FocusLock' &&
       ((github.event_name == 'issue_comment' &&
         github.event.issue.number == 14 &&
@@ -138,6 +142,7 @@ jobs:
        (github.event_name == 'workflow_dispatch' &&
         github.ref == 'refs/heads/main' &&
         inputs.mode == 'upload'))
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: google-play
