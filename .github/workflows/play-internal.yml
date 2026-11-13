@@ -5,6 +5,23 @@ on:
   # Store images and AABs must be explicitly released only after the full renewal.
   workflow_dispatch:
     inputs:
+      ops06_store_approved:
+        description: 'Manual Play image/icon update approved after final batch and QA'
+        required: true
+        type: boolean
+        default: false
+      ops06_confirmation:
+        description: 'For Play assets mutation type APPLY_VERIFIED_PLAY_STORE_ASSETS'
+        required: false
+        type: string
+      ops06_expected_main_sha:
+        description: 'Exact reviewed main commit SHA'
+        required: false
+        type: string
+      ops06_batch_id:
+        description: 'KST release batch YYYY-MM-DD-focuslock'
+        required: false
+        type: string
       ops01_release_approved:
         description: 'Only after all planned features and final QA have passed'
         type: boolean
@@ -121,6 +138,15 @@ jobs:
         run: |
           python3 scripts/release_signing.py prepare --keystore "$RUNNER_TEMP/focuslock-release.jks"
           echo "ANDROID_RELEASE_KEYSTORE_PATH=$RUNNER_TEMP/focuslock-release.jks" >> "$GITHUB_ENV"
+      - name: OPS-06 require separate store approval before Play authentication
+        if: needs.source.outputs.mode == 'icon'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OPS06_STORE_APPROVED: ${{ inputs.ops06_store_approved }}
+          OPS06_CONFIRMATION: ${{ inputs.ops06_confirmation }}
+          OPS06_EXPECTED_MAIN_SHA: ${{ inputs.ops06_expected_main_sha }}
+          OPS06_BATCH_ID: ${{ inputs.ops06_batch_id }}
+        run: python3 scripts/ops06/store_gate.py apply
       - name: Check Play authentication configuration
         id: credentials
         if: needs.source.outputs.mode == 'deploy' || needs.source.outputs.mode == 'initialize'
@@ -242,7 +268,10 @@ jobs:
 
   checked:
     needs: [source, gates]
-    if: needs.source.outputs.mode == 'check' || needs.source.outputs.mode == 'icon'
+    if: >-
+      needs.source.outputs.mode == 'check' ||
+      (needs.source.outputs.mode == 'icon' && github.event_name == 'workflow_dispatch' &&
+       github.ref == 'refs/heads/main' && inputs.ops01_release_approved == true && inputs.ops06_store_approved == true)
     runs-on: ubuntu-latest
     environment: google-play
     permissions:

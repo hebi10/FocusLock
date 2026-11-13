@@ -9,6 +9,23 @@ on:
       - 'docs/play-store/UI-R09.md'
   workflow_dispatch:
     inputs:
+      ops06_store_approved:
+        description: 'Manual Play image/icon update approved after final batch and QA'
+        required: true
+        type: boolean
+        default: false
+      ops06_confirmation:
+        description: 'For Play assets mutation type APPLY_VERIFIED_PLAY_STORE_ASSETS'
+        required: false
+        type: string
+      ops06_expected_main_sha:
+        description: 'Exact reviewed main commit SHA'
+        required: false
+        type: string
+      ops06_batch_id:
+        description: 'KST release batch YYYY-MM-DD-focuslock'
+        required: false
+        type: string
       ops01_release_approved:
         description: 'Only after all planned features and final QA have passed'
         type: boolean
@@ -48,12 +65,8 @@ jobs:
 
   generate:
     if: >-
-      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'issue_comment' &&
-       github.repository == 'hebi10/FocusLock' &&
-       github.event.issue.number == 14 &&
-       github.event.comment.user.login == 'hebi10' &&
-       github.event.comment.body == '/store-01-upload')
+      github.event_name == 'workflow_dispatch' && github.repository == 'hebi10/FocusLock' &&
+      github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -132,17 +145,9 @@ jobs:
   publish:
     needs: generate
     if: >-
-      github.event_name == 'workflow_dispatch' && inputs.ops01_release_approved == true &&
-      (
-      github.repository == 'hebi10/FocusLock' &&
-      ((github.event_name == 'issue_comment' &&
-        github.event.issue.number == 14 &&
-        github.event.comment.user.login == 'hebi10' &&
-        github.event.comment.body == '/store-01-upload') ||
-       (github.event_name == 'workflow_dispatch' &&
-        github.ref == 'refs/heads/main' &&
-        inputs.mode == 'upload'))
-      )
+      github.event_name == 'workflow_dispatch' && github.repository == 'hebi10/FocusLock' &&
+      github.ref == 'refs/heads/main' && inputs.mode == 'upload' &&
+      inputs.ops01_release_approved == true && inputs.ops06_store_approved == true
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: google-play
@@ -150,14 +155,14 @@ jobs:
       group: play-com-haebi-focuslock
       cancel-in-progress: false
     permissions:
-      contents: write
+      contents: read
       actions: read
       id-token: write
     steps:
       - uses: actions/checkout@v4
         with:
           ref: main
-          persist-credentials: true
+          persist-credentials: false
           fetch-depth: 1
       - uses: actions/setup-python@v5
         with:
@@ -177,6 +182,10 @@ jobs:
           APPROVED_MANIFEST_SHA256: ${{ inputs.approved_manifest_sha256 }}
         run: |
           set -euo pipefail
+          if [[ ! "$APPROVED_MANIFEST_SHA256" =~ ^[0-9a-f]{64}$ ]]; then
+            echo 'Approved manifest SHA-256 must be supplied for Play image upload.' >&2
+            exit 1
+          fi
           if [[ -n "$APPROVED_MANIFEST_SHA256" ]]; then
             actual="$(sha256sum generated/ko-KR/manifest.json | cut -d' ' -f1)"
             test "$actual" = "$APPROVED_MANIFEST_SHA256" || { echo "::error::Approved image manifest mismatch"; exit 1; }
@@ -193,13 +202,15 @@ jobs:
           mkdir -p assets/play-store/ko-KR
           cp generated/ko-KR/*.png generated/ko-KR/manifest.json assets/play-store/ko-KR/
           python3 scripts/store/render_images.py --check --output assets/play-store/ko-KR
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add assets/play-store/ko-KR/
-          if ! git diff --cached --quiet; then
-            git commit -m 'assets(store): update FocusLock Play listing captures [skip ci]'
-            git push origin HEAD:main
-          fi
+          echo 'Image source checked in the job only; no direct main branch commit or push.'
+      - name: OPS-06 require separate store approval before Play authentication
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OPS06_STORE_APPROVED: ${{ inputs.ops06_store_approved }}
+          OPS06_CONFIRMATION: ${{ inputs.ops06_confirmation }}
+          OPS06_EXPECTED_MAIN_SHA: ${{ inputs.ops06_expected_main_sha }}
+          OPS06_BATCH_ID: ${{ inputs.ops06_batch_id }}
+        run: python3 scripts/ops06/store_gate.py apply
       - name: Authenticate with existing Google Play WIF
         uses: google-github-actions/auth@v3
         id: play_auth

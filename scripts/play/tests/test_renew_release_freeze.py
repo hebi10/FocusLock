@@ -14,7 +14,11 @@ class FocusLockRenewReleaseFreezeTest(unittest.TestCase):
     def test_store_upload_remains_explicitly_gated(self):
         path = Path(__file__).resolve().parents[3] / ".github" / "workflows" / "store-01-images.yml"
         workflow = path.read_text(encoding="utf-8")
-        self.assertIn("github.event.comment.user.login == 'hebi10'", workflow)
+        self.assertIn("github.event_name == 'workflow_dispatch'", workflow)
+        self.assertNotIn("github.event.comment.user.login == 'hebi10'", workflow)
+        self.assertIn("inputs.ops06_store_approved == true", workflow)
+        self.assertIn("scripts/ops06/store_gate.py apply", workflow)
+        self.assertNotIn("git push origin HEAD:main", workflow)
         self.assertIn("inputs.mode == 'upload'", workflow)
         self.assertNotIn("\n  push:", workflow.split("\npermissions:", 1)[0])
 
