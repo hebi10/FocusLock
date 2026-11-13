@@ -1,8 +1,7 @@
 name: UI-R09 owner-approved test and store workflow commands
 
 on:
-  issue_comment:
-    types: [created]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -10,6 +9,8 @@ permissions:
 jobs:
   dispatch:
     if: >-
+      false &&
+      (
       github.repository == 'hebi10/FocusLock' &&
       github.event.issue.number == 14 &&
       github.event.comment.user.login == 'hebi10' &&
@@ -19,6 +20,7 @@ jobs:
        github.event.comment.body == '/ui-r09-images-upload' ||
        github.event.comment.body == '/ui-r09-internal' ||
        github.event.comment.body == '/ui-r09-closed')
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
