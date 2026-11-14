@@ -1,7 +1,7 @@
 package com.haebi.focuslock
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.platform.InstrumentationRegistry
+import androidx.test.platform.app.InstrumentationRegistry
 import com.haebi.focuslock.data.UsageCoverage
 import com.haebi.focuslock.data.UsageLoadState
 import com.haebi.focuslock.data.UsageRepository
