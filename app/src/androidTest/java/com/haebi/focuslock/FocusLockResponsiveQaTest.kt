@@ -89,10 +89,11 @@ class FocusLockResponsiveQaTest {
                     device.displayWidth / 2, device.displayHeight * 4 / 5, 28
                 )
             }
-            assertTrue("Selecting the 30-day period must update the visible report",
-                thirtyDayMetric != null)
+            val verifiedMetric = requireNotNull(thirtyDayMetric) {
+                "Selecting the 30-day period must update the visible report"
+            }
             assertTrue("30-day report metric must have a visible frame",
-                thirtyDayMetric!!.visibleBounds.width() > 0 && thirtyDayMetric.visibleBounds.height() > 0)
+                verifiedMetric.visibleBounds.width() > 0 && verifiedMetric.visibleBounds.height() > 0)
             device.waitForIdle(1800L)
             capture("report-30")
             tap("홈")
