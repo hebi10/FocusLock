@@ -72,8 +72,11 @@ class FocusLockResponsiveQaTest {
         launch().use {
             assertTrue(visible("오늘의 FocusLock", 20000L) != null)
             capture("home")
-            tap("리포트 보기")
-            assertTrue(visible("사용 리포트", 8000L) != null)
+            tap("리포트")
+            assertTrue(
+                "The top-level report tab must show the report screen",
+                visible("사용 리포트", 8000L) != null
+            )
             val option30 = device.wait(Until.findObject(By.res("period-option-30일")), 6000L)
                 ?: find("30일")
             option30.click()
