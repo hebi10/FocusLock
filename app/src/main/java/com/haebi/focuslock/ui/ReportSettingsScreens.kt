@@ -45,7 +45,11 @@ fun ReportScreen(state: UsageLoadState, excluded: Map<String, Boolean>, focusSum
             val visibleApps = selected.apps.filter { excluded[it.id] != true }
             FocusCard {
                 Metric(UsageFormat.minutesLabel(selected.totalMinutes), "최근 ${period} 총 사용 시간")
-                Text(UsageFormat.comparison(selected.totalMinutes, prev.totalMinutes) ?: "비교할 이전 기록이 없습니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    ReportChangePolicy.totalChange(snapshot, period)
+                        ?: "이전 기간의 관측 기록이 부족해 정확한 변화를 계산할 수 없습니다.",
+                    fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
             FocusCard {
                 SectionTitle("사용 시간 추이")
@@ -57,6 +61,37 @@ fun ReportScreen(state: UsageLoadState, excluded: Map<String, Boolean>, focusSum
                         Text("가로축 숫자는 오늘 기준 며칠 전인지를 표시합니다. (0 = 오늘)", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 } else Text("선택 기간의 일별 사용 기록이 없습니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            FocusCard {
+                SectionTitle("앱별 사용 변화")
+                val changes = ReportChangePolicy.appChanges(snapshot, period, excluded)
+                if (changes.isEmpty()) {
+                    Text(
+                        "동일 앱의 양 기간 기록이 충분하지 않아 증감 순위를 표시하지 않습니다.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    changes.forEach { change ->
+                        Text(
+                            ReportChangePolicy.appChangeLabel(change),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        TextButton(onClick = { onApp(change.app, period) }) {
+                            Text(change.app.name + " 상세 보기")
+                        }
+                    }
+                }
+                Text(
+                    ReportChangePolicy.sourceNotice,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    "현재 목표 설정의 과거 변경 이력은 저장되지 않아 과거 목표 달성률을 계산하지 않습니다.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
             FocusCard {
                 SectionTitle("사용량 상위 앱")
