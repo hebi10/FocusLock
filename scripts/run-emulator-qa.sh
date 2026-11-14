@@ -51,6 +51,7 @@ run_case 'com.haebi.focuslock.FocusPersistenceQaTest#storedRewardSurvivesDatabas
 run_case 'com.haebi.focuslock.FocusPersistenceQaTest#todayExperienceIsLimitedToEarnedRewardsFromLocalDay' room-today-experience
 run_case 'com.haebi.focuslock.FocusPersistenceQaTest#rebootPausesSessionAndNeverInventsCompletion' room-reboot-recovery
 run_case 'com.haebi.focuslock.FocusPersistenceQaTest#repeatedStartKeepsActiveSessionAndEarlyStopNeverEarnsRewards' room-duplicate-start-and-early-stop
+run_case 'com.haebi.focuslock.Renew07FocusGardenUiQaTest#rewardAndGardenPersistenceRulesRemainConsistent' renew-07-focus-garden
 run_case 'com.haebi.focuslock.RenewNavigationQaTest#reportsAreTopLevelAndGardenRetainsFocusTab' renew-02a-navigation
 run_case 'com.haebi.focuslock.RenewHomeQaTest#homePresentsUsageBeforeOptionalFocusAndAllowsAnalysis' renew-02b-home
 
