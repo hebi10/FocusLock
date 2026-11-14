@@ -128,10 +128,10 @@ private fun InfoPairReport(label: String, value: String) {
 @Composable
 fun SettingsScreen(theme: String, onTheme: (String) -> Unit, onPermissions: () -> Unit, onInfo: () -> Unit) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        PageTitle("설정", "FocusLock의 사용 환경을 관리합니다")
+        PageTitle("설정", SettingsDisclosurePolicy.subtitle)
         FocusCard {
             SectionTitle("권한")
-            SettingRow("사용 정보·알림 권한 관리", "권한별 허용 상태, 용도 및 시스템 설정 확인", onClick = onPermissions)
+            SettingRow("사용 정보·알림 권한 관리", SettingsDisclosurePolicy.permissionSubtitle, onClick = onPermissions)
         }
         FocusCard {
             SectionTitle("화면")
@@ -140,16 +140,24 @@ fun SettingsScreen(theme: String, onTheme: (String) -> Unit, onPermissions: () -
         }
         FocusCard {
             SectionTitle("알림")
-            Text("앱별 목표 설정에서 80%·100% 경고 및 적용 요일을 선택합니다. WorkManager는 최소 약 15분 간격으로 확인하며 Android 절전 정책에 따라 알림이 지연될 수 있습니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(SettingsDisclosurePolicy.alertNotice, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         FocusCard {
             SectionTitle("데이터")
-            Text("사용 기록은 Android 시스템에서 읽으며, FocusLock의 집중 세션·보상과 목표 설정은 기기에 저장됩니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("전체 데이터 삭제 기능은 현재 제공하지 않습니다. Android 앱 정보의 저장공간 메뉴에서 앱 데이터 초기화가 가능하지만 모든 앱 설정과 기록이 삭제됩니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(SettingsDisclosurePolicy.localDataNotice, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(SettingsDisclosurePolicy.deleteNotice, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        FocusCard {
+            SectionTitle("기능 범위")
+            Text(
+                SettingsDisclosurePolicy.limitsNotice,
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
         FocusCard {
             SectionTitle("앱 정보")
-            SettingRow("현재 구현 범위", "실제 사용 통계·권한·목표 경고·집중 기록 저장", onClick = onInfo)
+            SettingRow("현재 구현 범위", "사용 통계·목표 알림·집중 기록·정원 관리", onClick = onInfo)
             Text("FocusLock 0.3.0", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
@@ -167,7 +175,7 @@ fun PermissionManagementScreen(onBack: () -> Unit, onUsageSettings: () -> Unit, 
             Text("권한 관리", fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
             IconButton(onClick = { refresh++ }) { Icon(Icons.Outlined.Refresh, "권한 새로고침") }
         }
-        InfoState("개인정보 보호", "사용 기록은 Android 시스템에서 읽고 기기 내부에만 표시합니다. 외부 서버에 전송하지 않습니다.")
+        InfoState("개인정보 보호", SettingsDisclosurePolicy.privacyNotice)
         FocusCard {
             SectionTitle("사용 정보 접근")
             Text(if(usageGranted) "현재 상태: 허용" else "현재 상태: 미허용", color = if(usageGranted) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant)
