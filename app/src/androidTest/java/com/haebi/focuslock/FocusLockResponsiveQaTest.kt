@@ -72,12 +72,28 @@ class FocusLockResponsiveQaTest {
         launch().use {
             assertTrue(visible("오늘의 FocusLock", 20000L) != null)
             capture("home")
-            tap("리포트 보기")
-            assertTrue(visible("사용 리포트", 8000L) != null)
-            val option30 = device.wait(Until.findObject(By.res("period-option-30일")), 6000L)
-                ?: find("30일")
-            option30.click()
-            assertVisibleAction("최근 30일 총 사용 시간")
+            tap("리포트")
+            assertTrue("The top-level report tab must show the report screen",
+                visible("사용 리포트", 8000L) != null)
+            var thirtyDayMetric: UiObject2? = null
+            for (attempt in 1..3) {
+                val option30 = device.wait(
+                    Until.findObject(By.res("period-option-30일")), 6000L
+                ) ?: find("30일")
+                option30.click()
+                device.waitForIdle(1200L)
+                thirtyDayMetric = visible("최근 30일 총 사용 시간", 3500L)
+                if (thirtyDayMetric != null) break
+                device.swipe(
+                    device.displayWidth / 2, device.displayHeight / 3,
+                    device.displayWidth / 2, device.displayHeight * 4 / 5, 28
+                )
+            }
+            val verifiedMetric = requireNotNull(thirtyDayMetric) {
+                "Selecting the 30-day period must update the visible report"
+            }
+            assertTrue("30-day report metric must have a visible frame",
+                verifiedMetric.visibleBounds.width() > 0 && verifiedMetric.visibleBounds.height() > 0)
             device.waitForIdle(1800L)
             capture("report-30")
             tap("홈")
