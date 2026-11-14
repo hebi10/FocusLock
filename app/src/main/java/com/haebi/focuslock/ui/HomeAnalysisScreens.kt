@@ -53,10 +53,15 @@ fun HomeScreen(
     val snapshot = (state as? UsageLoadState.Ready)?.snapshot
     val visibleApps = snapshot?.today?.apps.orEmpty().filter { excluded[it.id] != true }
     val topApp = visibleApps.firstOrNull { it.minutes > 0 }
-    val peakHour = snapshot?.hourlyToday?.let(HomeInsightPolicy::observedPeakHour)
-    val topShare = if (snapshot != null && topApp != null) {
-        HomeInsightPolicy.topAppShare(topApp.minutes, snapshot.today.totalMinutes)
-    } else null
+    val todayInsights = snapshot?.let {
+        UsageInsightPolicy.forPeriod(it, "오늘", excluded)
+    }.orEmpty()
+    val weeklyInsights = snapshot?.let {
+        UsageInsightPolicy.weeklyChanges(it, excluded)
+    }.orEmpty()
+    val goalSuggestion = snapshot?.let {
+        UsageInsightPolicy.goalSuggestion(it, goals, excluded)
+    }
     val totalGoals = goals.values.filter { it > 0 }.sum()
     val managedMinutes = snapshot?.today?.apps.orEmpty()
         .filter { (goals[it.id] ?: 0) > 0 }
@@ -140,31 +145,27 @@ fun HomeScreen(
                 }
             }
 
-            if (peakHour != null || topShare != null) {
+            if (todayInsights.isNotEmpty() || weeklyInsights.isNotEmpty() || goalSuggestion != null) {
                 FocusCard {
-                    SectionTitle("오늘의 사용 패턴")
-                    if (peakHour != null) {
+                    SectionTitle("관측 기반 사용 패턴")
+                    (todayInsights + weeklyInsights.take(1)).forEach { insight ->
+                        Text(insight.message, style = MaterialTheme.typography.bodyMedium)
                         Text(
-                            "오늘 확인된 기록에서는 " + peakHour + "시~" + (peakHour + 1) +
-                                "시의 사용 시간이 가장 많았습니다.",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Text(
-                            "Android에서 관측된 사용 이벤트를 기준으로 계산했습니다.",
+                            insight.source,
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                    } else if (topApp != null && topShare != null) {
+                    }
+                    goalSuggestion?.let { suggestion ->
+                        Text(suggestion.insight.message, style = MaterialTheme.typography.bodyMedium)
                         Text(
-                            "오늘 가장 오래 사용한 앱은 " + topApp.name +
-                                "이며 전체 사용 시간의 " + topShare + "%입니다.",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Text(
-                            "Android에서 제공한 앱 사용 시간을 기준으로 계산했습니다.",
+                            suggestion.insight.source,
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        TextButton(onClick = { onSetGoal(suggestion.app) }) {
+                            Text("사용 목표 설정")
+                        }
                     }
                 }
             }
@@ -303,6 +304,26 @@ fun AnalysisScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                    }
+                    val observedInsights = UsageInsightPolicy.forPeriod(snapshot, period, excluded)
+                    FocusCard {
+                        SectionTitle("기록 기반 인사이트")
+                        if (observedInsights.isEmpty()) {
+                            Text(
+                                "이 기간에는 비교 가능한 사용 기록이나 관측 이벤트가 부족합니다. 기록이 없는 날을 0분으로 추정하지 않습니다.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        } else {
+                            observedInsights.forEach { insight ->
+                                Text(insight.message, style = MaterialTheme.typography.bodyMedium)
+                                Text(
+                                    insight.source,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
                     }
                     if (wide) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.md)) {
