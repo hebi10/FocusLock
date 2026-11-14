@@ -6,6 +6,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -163,37 +164,60 @@ fun FocusSetupScreen(
 
 @Composable
 fun FocusRunningScreen(minutes: Int, seconds: Int, paused: Boolean, restoredAfterReboot: Boolean, onPauseToggle: () -> Unit, onFinish: () -> Unit) {
+    val largeFont = LocalDensity.current.fontScale >= 1.35f
     Column(
-        Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 24.dp),
-        verticalArrangement = Arrangement.SpaceBetween,
+        Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(
+            Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(if (largeFont) 14.dp else 24.dp)
+        ) {
             Text(if (paused) "일시정지" else "집중 중", fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            Text(if(minutes == 0) "자유 집중" else "${minutes}분 집중", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(20.dp)) {
-            val clock = "%02d:%02d".format(seconds / 60, seconds % 60)
-            Text(clock, fontSize = 69.sp, lineHeight = 76.sp, fontWeight = FontWeight.Bold)
-            if (minutes > 0) ProgressBar(1f - seconds.toFloat() / (minutes * 60).coerceAtLeast(1), neutral = true)
             Text(
-                when {
-                    restoredAfterReboot -> "기기 재시작으로 일시정지되었습니다. 계속 집중을 누르면 이어집니다."
-                    paused -> "집중 시간을 일시정지했습니다."
-                    else -> "진행 상태는 저장되며 앱을 다시 열면 기록을 복구합니다."
-                },
-                fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center
+                if (minutes == 0) "자유 집중" else "${minutes}분 집중",
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(if (largeFont) 10.dp else 32.dp))
+            val time = FocusGardenUiPolicy.timerLabel(seconds)
+            Text(
+                time,
+                fontSize = if (largeFont) 48.sp else 69.sp,
+                lineHeight = if (largeFont) 56.sp else 76.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.semantics { contentDescription = "집중 시간 $time" }
+            )
+            if (minutes > 0) ProgressBar(
+                1f - seconds.toFloat() / (minutes * 60).coerceAtLeast(1),
+                neutral = true
+            )
+            Text(
+                FocusGardenUiPolicy.restorationNotice(restoredAfterReboot, paused),
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+            Text(
+                if (minutes == 0) "자유 집중은 10분 이상 진행해야 보상 조건에 도달합니다."
+                else "선택한 집중 시간을 완료해야 보상이 지급됩니다.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
             )
         }
-        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            OutlinedButton(onClick = onPauseToggle, modifier = Modifier.fillMaxWidth().height(50.dp)) {
-                Text(if (paused) "계속 집중" else "일시정지")
-            }
+        Column(
+            Modifier.fillMaxWidth().padding(top = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            OutlinedButton(
+                onClick = onPauseToggle,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp)
+            ) { Text(if (paused) "계속 집중" else "일시정지") }
             ActionButton(if (minutes == 0) "집중 완료" else "집중 종료", onFinish)
         }
     }
 }
-
 @Composable
 fun FocusResultScreen(
     completed: Boolean,
@@ -217,19 +241,18 @@ fun FocusResultScreen(
             modifier = Modifier.fillMaxWidth().height(180.dp)
         )
         Text(
-            "${elapsedSeconds / 60}분 ${(elapsedSeconds % 60).toString().padStart(2, '0')}초",
+            FocusGardenUiPolicy.elapsedLabel(elapsedSeconds),
             style = MaterialTheme.typography.displaySmall
         )
         Text(
-            if (completed) "설정한 집중 시간을 달성했습니다." else "설정 시간 전에 종료한 집중 기록입니다.",
+            FocusGardenUiPolicy.resultNotice(completed),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         FocusCard {
             SectionTitle("이번 세션 보상")
             Text(
-                if (earned) "경험치 +${rewardExperience} · 성장 포인트 +${rewardPoints}"
-                else "완료 조건 미충족 · 지급된 보상 없음",
+                FocusGardenUiPolicy.rewardLine(rewardExperience, rewardPoints),
                 color = if (earned) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.SemiBold
             )
