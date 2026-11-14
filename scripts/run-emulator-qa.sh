@@ -50,6 +50,8 @@ run_case 'com.haebi.focuslock.RenewUsageCoverageQaTest#actualAndroidUsageSummary
 run_case 'com.haebi.focuslock.Renew04ObservedInsightsQaTest#realAndroidRecordsNeverProduceInventedInsights' renew-04-observed-insights
 run_case 'com.haebi.focuslock.Renew05AppDetailPolicyQaTest#existingGoalDaysAndRecordedComparisonRemainHonest' renew-05-app-goal-contract
 run_case 'com.haebi.focuslock.Renew06ReportQaTest#realAndroidReportNeverInventsHistoryWhenObservationsAreMissing' renew-06-report-no-fake-history
+run_case 'com.haebi.focuslock.Renew08OnboardingDisclosureQaTest#introductoryUserJourneyDescribesAnalysisAndOptionalGoals' renew-08-onboarding-copy
+run_case 'com.haebi.focuslock.Renew08SettingsDisclosureQaTest#settingsShowLocalDataAndHonestLimits' renew-08-settings-disclosure
 run_case 'com.haebi.focuslock.FocusPersistenceQaTest#storedRewardSurvivesDatabaseReopenAndIsNotDuplicated' room-reopen-reward
 run_case 'com.haebi.focuslock.FocusPersistenceQaTest#todayExperienceIsLimitedToEarnedRewardsFromLocalDay' room-today-experience
 run_case 'com.haebi.focuslock.FocusPersistenceQaTest#rebootPausesSessionAndNeverInventsCompletion' room-reboot-recovery
