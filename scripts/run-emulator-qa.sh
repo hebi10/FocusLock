@@ -36,6 +36,7 @@ run_case 'com.haebi.focuslock.FocusLockUsageStateAuditTest#permissionDeniedReall
 run_case 'com.haebi.focuslock.FocusLockScreenQaTest#onboardingAndPermissionDeniedScreens' permission-denied
 run_case 'com.haebi.focuslock.FocusLockOnboardingQaTest#deniedPermissionAndNoGoalStillEnterUsableHome' ui-r02-denied-skip
 run_case 'com.haebi.focuslock.FocusLockOnboardingQaTest#permissionSettingsReturnRefreshesStepAndGoalIsSkippable' ui-r02-settings-return
+run_case 'com.haebi.focuslock.Renew08OnboardingDisclosureQaTest#introductoryUserJourneyDescribesAnalysisAndOptionalGoals' renew-08-onboarding-copy
 
 adb shell appops set com.haebi.focuslock GET_USAGE_STATS allow
 adb shell pm grant com.haebi.focuslock android.permission.POST_NOTIFICATIONS
