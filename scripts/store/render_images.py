@@ -9,16 +9,16 @@ from PIL import Image, ImageDraw, ImageFont
 
 PACKAGE = "com.haebi.focuslock"
 WIDTH, HEIGHT = 1350, 2400
-BG, INK, MUTED, BLUE, LINE = "#F7F7F7", "#151515", "#656565", "#0B5088", "#DEDEDE"
+BG, INK, MUTED, ACCENT, LINE = "#F7F7F7", "#151515", "#656565", "#373737", "#DEDEDE"
 CAPTURES = [
     ("01-home.png", "14-home-granted.png", "스마트폰 사용 습관", "오늘의 사용 시간 한눈에"),
-    ("02-analysis.png", "15-analysis-today.png", "오늘부터 30일까지", "내 스마트폰 사용 분석"),
-    ("03-app-detail.png", "18-app-detail.png", "앱별 이용 기록", "사용 시간과 실행 횟수 확인"),
-    ("04-goals.png", "19-goal-sheet.png", "앱별 사용 목표", "기준 시간을 직접 설정"),
-    ("05-focus.png", "09-focus-running.png", "집중 시간을 기록", "25분 집중 타이머"),
-    ("06-result.png", "11-focus-result.png", "집중 기록 저장", "완료 및 중단 결과 확인"),
-    ("07-garden.png", "12-garden.png", "집중하며 정원 성장", "기록에 따라 보상 획득"),
-    ("08-report.png", "20-report.png", "집중 리포트", "지난 7일·30일 성과 확인"),
+    ("02-analysis.png", "15-analysis-today.png", "앱 사용 패턴 분석", "오늘 · 7일 · 30일 사용 기록"),
+    ("03-app-detail.png", "18-app-detail.png", "앱별 사용 기록", "사용 시간과 관측된 이벤트 확인"),
+    ("04-goals.png", "19-goal-sheet.png", "선택형 앱 사용 목표", "시간과 요일별 알림 직접 설정"),
+    ("05-focus.png", "09-focus-running.png", "필요할 때 집중", "선택형 타이머로 시간 기록"),
+    ("06-result.png", "11-focus-result.png", "집중 성과 기록", "완료 시간과 실제 보상 확인"),
+    ("07-garden.png", "12-garden.png", "기록으로 키우는 정원", "경험치로 아이템 해금"),
+    ("08-report.png", "20-report.png", "사용 변화 리포트", "7일·30일 사용 시간 비교"),
 ]
 
 def font(weight, size):
@@ -46,7 +46,7 @@ def render_screen(source, index, title, subtitle):
     frame = Image.new("RGB", (WIDTH, HEIGHT), BG)
     draw = ImageDraw.Draw(frame)
     draw.rectangle((0, 0, WIDTH, 22), fill=INK)
-    draw.text((110, 104), "FOCUSLOCK  /  DIGITAL WELLBEING", font=font("Regular", 32), fill=BLUE)
+    draw.text((110, 104), "FOCUSLOCK  /  DIGITAL WELLBEING", font=font("Regular", 32), fill=ACCENT)
     draw.text((1240, 104), f"{index:02d} / 08", font=font("Regular", 32), fill=MUTED, anchor="ra")
     draw.text((110, 186), title, font=font("Bold", 93), fill=INK)
     draw.text((112, 326), subtitle, font=font("Regular", 46), fill=MUTED)
@@ -62,11 +62,11 @@ def render_feature(captures):
     w, h = 1024, 500
     im = Image.new("RGB", (w, h), "#F7F7F7")
     draw = ImageDraw.Draw(im)
-    draw.rectangle((0, 0, 13, h), fill=BLUE)
-    draw.text((58, 63), "FOCUSLOCK", font=font("Bold", 28), fill=BLUE)
-    draw.text((56, 119), "사용 시간을 살펴보고", font=font("Bold", 55), fill=INK)
-    draw.text((56, 192), "집중을 기록하세요", font=font("Bold", 55), fill=INK)
-    draw.text((59, 311), "앱별 분석  ·  목표 설정  ·  집중 타이머", font=font("Regular", 26), fill=MUTED)
+    draw.rectangle((0, 0, 13, h), fill=ACCENT)
+    draw.text((58, 63), "FOCUSLOCK", font=font("Bold", 28), fill=ACCENT)
+    draw.text((56, 119), "앱 사용을 살펴보고", font=font("Bold", 55), fill=INK)
+    draw.text((56, 192), "변화를 알아보세요", font=font("Bold", 55), fill=INK)
+    draw.text((59, 311), "사용 분석  ·  선택 목표  ·  집중 기록", font=font("Regular", 26), fill=MUTED)
     for filename, x, y, cw, ch in [
         ("14-home-granted.png", 684, 44, 240, 485),
         ("09-focus-running.png", 851, 97, 166, 360),
