@@ -30,6 +30,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.haebi.focuslock.data.AppUsage
 import com.haebi.focuslock.data.UsageFormat
+import com.haebi.focuslock.data.UsageMetrics
 import com.haebi.focuslock.data.UsageSnapshot
 import com.haebi.focuslock.data.UsageWindow
 
@@ -111,6 +112,22 @@ fun AnalysisChart(snapshot: UsageSnapshot, period: String) {
                 )
             }
         }
+        if (period != "오늘") {
+            snapshot.coverage?.let { coverage ->
+                val window = snapshot.window(period)
+                Text(
+                    coverage.description(window.startDate, window.endDate),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.testTag("analysis-observed-day-coverage")
+                )
+                Text(
+                    "기록이 없는 날짜는 미사용인지 Android 기록 미보관인지 구분할 수 없습니다.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
 }
 
@@ -119,19 +136,27 @@ fun AnalysisCategorySummary(window: UsageWindow) {
     FocusCard {
         SectionTitle("카테고리별 사용 비중")
         val categories = window.apps.groupBy { it.category }
-            .map { (category, apps) -> category to apps.sumOf { it.minutes } }
+            .map { (category, apps) ->
+                val rawMillis = UsageMetrics.totalMillis(apps.map { it.foregroundMillis })
+                val minutes = if (rawMillis > 0L) UsageMetrics.roundedMinutes(rawMillis)
+                    else apps.sumOf { it.minutes }
+                val percent = if (window.totalForegroundMillis > 0L && rawMillis > 0L)
+                    UsageMetrics.rawSharePercent(rawMillis, window.totalForegroundMillis) ?: 0
+                    else UsageFormat.sharePercent(minutes, window.totalMinutes)
+                Triple(category, minutes, percent)
+            }
             .sortedByDescending { it.second }
-        categories.forEach { (label, minutes) ->
+        categories.forEach { (label, minutes, percent) ->
             Column(verticalArrangement = Arrangement.spacedBy(FocusSpacing.xxs)) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(label, style = MaterialTheme.typography.bodyMedium)
                     Text(
-                        "${UsageFormat.minutesLabel(minutes)} · ${UsageFormat.sharePercent(minutes, window.totalMinutes)}%",
+                        UsageFormat.minutesLabel(minutes) + " · " + percent + "%",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                ProgressBar(if (window.totalMinutes <= 0) 0f else minutes.toFloat() / window.totalMinutes, neutral = true)
+                ProgressBar(percent.toFloat() / 100, neutral = true)
             }
         }
         Text(
@@ -160,7 +185,11 @@ fun AnalysisAppList(
     var sortMenu by remember { mutableStateOf(false) }
     val available = window.apps.filter { excluded[it.id] != true }
     val categories = AnalysisModels.categories(available)
-    val list = AnalysisModels.visibleApps(window.apps, excluded, category, query, sort)
+    val availableSorts = AnalysisModels.sorts.filter {
+        it != "실행 횟수" || available.any { app -> app.launches >= 0 }
+    }
+    val effectiveSort = AnalysisModels.effectiveSort(available, sort)
+    val list = AnalysisModels.visibleApps(window.apps, excluded, category, query, effectiveSort)
     FocusCard {
         SectionTitle("앱별 사용 시간", "리포트 보기", onReport)
         OutlinedTextField(
@@ -200,10 +229,10 @@ fun AnalysisAppList(
                         .heightIn(min = FocusSpacing.minTouchTarget)
                         .testTag("analysis-sort-button")
                 ) {
-                    Text("정렬: $sort", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text("정렬: $effectiveSort", maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 DropdownMenu(expanded = sortMenu, onDismissRequest = { sortMenu = false }) {
-                    AnalysisModels.sorts.forEach { item ->
+                    availableSorts.forEach { item ->
                         DropdownMenuItem(
                             text = { Text(item) },
                             onClick = { onSort(item); sortMenu = false },
@@ -212,6 +241,13 @@ fun AnalysisAppList(
                     }
                 }
             }
+        }
+        if (availableSorts.none { it == "실행 횟수" }) {
+            Text(
+                "선택한 기간에 확인 가능한 실행·전환 이벤트가 없어 사용 시간 기준으로 정렬합니다.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
         Text(
             "표시 ${list.size}개 · 검색 대상 ${available.size}개",
@@ -228,7 +264,7 @@ fun AnalysisAppList(
             )
         }
         list.forEachIndexed { index, app ->
-            AnalysisAppRow(app, window.totalMinutes) { onApp(app, period) }
+            AnalysisAppRow(app, window.totalMinutes, window.totalForegroundMillis) { onApp(app, period) }
             if (index < list.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         }
         Text(
@@ -240,7 +276,15 @@ fun AnalysisAppList(
 }
 
 @Composable
-private fun AnalysisAppRow(app: AppUsage, totalMinutes: Int, onClick: () -> Unit) {
+private fun AnalysisAppRow(
+    app: AppUsage,
+    totalMinutes: Int,
+    totalForegroundMillis: Long,
+    onClick: () -> Unit
+) {
+    val percent = if (app.foregroundMillis > 0L && totalForegroundMillis > 0L)
+        UsageMetrics.rawSharePercent(app.foregroundMillis, totalForegroundMillis) ?: 0
+        else UsageFormat.sharePercent(app.minutes, totalMinutes)
     Row(
         Modifier.fillMaxWidth().heightIn(min = FocusSpacing.minTouchTarget)
             .testTag("analysis-app-${app.id}")
@@ -267,7 +311,7 @@ private fun AnalysisAppRow(app: AppUsage, totalMinutes: Int, onClick: () -> Unit
         Column(horizontalAlignment = Alignment.End) {
             Text(UsageFormat.minutesLabel(app.minutes), style = MaterialTheme.typography.bodyMedium)
             Text(
-                "${UsageFormat.sharePercent(app.minutes, totalMinutes)}%",
+                percent.toString() + "%",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

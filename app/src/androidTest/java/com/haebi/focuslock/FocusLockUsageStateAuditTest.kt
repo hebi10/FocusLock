@@ -58,6 +58,12 @@ class FocusLockUsageStateAuditTest {
                 .put("last7TotalMinutes", snapshot.last7.totalMinutes)
                 .put("last30AppCount", snapshot.last30.apps.size)
                 .put("last30TotalMinutes", snapshot.last30.totalMinutes)
+                .put("observedForegroundMillisToday", snapshot.today.totalForegroundMillis)
+                .put("observedForegroundMillis7", snapshot.last7.totalForegroundMillis)
+                .put("actualObservedDays7", snapshot.coverage?.observedDays(
+                    snapshot.last7.startDate, snapshot.last7.endDate
+                ))
+                .put("aggregationRule", "Sum Android OS milliseconds before rounding to minutes")
                 .put("nonzeroDays7", snapshot.daily7.count { it > 0 })
                 .put("nonzeroDays30", snapshot.daily30.count { it > 0 })
                 .put("hourlyEventsAvailable", snapshot.hourlyToday != null)
