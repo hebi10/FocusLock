@@ -42,6 +42,9 @@ fun AppDetailScreen(
     period: String,
     onPeriod: (String) -> Unit,
     goalMinutes: Int?,
+    goalDaysMask: Int = GoalDayPolicy.EVERY_DAY,
+    warn80: Boolean = true,
+    warn100: Boolean = true,
     isDistraction: Boolean,
     isExcluded: Boolean,
     onBack: () -> Unit,
@@ -57,7 +60,7 @@ fun AppDetailScreen(
         permissions = withContext(Dispatchers.IO) { AppPermissionRepository(context.applicationContext).inspect(app.packageName) }
     }
     val selectedApp = snapshot.window(period).apps.firstOrNull { it.id == app.id }
-        ?: app.copy(minutes = 0, launches = -1, lastUsed = "확인 불가")
+        ?: app.copy(minutes = 0, launches = -1, lastUsed = "확인 불가", foregroundMillis = 0L)
     val todayMinutes = snapshot.today.apps.firstOrNull { it.id == app.id }?.minutes ?: 0
     val values = when (period) {
         "오늘" -> listOf(todayMinutes)
@@ -83,6 +86,11 @@ fun AppDetailScreen(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                Text(
+                    "Android 시스템 분류 · 앱별 카테고리 직접 편집은 아직 지원하지 않습니다.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
         PeriodSelector(listOf("오늘", "7일", "30일"), period, onPeriod)
@@ -92,6 +100,17 @@ fun AppDetailScreen(
                 Text(
                     "일일 사용 목표 " + UsageFormat.minutesLabel(goalMinutes),
                     style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                InfoPair("현재 알림 요일", AppDetailPolicy.activeDays(goalDaysMask))
+                Text(
+                    AppDetailPolicy.warningSummary(goalDaysMask, warn80, warn100),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    "목표 알림은 Android 백그라운드 정책에 따라 지연될 수 있습니다.",
+                    style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 if (period == "오늘") {
@@ -109,7 +128,7 @@ fun AppDetailScreen(
                     )
                 } else {
                     Text(
-                        "일일 목표 진행률은 '오늘' 기간에서 확인할 수 있습니다.",
+                        "일일 목표 진행률은 '오늘' 기준입니다. 과거 목표 변경 이력이 저장되지 않아 과거 달성률은 계산하지 않습니다.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -151,6 +170,21 @@ fun AppDetailScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+        if (period == "7일" || period == "30일") {
+            FocusCard {
+                SectionTitle("이전 기간 사용 변화")
+                Text(
+                    AppDetailPolicy.periodComparison(snapshot, app.id, period)
+                        ?: "양 기간의 관측 기록이 충분하지 않아 앱별 변화를 계산할 수 없습니다.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    "Android 앱별 사용 기록 기준 참고 값입니다. 관측된 날짜가 있어도 전체 기록이 완전하다는 뜻은 아닙니다.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
         FocusCard {
             SectionTitle("요청 권한")
             Text("표시된 허용 상태는 Android에서 확인 가능한 권한에 한합니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -175,8 +209,8 @@ fun AppDetailScreen(
                 Icon(Icons.Outlined.Info, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("배터리 소비량 측정이 아닌 사용 패턴 정보입니다.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            val referenceTotal = snapshot.window(period).totalMinutes
-            InfoPair("해당 기간 앱 사용 비중", "${UsageFormat.sharePercent(selectedApp.minutes, referenceTotal)}%")
+            val appShare = AppDetailPolicy.appShare(snapshot.window(period), app.id)
+            InfoPair("해당 기간 앱 사용 비중", appShare?.let { "$it%" } ?: "확인 불가")
             InfoPair("사용 이벤트", if (selectedApp.launches < 0) "확인 불가" else "${selectedApp.launches}회")
             SettingRow("배터리 정보 확인", "시스템 앱 정보 화면에서 배터리 사용량을 확인합니다.", onClick = onSystemSettings)
         }

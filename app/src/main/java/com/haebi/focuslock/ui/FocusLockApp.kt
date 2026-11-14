@@ -399,6 +399,10 @@ fun FocusLockApp() {
                         period = selectedAppPeriod,
                         onPeriod = { selectedAppPeriod = it },
                         goalMinutes = goals[selectedAppId],
+                        goalDaysMask = goalDays[selectedAppId]
+                            ?: GoalDayPolicy.fromLegacyEveryday(everydayGoal[selectedAppId] ?: true),
+                        warn80 = warningAt80[selectedAppId] ?: true,
+                        warn100 = warningAt100[selectedAppId] ?: true,
                         isDistraction = distraction[selectedAppId] ?: false,
                         isExcluded = excluded[selectedAppId] ?: false,
                         onBack = { detail = "" },
