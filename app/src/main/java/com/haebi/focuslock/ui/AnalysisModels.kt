@@ -12,6 +12,11 @@ object AnalysisModels {
     val periods = listOf("오늘", "7일", "30일")
     val sorts = listOf("사용 시간", "실행 횟수", "이름")
 
+    /** An unobserved event count is not a zero. Fall back to duration sorting. */
+    fun effectiveSort(apps: List<AppUsage>, requested: String): String =
+        if (requested == "실행 횟수" && apps.none { it.launches >= 0 }) "사용 시간"
+        else requested
+
     fun visibleApps(
         apps: List<AppUsage>,
         excluded: Map<String, Boolean>,
@@ -25,7 +30,7 @@ object AnalysisModels {
                 (category == "전체" || app.category == category) &&
                 (term.isEmpty() || app.name.contains(term, ignoreCase = true))
         }
-        return when (sort) {
+        return when (effectiveSort(filtered, sort)) {
             "이름" -> {
                 val collator = Collator.getInstance(Locale.KOREAN)
                 filtered.sortedWith { left, right ->
@@ -37,7 +42,9 @@ object AnalysisModels {
                 compareByDescending<AppUsage> { it.launches }.thenByDescending { it.minutes }
             )
             else -> filtered.sortedWith(
-                compareByDescending<AppUsage> { it.minutes }.thenBy { it.name }
+                compareByDescending<AppUsage> {
+                    if (it.foregroundMillis > 0L) it.foregroundMillis else it.minutes.toLong() * 60_000L
+                }.thenBy { it.name }
             )
         }
     }

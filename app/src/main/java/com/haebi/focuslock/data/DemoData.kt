@@ -12,7 +12,8 @@ data class AppUsage(
     val lastUsed: String,
     val symbol: String,
     val tint: Long,
-    val packageName: String? = null
+    val packageName: String? = null,
+    val foregroundMillis: Long = 0L
 )
 
 object DemoData {
