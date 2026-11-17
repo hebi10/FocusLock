@@ -1,6 +1,5 @@
 package com.haebi.focuslock.ui
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -15,13 +14,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.haebi.focuslock.R
 import com.haebi.focuslock.data.AppUsage
 import com.haebi.focuslock.data.UsageFormat
 import com.haebi.focuslock.data.UsageLoadState
@@ -103,25 +99,19 @@ private fun OnboardingFeature(
 fun OnboardingIntro(onNext: () -> Unit, onExplore: () -> Unit) {
     OnboardingLayout(
         step = 1,
-        title = "내 사용 습관을 한눈에",
-        description = "앱별 사용 시간을 확인하고, 나에게 맞는 집중 목표를 설정합니다.",
+        title = OnboardingCopyPolicy.introTitle,
+        description = OnboardingCopyPolicy.introDescription,
         primaryLabel = "시작하기",
         onPrimary = onNext,
         secondaryLabel = "둘러보기",
         onSecondary = onExplore
     ) {
-        Image(
-            painter = painterResource(R.drawable.garden_illustration),
-            contentDescription = "작은 정원 일러스트",
-            contentScale = ContentScale.Fit,
-            modifier = Modifier.fillMaxWidth().height(150.dp)
-        )
         FocusCard {
-            OnboardingFeature("앱별 사용 시간 확인", "실제 Android 사용 기록을 보기 쉽게 정리합니다.", Icons.Outlined.Assessment)
+            OnboardingFeature("앱별 사용 패턴", "오늘·최근 7일·30일 사용 시간과 실제 기록을 확인합니다.", Icons.Outlined.Assessment)
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            OnboardingFeature("집중 시간 설정", "원하는 시간 동안 집중을 이어갑니다.", Icons.Outlined.TrackChanges)
+            OnboardingFeature("선택형 사용 목표", "필요할 때 앱별 목표와 요일별 알림을 설정합니다.", Icons.Outlined.TrackChanges)
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            OnboardingFeature("집중 기록과 정원", "완료한 집중 기록으로 정원을 가꿉니다.", Icons.Outlined.Yard)
+            OnboardingFeature("집중 기록과 정원", "집중 타이머는 선택해서 사용하며 완료 기록은 기기에 저장합니다.", Icons.Outlined.Yard)
         }
     }
 }
@@ -135,7 +125,7 @@ fun OnboardingPermission(
     OnboardingLayout(
         step = 2,
         title = "사용 정보 접근",
-        description = "앱별 사용 시간을 확인하려면 Android 설정에서 사용 정보 접근을 허용해야 합니다.",
+        description = OnboardingCopyPolicy.permissionDescription,
         primaryLabel = if (permissionGranted) "목표 설정으로" else "권한 설정 열기",
         onPrimary = if (permissionGranted) onNext else onOpenSettings,
         secondaryLabel = "나중에",
@@ -155,7 +145,7 @@ fun OnboardingPermission(
             OnboardingFeature("사용 목표 경고", "목표 시간 확인에는 사용 정보 접근이, 알림 발송에는 별도 알림 권한이 필요합니다.", Icons.Outlined.NotificationsNone)
         }
         Text(
-            "권한을 허용하지 않아도 집중 타이머와 정원은 이용할 수 있습니다. 사용 기록은 기기 안에서 처리됩니다.",
+            OnboardingCopyPolicy.permissionNotice,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -175,8 +165,8 @@ fun OnboardingGoal(
 ) {
     OnboardingLayout(
         step = 3,
-        title = "첫 목표 설정",
-        description = "관리할 앱을 선택하고 하루 사용 목표를 정해보세요. 지금 설정하지 않아도 됩니다.",
+        title = OnboardingCopyPolicy.goalTitle,
+        description = OnboardingCopyPolicy.goalDescription,
         primaryLabel = "FocusLock 시작",
         onPrimary = onFinish,
         secondaryLabel = "나중에 설정",
@@ -232,7 +222,7 @@ fun OnboardingGoal(
             }
         }
         Text(
-            "목표와 경고 설정은 나중에 앱 상세 화면에서도 변경할 수 있습니다. 다른 앱을 강제로 차단하지 않습니다.",
+            OnboardingCopyPolicy.goalNotice,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
