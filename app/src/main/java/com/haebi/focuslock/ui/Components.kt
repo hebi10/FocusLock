@@ -174,10 +174,22 @@ fun BarChart(values: List<Int>, labels: List<String>, maxValue: Int, highlight: 
                 }
             }
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-            labels.forEach { label ->
-                Text(label, fontSize = if (labels.size > 8) 9.sp else 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center, maxLines = 1, modifier = Modifier.weight(1f))
+        val compactTicks = labels.size >= 20
+        val visibleLabels = readableBarAxisLabels(labels)
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = if (compactTicks) Arrangement.SpaceBetween else Arrangement.spacedBy(5.dp)
+        ) {
+            visibleLabels.forEach { label ->
+                Text(
+                    label,
+                    fontSize = if (compactTicks) 10.sp else 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    maxLines = 1,
+                    softWrap = false,
+                    modifier = if (compactTicks) Modifier else Modifier.weight(1f)
+                )
             }
         }
     }
@@ -214,3 +226,6 @@ fun InfoState(title: String, message: String, action: String? = null, onAction: 
         if (action != null && onAction != null) ActionButton(action, onAction)
     }
 }
+
+internal fun readableBarAxisLabels(labels: List<String>): List<String> =
+    if (labels.size >= 20) labels.filter { it.isNotBlank() } else labels
