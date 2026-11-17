@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
@@ -82,6 +83,14 @@ def render_feature(captures):
 def sha256(data):
     return hashlib.sha256(data).hexdigest()
 
+def verify_manifest_provenance(manifest):
+    commit = manifest.get("source_commit")
+    run = manifest.get("source_workflow_run")
+    if not isinstance(commit, str) or re.fullmatch(r"[0-9a-f]{40}", commit) is None:
+        raise ValueError("Store images require an exact 40-character source commit")
+    if not isinstance(run, str) or re.fullmatch(r"[1-9][0-9]*", run) is None:
+        raise ValueError("Store images require a verified source workflow run ID")
+
 def generate(captures, output, commit, run_id):
     output.mkdir(parents=True, exist_ok=True)
     entries = []
@@ -109,9 +118,13 @@ def validate(output):
     manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
     if manifest.get("package") != PACKAGE or manifest.get("locale") != "ko-KR":
         raise ValueError("Wrong store listing target")
+    verify_manifest_provenance(manifest)
     images = manifest["screenshots"]
     if [a["file"] for a in images] != [a[0] for a in CAPTURES]:
         raise ValueError("Unexpected screenshot order")
+    for item, (_, expected_source, _, _) in zip(images, CAPTURES):
+        if item.get("source") != expected_source or not re.fullmatch(r"[0-9a-f]{64}", str(item.get("source_sha256", ""))):
+            raise ValueError("Missing or incorrect actual Android source capture provenance")
     allowed = {a[0] for a in CAPTURES} | {"feature-graphic.png", "manifest.json"}
     if {p.name for p in output.iterdir()} != allowed:
         raise ValueError("Unexpected files in image folder")
