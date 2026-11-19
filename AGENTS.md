@@ -28,3 +28,9 @@
 
 ### 앱별 보존 지침
 - 사용 습관·집중 기록 등 기존 사용자 데이터·분석 로직과 접근성 권한을 보존한다. `.github/workflows/android-ci.yml`, `emulator-smoke.yml`, `play-internal.yml`을 확인하고 화면 QA와 수동 승격을 분리한다.
+
+## CI-DEDUP-20261119 — 배치 종료 후 기기 계측
+- PR과 main에서는 `android-ci.yml`의 단위 테스트·Lint·디버그 빌드를 유지한다.
+- `emulator-smoke.yml`의 Android API 36 화면·권한 실계측은 배치 종료 후 최신 main의 정확한 SHA로 수동 1회 실행한다.
+- `release-build.yml`은 같은 main SHA에서 Android CI 및 Android full-screen emulator QA 모두 성공해야 서명 요청을 허용한다. 미실행·실패·코드 변경 시 릴리스 차단 후 재검증한다.
+- 사용 데이터·접근성 권한 또는 차단 로직 관련 고위험 변경에는 병합 전 기능 선별 계측을 실시하며, 기존 필수 체크·보호 규칙을 우회하지 않는다.
