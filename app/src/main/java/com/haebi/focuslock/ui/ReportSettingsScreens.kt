@@ -19,9 +19,11 @@ import com.haebi.focuslock.data.AppUsage
 import com.haebi.focuslock.data.UsageFormat
 import com.haebi.focuslock.data.UsageLoadState
 import com.haebi.focuslock.data.FocusSummary
+import com.haebi.focuslock.data.GoalHistoryEvent
+import com.haebi.focuslock.data.GoalHistoryPolicy
 
 @Composable
-fun ReportScreen(state: UsageLoadState, excluded: Map<String, Boolean>, focusSummary: FocusSummary, onBack: (() -> Unit)?, onApp: (AppUsage, String) -> Unit, onUsageSettings: () -> Unit, onRefresh: () -> Unit) {
+internal fun ReportScreen(state: UsageLoadState, excluded: Map<String, Boolean>, focusSummary: FocusSummary, onBack: (() -> Unit)?, onApp: (AppUsage, String) -> Unit, onUsageSettings: () -> Unit, onRefresh: () -> Unit, goalHistory: List<GoalHistoryEvent> = emptyList(), onGoals: () -> Unit = {}) {
     var period by rememberSaveable { mutableStateOf("7일") }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -89,12 +91,7 @@ fun ReportScreen(state: UsageLoadState, excluded: Map<String, Boolean>, focusSum
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Text(
-                    "현재 목표 설정의 과거 변경 이력은 저장되지 않아 과거 목표 달성률을 계산하지 않습니다.",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+             }
             FocusCard {
                 SectionTitle("사용량 상위 앱")
                 if (visibleApps.isEmpty()) Text(if (selected.apps.isEmpty()) "선택 기간의 앱 사용 기록이 없습니다." else "분석 제외 설정으로 표시할 앱이 없습니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -103,6 +100,10 @@ fun ReportScreen(state: UsageLoadState, excluded: Map<String, Boolean>, focusSum
                     if(index < minOf(5, visibleApps.size) - 1) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 }
             }
+        }
+        FocusCard {
+            SectionTitle("전체 사용 목표 리포트", "목표 관리", onGoals)
+            GoalHistorySummary(goalHistory, GoalHistoryPolicy.TOTAL, snapshot, if (period == "30일") 30 else 7)
         }
         FocusCard {
             SectionTitle("집중 성과 · ${period}")
@@ -128,12 +129,16 @@ private fun InfoPairReport(label: String, value: String) {
 }
 
 @Composable
-fun SettingsScreen(theme: String, onTheme: (String) -> Unit, onPermissions: () -> Unit, onInfo: () -> Unit) {
+fun SettingsScreen(theme: String, onTheme: (String) -> Unit, onPermissions: () -> Unit, onInfo: () -> Unit, onGoals: () -> Unit = {}) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         PageTitle("설정", SettingsDisclosurePolicy.subtitle)
         FocusCard {
             SectionTitle("권한")
             SettingRow("사용 정보·알림 권한 관리", SettingsDisclosurePolicy.permissionSubtitle, onClick = onPermissions)
+        }
+        FocusCard {
+            SectionTitle("사용 목표")
+            SettingRow("목표 관리", "전체 앱 사용 목표와 개별 앱 목표 및 변경 이력", onClick = onGoals)
         }
         FocusCard {
             SectionTitle("화면")

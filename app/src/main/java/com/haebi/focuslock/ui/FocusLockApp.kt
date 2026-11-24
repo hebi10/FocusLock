@@ -37,6 +37,9 @@ import com.haebi.focuslock.data.FocusTiming
 import com.haebi.focuslock.data.FocusSummary
 import com.haebi.focuslock.data.GoalAlerts
 import com.haebi.focuslock.data.GoalDayPolicy
+import com.haebi.focuslock.data.GoalConfig
+import com.haebi.focuslock.data.GoalHistoryStore
+import com.haebi.focuslock.data.GoalHistoryPolicy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.lifecycle.Lifecycle
@@ -130,6 +133,11 @@ fun FocusLockApp() {
         mutableStateMapOf<String, Int>().also { map ->
             prefs.all.forEach { (key, value) -> if (key.startsWith("goal.") && value is Int) map[key.removePrefix("goal.")] = value }
         }
+    }
+    var globalGoal by remember(prefs) { mutableIntStateOf(prefs.getInt(GoalHistoryStore.TOTAL_KEY, 0)) }
+    val goalHistory = remember(goalSettingsVersion, reloadToken) { GoalHistoryStore.read(prefs) }
+    LaunchedEffect(reloadToken) {
+        if (GoalHistoryStore.seedCurrentGoals(prefs)) goalSettingsVersion++
     }
     val distraction = remember(prefs) {
         mutableStateMapOf<String, Boolean>().also { map ->
@@ -453,8 +461,26 @@ fun FocusLockApp() {
                         state = usageState,
                         excluded = excluded,
                         focusSummary = focusReport,
+                        goalHistory = goalHistory, onGoals = { detail = "goals" },
                         onBack = {detail = ""}, onApp = { app, period -> selectedAppId=app.id; selectedAppRecord=app; selectedAppPeriod=period; detail="app" },
                         onUsageSettings = {openUsageSettings(context)}, onRefresh = {reloadToken++}
+                    )
+                    detail == "goals" -> GoalManagerScreen(
+                        state = usageState,
+                        globalGoal = globalGoal,
+                        goals = goals,
+                        history = goalHistory,
+                        labelFor = { id -> prefs.getString("goal_label.$id", id) ?: id },
+                        onBack = { detail = "" },
+                        onGlobalSave = { minutes ->
+                            val editor = prefs.edit().putInt(GoalHistoryStore.TOTAL_KEY, minutes)
+                            GoalHistoryStore.record(prefs, editor, GoalHistoryPolicy.TOTAL, GoalConfig(minutes))
+                            editor.apply()
+                            globalGoal = minutes
+                            goalSettingsVersion++
+                        },
+                        onEditApp = { goalSheetId = it },
+                        onAnalysis = { goMain(MainTab.ANALYSIS) }
                     )
                     detail == "permissions" -> key(reloadToken) { PermissionManagementScreen(
                         onBack = {detail = ""},
@@ -468,6 +494,8 @@ fun FocusLockApp() {
                             excluded = excluded,
                             todayExperience = todayExperience,
                             totalExperience = experience,
+                            globalGoal = globalGoal,
+                            onGoals = { detail = "goals" },
                             onSetGoal = { goalSheetId = it.id },
                             onFocus = {goMain(MainTab.FOCUS)},
                             onAnalysis = {goMain(MainTab.ANALYSIS)},
@@ -487,6 +515,7 @@ fun FocusLockApp() {
                             state = usageState,
                             excluded = excluded,
                             focusSummary = focusReport,
+                            goalHistory = goalHistory, onGoals = { detail = "goals" },
                             onBack = null,
                             onApp = { app, period ->
                                 selectedAppId = app.id
@@ -526,7 +555,8 @@ fun FocusLockApp() {
                             theme = theme,
                             onTheme = { theme=it;prefs.edit().putString("theme",it).apply() },
                             onPermissions = {detail="permissions"},
-                            onInfo = {showInfo=true}
+                            onInfo = {showInfo=true},
+                            onGoals = {detail="goals"}
                         )
                     }
                 }
@@ -535,6 +565,12 @@ fun FocusLockApp() {
         if(goalSheetId.isNotEmpty()) {
             val app = listOfNotNull(usageSnapshot?.today, usageSnapshot?.last7, usageSnapshot?.last30)
                 .flatMap { it.apps }.firstOrNull { it.id == goalSheetId }
+                ?: if ((goals[goalSheetId] ?: 0) > 0) {
+                    val label = prefs.getString("goal_label.$goalSheetId", goalSheetId) ?: goalSheetId
+                    // Metadata-only fallback for editing an existing goal without usage access.
+                    AppUsage(goalSheetId, label, "기타", 0, -1, "확인 불가",
+                        label.take(1), 0xFF666666, goalSheetId)
+                } else null
             if (app != null) GoalSheet(
                 app=app,
                 current=goals[app.id] ?: 60,
@@ -555,6 +591,9 @@ fun FocusLockApp() {
                         .putBoolean("warn100.${app.id}", warn100)
                         .putInt("goalDays.${app.id}", normalizedDays)
                         .putBoolean("everyday.${app.id}", normalizedDays != GoalDayPolicy.NONE)
+                        .putString("goal_label.${app.id}", app.name)
+                        .also { editor -> GoalHistoryStore.record(prefs, editor, app.id,
+                            GoalConfig(minutes, normalizedDays, warn80, warn100)) }
                         .apply()
                     goalSettingsVersion++
                     goalSheetId = ""
@@ -570,7 +609,9 @@ fun FocusLockApp() {
                     goalDays.remove(app.id)
                     prefs.edit().remove("goal.${app.id}").remove("warn80.${app.id}")
                         .remove("warn100.${app.id}").remove("everyday.${app.id}")
-                        .remove("goalDays.${app.id}").apply()
+                        .remove("goalDays.${app.id}")
+                        .also { editor -> GoalHistoryStore.record(prefs, editor, app.id, GoalConfig(0)) }
+                        .apply()
                     goalSettingsVersion++
                     goalSheetId = ""
                 },

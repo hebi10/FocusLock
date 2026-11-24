@@ -7,7 +7,7 @@ internal object SettingsDisclosurePolicy {
         "앱별 목표의 80%·100% 경고는 선택한 요일에만 확인합니다. " +
         "WorkManager는 최소 약 15분 간격으로 동작하며 절전 정책 때문에 알림이 늦어질 수 있습니다."
     const val localDataNotice =
-        "앱 사용 시간은 Android 시스템 통계에서 조회합니다. 목표 설정과 정원 배치, " +
+        "앱 사용 시간은 Android 시스템 통계에서 조회합니다. 목표 설정·변경 이력과 정원 배치, " +
         "집중 세션·보상 기록은 이 기기에 저장됩니다. 다른 앱의 메시지나 화면 내용은 읽지 않습니다."
     const val deleteNotice =
         "앱 내 전체 데이터 삭제 기능은 제공하지 않습니다. " +
