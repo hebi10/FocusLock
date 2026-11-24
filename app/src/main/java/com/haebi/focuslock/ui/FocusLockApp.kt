@@ -41,6 +41,8 @@ import com.haebi.focuslock.data.GoalDayPolicy
 import com.haebi.focuslock.data.GoalConfig
 import com.haebi.focuslock.data.GoalHistoryStore
 import com.haebi.focuslock.data.GoalHistoryPolicy
+import com.haebi.focuslock.data.LocalDataStore
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.lifecycle.Lifecycle
@@ -67,7 +69,10 @@ fun FocusLockApp(goalAlertTarget: String? = null, onGoalAlertHandled: () -> Unit
     val prefs = remember(context) { context.getSharedPreferences("focuslock_ui_prototype", 0) }
     val repository = remember(context) { UsageRepository(context.applicationContext) }
     val focusStore = remember(context) { FocusSessionStore.onDevice(context.applicationContext) }
+    val localDataStore = remember(prefs, focusStore) { LocalDataStore(prefs, focusStore) }
     val scope = rememberCoroutineScope()
+    var dataBusy by remember { mutableStateOf(false) }
+    var dataMessage by rememberSaveable { mutableStateOf("") }
     var goalSettingsVersion by remember { mutableIntStateOf(0) }
     val lifecycleOwner = LocalLifecycleOwner.current
     var reloadToken by remember { mutableIntStateOf(0) }
@@ -229,16 +234,21 @@ fun FocusLockApp(goalAlertTarget: String? = null, onGoalAlertHandled: () -> Unit
         focusPhase = "running"
     }
 
+    suspend fun refreshFocusMetrics() {
+        val metrics = withContext(Dispatchers.IO) { focusStore.metrics() }
+        experience = metrics.experience
+        growthPoints = metrics.points
+        todayExperience = metrics.todayExperience
+        focusReport = metrics.report
+    }
+
     LaunchedEffect(reloadToken) {
-        todayExperience = withContext(Dispatchers.IO) { focusStore.todayExperience() }
+        if (focusRestored && !dataBusy) refreshFocusMetrics()
     }
 
     LaunchedEffect(Unit) {
         val recovered = withContext(Dispatchers.IO) { focusStore.restore() }
-        experience = withContext(Dispatchers.IO) { focusStore.totalExperience() }
-        growthPoints = withContext(Dispatchers.IO) { focusStore.totalPoints() }
-        todayExperience = withContext(Dispatchers.IO) { focusStore.todayExperience() }
-        focusReport = withContext(Dispatchers.IO) { focusStore.report() }
+        refreshFocusMetrics()
         recovered.session?.let {
             applySession(it)
             focusRestoreMessage = recovered.pausedByRestart
@@ -250,10 +260,10 @@ fun FocusLockApp(goalAlertTarget: String? = null, onGoalAlertHandled: () -> Unit
         }
         focusRestored = true
     }
-    LaunchedEffect(goalAlertTarget, onboarding, focusPhase, focusRestored, usageState) {
+    LaunchedEffect(goalAlertTarget, onboarding, focusPhase, focusRestored, usageState, dataBusy) {
         val target = goalAlertTarget ?: return@LaunchedEffect
         // Keep an existing focus session or unfinished onboarding intact.
-        if (!focusRestored || onboarding >= 0 || focusPhase != "setup" || usageState == UsageLoadState.Loading) return@LaunchedEffect
+        if (!focusRestored || dataBusy || onboarding >= 0 || focusPhase != "setup" || usageState == UsageLoadState.Loading) return@LaunchedEffect
         val record = if (target == GoalHistoryPolicy.TOTAL || (goals[target] ?: 0) <= 0) null
             else listOfNotNull(usageSnapshot?.today, usageSnapshot?.last7, usageSnapshot?.last30)
                 .asSequence().flatMap { it.apps.asSequence() }.firstOrNull { it.id == target }
@@ -280,11 +290,7 @@ fun FocusLockApp(goalAlertTarget: String? = null, onGoalAlertHandled: () -> Unit
         if (snapshot != null)
             withContext(Dispatchers.IO) { GoalAlerts.checkNow(context.applicationContext, snapshot) }
     }
-    LaunchedEffect(detail, focusPhase, tab) {
-        if (detail == "report" || tab == MainTab.REPORT.name || focusPhase == "result")
-            focusReport = withContext(Dispatchers.IO) { focusStore.report() }
-    }
-    DisposableEffect(lifecycleOwner, focusSessionId) {
+     DisposableEffect(lifecycleOwner, focusSessionId) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_STOP) {
                 val id = focusSessionId
@@ -298,6 +304,7 @@ fun FocusLockApp(goalAlertTarget: String? = null, onGoalAlertHandled: () -> Unit
     }
 
     fun goMain(destination: MainTab) {
+        if (dataBusy) return
         detail = ""
         focusGardenOpen = false
         tab = destination.name
@@ -312,7 +319,7 @@ fun FocusLockApp(goalAlertTarget: String? = null, onGoalAlertHandled: () -> Unit
         onboarding = -1
     }
     fun startFocus(minutes: Int) {
-        if (startInProgress || focusSessionId != null) return
+        if (dataBusy || startInProgress || focusSessionId != null) return
         startInProgress = true
         scope.launch {
             try {
@@ -343,10 +350,7 @@ fun FocusLockApp(goalAlertTarget: String? = null, onGoalAlertHandled: () -> Unit
                 resultExperience = result.reward?.experience ?: 0
                 resultPoints = result.reward?.points ?: 0
                 elapsedSeconds = result.session.elapsedSeconds
-                experience = withContext(Dispatchers.IO) { focusStore.totalExperience() }
-                growthPoints = withContext(Dispatchers.IO) { focusStore.totalPoints() }
-                todayExperience = withContext(Dispatchers.IO) { focusStore.todayExperience() }
-                focusReport = withContext(Dispatchers.IO) { focusStore.report() }
+                refreshFocusMetrics()
                 focusSessionId = null
                 focusPhase = "result"
                 stopConfirm = false
@@ -383,8 +387,9 @@ fun FocusLockApp(goalAlertTarget: String? = null, onGoalAlertHandled: () -> Unit
         }
     }
 
-    BackHandler(enabled = onboarding > 0 || detail.isNotEmpty() || focusPhase != "setup" || focusGardenOpen) {
+    BackHandler(enabled = dataBusy || onboarding > 0 || detail.isNotEmpty() || focusPhase != "setup" || focusGardenOpen) {
         when {
+            dataBusy -> Unit
             onboarding > 0 -> onboarding--
             focusPhase == "running" -> stopConfirm = true
             focusPhase == "result" -> { focusPhase = "setup"; goMain(MainTab.HOME) }
@@ -413,6 +418,7 @@ fun FocusLockApp(goalAlertTarget: String? = null, onGoalAlertHandled: () -> Unit
                                 modifier = Modifier.testTag("nav-${item.name}"),
                                 selected = restoredMainTab(tab) == item,
                                 onClick = { goMain(item) },
+                                enabled = !dataBusy,
                                 icon = { Icon(icon, contentDescription = item.label, modifier = Modifier.size(FocusSpacing.icon)) },
                                 label = {
                                     val navigationLabel = if (LocalDensity.current.fontScale >= 1.4f && item == MainTab.ANALYSIS) "분석" else item.label
@@ -546,6 +552,70 @@ fun FocusLockApp(goalAlertTarget: String? = null, onGoalAlertHandled: () -> Unit
                         onEditApp = { goalSheetId = it },
                         onAnalysis = { goMain(MainTab.ANALYSIS) }
                     )
+                    detail == "local-data" -> LocalDataScreen(
+                        busy = dataBusy || !focusRestored,
+                        message = dataMessage,
+                        onBack = { if (!dataBusy) detail = "" },
+                        onExport = { uri ->
+                            if (!dataBusy && focusRestored) {
+                                dataBusy = true
+                                dataMessage = ""
+                                scope.launch {
+                                    try {
+                                        withContext(Dispatchers.IO) {
+                                            val json = localDataStore.exportJson()
+                                            val stream = requireNotNull(context.contentResolver.openOutputStream(uri, "wt"))
+                                            stream.bufferedWriter(Charsets.UTF_8).use { it.write(json) }
+                                        }
+                                        dataMessage = "JSON 파일을 저장했습니다."
+                                    } catch (cancelled: CancellationException) { throw cancelled }
+                                    catch (_: Exception) {
+                                        dataMessage = "파일 저장을 확인하지 못했습니다. 선택한 파일을 확인한 뒤 다시 시도해 주세요."
+                                    } finally { dataBusy = false }
+                                }
+                            }
+                        },
+                        onClearGoalHistory = {
+                            if (!dataBusy && focusRestored) {
+                                dataBusy = true
+                                dataMessage = ""
+                                scope.launch {
+                                    try {
+                                        val saved = withContext(Dispatchers.IO) { localDataStore.clearGoalHistory() }
+                                        dataMessage = if (saved) "과거 목표 이력을 삭제했습니다. 현재 목표는 유지됩니다."
+                                            else "목표 이력 변경의 저장을 확인하지 못했습니다."
+                                    } catch (cancelled: CancellationException) { throw cancelled }
+                                    catch (_: Exception) { dataMessage = "목표 이력 삭제를 확인하지 못했습니다." }
+                                    finally { goalSettingsVersion++; dataBusy = false }
+                                }
+                            }
+                        },
+                        onClearFocusHistory = {
+                            if (!dataBusy && focusRestored && focusSessionId == null &&
+                                !startInProgress && !finishInProgress && !pauseInProgress) {
+                                dataBusy = true
+                                dataMessage = ""
+                                scope.launch {
+                                    try {
+                                        val removed = withContext(Dispatchers.IO) { localDataStore.clearFocusHistory() }
+                                        if (removed == null) dataMessage = "진행 중인 집중 세션이 있어 삭제하지 않았습니다."
+                                        else {
+                                            refreshFocusMetrics()
+                                            resultExperience = 0
+                                            resultPoints = 0
+                                            val validItem = GardenCatalog.placed(placedGardenItemId, experience).id
+                                            placedGardenItemId = validItem
+                                            prefs.edit().putString("placed_garden_item_id", validItem).apply()
+                                            dataMessage = "집중 기록 ${removed}개와 연결된 보상을 삭제했습니다."
+                                        }
+                                    } catch (cancelled: CancellationException) { throw cancelled }
+                                    catch (_: Exception) {
+                                        dataMessage = "집중 기록 삭제 결과를 확인하지 못했습니다. 기록을 다시 확인해 주세요."
+                                    } finally { dataBusy = false }
+                                }
+                            }
+                        }
+                    )
                     detail == "permissions" -> key(reloadToken) { PermissionManagementScreen(
                         onBack = {detail = ""},
                         onUsageSettings = {openUsageSettings(context)},
@@ -624,7 +694,8 @@ fun FocusLockApp(goalAlertTarget: String? = null, onGoalAlertHandled: () -> Unit
                             onTheme = { theme=it;prefs.edit().putString("theme",it).apply() },
                             onPermissions = {detail="permissions"},
                             onInfo = {showInfo=true},
-                            onGoals = {detail="goals"}
+                            onGoals = {detail="goals"},
+                            onLocalData = { dataMessage = ""; detail = "local-data" }
                         )
                     }
                 }
