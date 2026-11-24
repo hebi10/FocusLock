@@ -67,6 +67,8 @@ adb shell input keyevent KEYCODE_HOME
 run_case 'com.haebi.focuslock.FocusLockUsageStateAuditTest#permissionGrantedCapturesRealUsageCoverage' "api${api}-granted" 1.0
 run_case 'com.haebi.focuslock.FocusPersistenceQaTest#storedRewardSurvivesDatabaseReopenAndIsNotDuplicated' "api${api}-room" 1.0
 run_case 'com.haebi.focuslock.FocusPersistenceQaTest#rebootPausesSessionAndNeverInventsCompletion' "api${api}-reboot" 1.0
+run_case 'com.haebi.focuslock.GoalManagerQaTest#legacyGoalsAndChangeHistoryRemainLocal' "api${api}-goal-history" 1.0
+run_case 'com.haebi.focuslock.GoalManagerQaTest#settingsCanOpenGoalManagerWithoutChangingUserGoals' "api${api}-goal-manager" 1.0
 
 if [[ "${api}" == "29" || "${api}" == "35" ]]; then
   adb shell wm size reset

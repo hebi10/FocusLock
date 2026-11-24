@@ -44,7 +44,10 @@ data class UsageSnapshot(
     val collectedAtMillis: Long,
     val appDaily30: Map<String, List<Int>> = emptyMap(),
     val coverage: UsageCoverage? = null,
-    val appObservedDates: Map<String, Set<LocalDate>> = emptyMap()
+    val appObservedDates: Map<String, Set<LocalDate>> = emptyMap(),
+    val dailyForegroundMillis: Map<LocalDate, Long> = emptyMap(),
+    val appDailyForegroundMillis: Map<String, Map<LocalDate, Long>> = emptyMap(),
+    val observedZoneId: String? = null
 ) {
     fun window(period: String): UsageWindow = when (period) {
         "7일" -> last7
@@ -232,7 +235,12 @@ class UsageRepository(private val context: Context) {
             UsageLoadState.Ready(UsageSnapshot(
                 todayWindow, last7, last30, yesterday, previous7, previous30,
                 daily7, daily30, appDaily7, hourly, nowMillis, appDaily30, coverage,
-                byApp.mapValues { (_, samples) -> samples.map { it.day }.toSet() }
+                byApp.mapValues { (_, samples) -> samples.map { it.day }.toSet() },
+                rows.groupBy { it.day }.mapValues { (_, samples) -> UsageMetrics.totalMillis(samples.map { it.foregroundMillis }) },
+                byApp.mapValues { (_, samples) -> samples.groupBy { it.day }.mapValues { (_, dayRows) ->
+                    UsageMetrics.totalMillis(dayRows.map { it.foregroundMillis })
+                } },
+                zone.id
             ))
         } catch (_: SecurityException) {
             UsageLoadState.PermissionRequired

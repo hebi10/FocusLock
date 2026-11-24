@@ -126,7 +126,7 @@ fun AppDetailScreen(
                 } else {
                     Text(
                         if (period == "오늘") "오늘 앱 사용 기록을 확인할 수 없어 목표 진행률을 표시하지 않습니다."
-                        else "일일 목표 진행률은 '오늘' 기준입니다. 과거 목표 변경 이력이 저장되지 않아 과거 달성률은 계산하지 않습니다.",
+                        else "일일 목표 진행률은 '오늘' 기준입니다. 목표 관리에서 관측 기록을 기준으로 과거 목표 달성률을 확인할 수 있습니다.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
