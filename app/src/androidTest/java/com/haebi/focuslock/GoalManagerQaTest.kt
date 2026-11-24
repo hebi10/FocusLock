@@ -57,22 +57,27 @@ class GoalManagerQaTest {
             val intent = Intent(context, MainActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
             ActivityScenario.launch<MainActivity>(intent).use {
-                val settings = device.wait(Until.findObject(By.res("nav-SETTINGS")), 10_000L)
-                    ?: device.wait(Until.findObject(By.desc("설정")), 5_000L)
+                assertTrue("Home must be loaded", device.wait(Until.hasObject(By.text("오늘의 FocusLock")), 20_000L))
+                val settings = device.wait(Until.findObject(By.text("설정")), 6_000L)
+                    ?: device.findObject(By.desc("설정"))
+                    ?: device.findObject(By.res("nav-SETTINGS"))
                 assertNotNull("Settings must be reachable", settings)
                 settings!!.click()
+                assertTrue("Settings screen must open", device.wait(
+                    Until.hasObject(By.text("사용 정보·알림 권한 관리")), 10_000L))
                 val goals = device.wait(Until.findObject(By.text("목표 관리")), 8_000L)
                 assertNotNull("Goal manager entry", goals)
                 goals!!.click()
                 assertTrue(device.wait(Until.hasObject(By.text("전체 앱 사용 목표")), 8_000L))
-                repeat(5) {
-                    if (!device.hasObject(By.res("whole-goal-save"))) {
+                repeat(6) {
+                    if (!device.hasObject(By.res("whole-goal-save")) && !device.hasObject(By.text("전체 목표 저장"))) {
                         device.swipe(device.displayWidth / 2, device.displayHeight * 3 / 4,
                             device.displayWidth / 2, device.displayHeight / 2, 35)
                         device.waitForIdle(500L)
                     }
                 }
-                assertTrue(device.wait(Until.hasObject(By.res("whole-goal-save")), 8_000L))
+                assertTrue("Whole goal save action must be reachable",
+                    device.hasObject(By.res("whole-goal-save")) || device.hasObject(By.text("전체 목표 저장")))
             }
         } finally {
             prefs.edit().putBoolean("onboarding_completed", wasCompleted).apply()
