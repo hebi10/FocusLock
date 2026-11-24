@@ -19,10 +19,19 @@ class ReleaseConfigurationTests(unittest.TestCase):
         self.assertNotIn('promote --', workflow)
         self.assertFalse((ROOT / '.github/workflows/play-promote.yml').exists())
 
-    def test_emulator_gate_runs_for_main_push_without_changing_test_script(self):
+    def test_final_emulator_gate_requires_manual_exact_main_and_preserves_tests(self):
         workflow = (ROOT / '.github/workflows/emulator-smoke.yml').read_text()
-        self.assertIn('push:\n    branches: [main]', workflow)
+        triggers = workflow.split('permissions:', 1)[0]
+        self.assertIn('workflow_dispatch:', triggers)
+        self.assertIn('expected_main_sha:', triggers)
+        self.assertNotIn('  pull_request:', triggers)
+        self.assertNotIn('  push:', triggers)
+        self.assertIn('needs: validate-source', workflow)
+        self.assertIn('"$EXPECTED_MAIN_SHA" == "$GITHUB_SHA"', workflow)
+        self.assertIn('gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main"', workflow)
         self.assertIn('script: bash scripts/run-emulator-qa.sh', workflow)
+        release = (ROOT / '.github/workflows/release-build.yml').read_text()
+        self.assertIn('REQUIRED_CI_JSON: \'["Android CI","Android full-screen emulator QA"]\'', release)
 
     def test_gradle_preserves_version_and_requires_existing_release_signer(self):
         gradle = (ROOT / 'app/build.gradle.kts').read_text()

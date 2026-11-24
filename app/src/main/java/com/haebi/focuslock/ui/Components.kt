@@ -188,7 +188,7 @@ fun BarChart(values: List<Int>, labels: List<String>, maxValue: Int, highlight: 
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                     maxLines = 1,
                     softWrap = false,
-                    modifier = if (compactTicks) Modifier else Modifier.weight(1f)
+                    modifier = if (compactTicks) Modifier.testTag("report-axis-tick-$label") else Modifier.weight(1f)
                 )
             }
         }
