@@ -51,6 +51,15 @@ class FocusLockUsageStateAuditTest {
         if (state is UsageLoadState.Ready) {
             val snapshot = state.snapshot
             val rowsToday = snapshot.today.apps
+            assertTrue("Weekly series must match the last seven monthly days", snapshot.daily7 == snapshot.daily30.takeLast(7))
+            assertTrue("All app weekly series must be derived from identical monthly records",
+                snapshot.appDaily7.all { (id, values) -> values == snapshot.appDaily30[id]?.takeLast(7) })
+            assertTrue("Coverage and indexed dates must agree",
+                snapshot.coverage?.observedDates == snapshot.dailyForegroundMillis.keys)
+            assertTrue("Raw app daily totals must match the raw daily aggregate",
+                snapshot.dailyForegroundMillis.all { (day, millis) ->
+                    snapshot.appDailyForegroundMillis.values.sumOf { it[day] ?: 0L } == millis
+                })
             val observed = snapshot.observedChart("7일")!!
             assertTrue("Missing dates must remain unknown", observed.indices.all { index ->
                 val date = snapshot.last7.startDate.plusDays(index.toLong())

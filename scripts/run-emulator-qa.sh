@@ -61,6 +61,8 @@ run_case 'com.haebi.focuslock.GoalManagerQaTest#legacyGoalsAndChangeHistoryRemai
 run_case 'com.haebi.focuslock.GoalManagerQaTest#settingsCanOpenGoalManagerWithoutChangingUserGoals' goal-manager-ui
 run_case 'com.haebi.focuslock.GoalAlertNavigationQaTest#distinctNotificationTargetsAndRealTodayReading' alert-targets
 run_case 'com.haebi.focuslock.GoalAlertNavigationQaTest#totalNotificationOpensGoalsWithoutChangingExistingSettings' alert-navigation
+run_case 'com.haebi.focuslock.LocalDataQaTest#exportAndSelectiveDeletionPreserveActiveAndUnrelatedData' local-data-storage
+run_case 'com.haebi.focuslock.LocalDataQaTest#dataScreenHasExportAndCancellableDeletion' local-data-ui
 run_case 'com.haebi.focuslock.FocusPersistenceQaTest#repeatedStartKeepsActiveSessionAndEarlyStopNeverEarnsRewards' room-duplicate-start-and-early-stop
 run_case 'com.haebi.focuslock.RenewNavigationQaTest#reportsAreTopLevelAndGardenRetainsFocusTab' renew-02a-navigation
 run_case 'com.haebi.focuslock.RenewHomeQaTest#homePresentsUsageBeforeOptionalFocusAndAllowsAnalysis' renew-02b-home
