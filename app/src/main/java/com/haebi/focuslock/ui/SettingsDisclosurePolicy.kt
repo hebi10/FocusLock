@@ -10,8 +10,8 @@ internal object SettingsDisclosurePolicy {
         "앱 사용 시간은 Android 시스템 통계에서 조회합니다. 목표 설정·변경 이력과 정원 배치, " +
         "집중 세션·보상 기록은 이 기기에 저장됩니다. 다른 앱의 메시지나 화면 내용은 읽지 않습니다."
     const val deleteNotice =
-        "앱 내 전체 데이터 삭제 기능은 제공하지 않습니다. " +
-        "Android 앱 정보에서 저장공간을 초기화하면 FocusLock의 목표·집중·보상·정원 기록과 설정이 삭제됩니다. " +
+        "데이터 관리에서 목표 이력과 종료된 집중 기록·연결 보상을 각각 삭제하거나 JSON으로 내보낼 수 있습니다. " +
+        "Android 앱 정보에서 저장공간을 초기화하면 FocusLock의 목표·집중·보상·정원 기록과 설정이 모두 삭제됩니다. " +
         "Android 시스템이 보관하는 다른 앱 사용 기록은 별도로 관리됩니다."
     const val limitsNotice =
         "FocusLock은 앱 사용 시간을 분석하고 선택한 목표에 알림을 제공하지만, " +

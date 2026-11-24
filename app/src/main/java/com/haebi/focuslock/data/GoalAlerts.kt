@@ -52,8 +52,7 @@ object GoalAlerts {
         )
     }
 
-    fun schedule(context: Context) {
-        val prefs = context.getSharedPreferences(PREFS, 0)
+    private fun hasConfiguredAlerts(prefs: android.content.SharedPreferences): Boolean {
         val hasAppGoals = prefs.all.any { (key, value) ->
             key.startsWith("goal.") && value is Int && value > 0 &&
                 daysForApp(prefs, key.removePrefix("goal.")) != GoalDayPolicy.NONE &&
@@ -61,15 +60,21 @@ object GoalAlerts {
         }
         val hasTotalGoal = prefs.getInt(GoalHistoryStore.TOTAL_KEY, 0) > 0 &&
             prefs.getBoolean(GoalHistoryStore.TOTAL_ALERT_KEY, false)
+        return hasAppGoals || hasTotalGoal
+    }
+
+    fun schedule(context: Context) {
+        val prefs = context.getSharedPreferences(PREFS, 0)
         val work = WorkManager.getInstance(context.applicationContext)
-        if (hasAppGoals || hasTotalGoal) {
+        if (hasConfiguredAlerts(prefs)) {
             val request = PeriodicWorkRequestBuilder<GoalAlertWorker>(15, TimeUnit.MINUTES).build()
             work.enqueueUniquePeriodicWork(UNIQUE_WORK, ExistingPeriodicWorkPolicy.KEEP, request)
         } else work.cancelUniqueWork(UNIQUE_WORK)
     }
 
     fun checkNow(context: Context, snapshot: UsageSnapshot? = null) {
-        if (!hasUsageAccess(context)) return
+        val prefs = context.getSharedPreferences(PREFS, 0)
+        if (!hasConfiguredAlerts(prefs) || !hasUsageAccess(context)) return
         val before = goalNotificationAvailability(context)
         if (before != GoalNotificationAvailability.READY && before != GoalNotificationAvailability.CHANNEL_MISSING) return
         if (before == GoalNotificationAvailability.CHANNEL_MISSING) ensureChannel(context)
@@ -82,7 +87,6 @@ object GoalAlerts {
         }?.let { GoalUsageReading(date, zone, it.today.totalForegroundMillis, it.today.apps) }
         val reading = recent ?: UsageRepository(context.applicationContext).loadTodayForAlerts(now) ?: return
         if (reading.date != LocalDate.now() || reading.zoneId != ZoneId.systemDefault().id) return
-        val prefs = context.getSharedPreferences(PREFS, 0)
         val manager = (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
         val today = reading.date.toEpochDay()
 

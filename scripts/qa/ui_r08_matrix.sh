@@ -72,6 +72,8 @@ run_case 'com.haebi.focuslock.GoalManagerQaTest#legacyGoalsAndChangeHistoryRemai
 run_case 'com.haebi.focuslock.GoalManagerQaTest#settingsCanOpenGoalManagerWithoutChangingUserGoals' "api${api}-goal-manager" 1.0
 run_case 'com.haebi.focuslock.GoalAlertNavigationQaTest#distinctNotificationTargetsAndRealTodayReading' "api${api}-alert-targets" 1.0
 run_case 'com.haebi.focuslock.GoalAlertNavigationQaTest#totalNotificationOpensGoalsWithoutChangingExistingSettings' "api${api}-alert-navigation" 1.0
+run_case 'com.haebi.focuslock.LocalDataQaTest#exportAndSelectiveDeletionPreserveActiveAndUnrelatedData' "api${api}-local-data-storage" 1.0
+run_case 'com.haebi.focuslock.LocalDataQaTest#dataScreenHasExportAndCancellableDeletion' "api${api}-local-data-ui" 1.0
 
 if [[ "${api}" == "29" || "${api}" == "35" ]]; then
   adb shell wm size reset

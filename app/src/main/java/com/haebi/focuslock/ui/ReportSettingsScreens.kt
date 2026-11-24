@@ -151,7 +151,7 @@ private fun InfoPairReport(label: String, value: String) {
 }
 
 @Composable
-fun SettingsScreen(theme: String, onTheme: (String) -> Unit, onPermissions: () -> Unit, onInfo: () -> Unit, onGoals: () -> Unit = {}) {
+fun SettingsScreen(theme: String, onTheme: (String) -> Unit, onPermissions: () -> Unit, onInfo: () -> Unit, onGoals: () -> Unit = {}, onLocalData: () -> Unit = {}) {
     AdaptiveScrollColumn {
         PageTitle("설정", SettingsDisclosurePolicy.subtitle)
         FocusCard {
@@ -175,6 +175,7 @@ fun SettingsScreen(theme: String, onTheme: (String) -> Unit, onPermissions: () -
             SectionTitle("데이터")
             Text(SettingsDisclosurePolicy.localDataNotice, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(SettingsDisclosurePolicy.deleteNotice, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            SettingRow("데이터 관리", "로컬 기록 JSON 내보내기 및 종류별 삭제", onClick = onLocalData)
         }
         FocusCard {
             SectionTitle("기능 범위")

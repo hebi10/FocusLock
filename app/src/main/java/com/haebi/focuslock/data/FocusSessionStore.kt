@@ -41,6 +41,9 @@ data class FocusSummary(
     fun forPeriod(period: String): FocusReport = if (period == "30일") last30 else last7
 }
 
+internal data class FocusMetrics(val experience: Int, val points: Int, val todayExperience: Int, val report: FocusSummary)
+internal data class FocusHistorySnapshot(val sessions: List<FocusSessionEntity>, val rewards: List<FocusRewardEntity>)
+
 /** Room is the source of truth. All state transitions are atomic, including one-time rewards. */
 class FocusSessionStore(
     private val database: FocusDatabase,
@@ -152,6 +155,21 @@ class FocusSessionStore(
         dao.updateSession(result)
         if (earned) dao.insertReward(FocusRewardEntity(id, finishedAt, 30, 20))
         FocusFinish(result, dao.rewardBySession(id))
+    }
+
+    internal suspend fun metrics(): FocusMetrics = database.withTransaction {
+        FocusMetrics(totalExperience(), totalPoints(), todayExperience(), report())
+    }
+
+    internal suspend fun historySnapshot(): FocusHistorySnapshot = database.withTransaction {
+        FocusHistorySnapshot(dao.finalizedSessions(), dao.finalizedRewards())
+    }
+
+    /** Null means an active or paused session exists: nothing was removed. */
+    internal suspend fun deleteFinalizedHistory(): Int? = database.withTransaction {
+        if (dao.activeSession() != null) return@withTransaction null
+        dao.deleteFinalizedRewards()
+        dao.deleteFinalizedSessions()
     }
 
     suspend fun totalExperience(): Int = dao.totalExperience()
