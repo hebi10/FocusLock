@@ -12,6 +12,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -25,7 +28,7 @@ import com.haebi.focuslock.data.GoalHistoryPolicy
 @Composable
 internal fun ReportScreen(state: UsageLoadState, excluded: Map<String, Boolean>, focusSummary: FocusSummary, onBack: (() -> Unit)?, onApp: (AppUsage, String) -> Unit, onUsageSettings: () -> Unit, onRefresh: () -> Unit, goalHistory: List<GoalHistoryEvent> = emptyList(), onGoals: () -> Unit = {}) {
     var period by rememberSaveable { mutableStateOf("7일") }
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    AdaptiveScrollColumn {
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (onBack != null) {
                 IconButton(onClick = onBack) { Icon(Icons.Outlined.ArrowBack, "뒤로") }
@@ -59,7 +62,26 @@ internal fun ReportScreen(state: UsageLoadState, excluded: Map<String, Boolean>,
                 val values = recorded.map { it ?: 0 }
                 if (recorded.any { it != null }) {
                     val labels = if (period == "7일") listOf("6일 전", "5일 전", "4일 전", "3일 전", "2일 전", "어제", "오늘") else thirtyDayAxisLabels(values.size)
-                    BarChart(values, labels, (values.maxOrNull() ?: 1).coerceAtLeast(1), -1, observed = recorded.map { it != null })
+                    var savedIndex by rememberSaveable(period, selected.startDate.toString(), recorded.size) {
+                        mutableIntStateOf(recorded.lastIndex)
+                    }
+                    val index = ChartSelectionPolicy.index(recorded.size, savedIndex)
+                    BarChart(values, labels, (values.maxOrNull() ?: 1).coerceAtLeast(1), index, observed = recorded.map { it != null })
+                    val day = selected.startDate.plusDays(index.toLong())
+                    val dateLabel = day.format(DateTimeFormatter.ofPattern("M월 d일", Locale.KOREAN))
+                    val valueLabel = recorded[index]?.let(UsageFormat::minutesLabel) ?: "기록 미확인"
+                    Text("$dateLabel · $valueLabel", style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.testTag("report-chart-selected"))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.xs)) {
+                        OutlinedButton(onClick = { savedIndex = ChartSelectionPolicy.step(recorded.size, index, -1) },
+                            enabled = index > 0,
+                            modifier = Modifier.weight(1f).heightIn(min = FocusSpacing.minTouchTarget)
+                                .testTag("report-chart-prev")) { Text("이전 날짜") }
+                        OutlinedButton(onClick = { savedIndex = ChartSelectionPolicy.step(recorded.size, index, 1) },
+                            enabled = index < recorded.lastIndex,
+                            modifier = Modifier.weight(1f).heightIn(min = FocusSpacing.minTouchTarget)
+                                .testTag("report-chart-next")) { Text("다음 날짜") }
+                    }
                     Text("회색 짧은 선은 기록 미확인 날짜입니다. 0분으로 집계하지 않습니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     if (period == "30일") {
                         Text("가로축 숫자는 오늘 기준 며칠 전인지를 표시합니다. (0 = 오늘)", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -130,7 +152,7 @@ private fun InfoPairReport(label: String, value: String) {
 
 @Composable
 fun SettingsScreen(theme: String, onTheme: (String) -> Unit, onPermissions: () -> Unit, onInfo: () -> Unit, onGoals: () -> Unit = {}) {
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    AdaptiveScrollColumn {
         PageTitle("설정", SettingsDisclosurePolicy.subtitle)
         FocusCard {
             SectionTitle("권한")
@@ -177,7 +199,7 @@ fun PermissionManagementScreen(onBack: () -> Unit, onUsageSettings: () -> Unit, 
     val usageGranted = remember(refresh) { hasUsageAccess(context) }
     val notificationState = remember(refresh) { goalNotificationAvailability(context) }
     val notificationGranted = notificationState == GoalNotificationAvailability.READY
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    AdaptiveScrollColumn {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.Outlined.ArrowBack, "뒤로") }
             Text("권한 관리", fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))

@@ -19,6 +19,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -65,17 +68,13 @@ fun AppDetailScreen(
     val todayMinutes = todayRecord?.minutes ?: 0
     val values = snapshot.observedAppChart(app.id, period)
 
-    Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-            .padding(horizontal = FocusSpacing.md, vertical = FocusSpacing.md),
-        verticalArrangement = Arrangement.spacedBy(FocusSpacing.md)
-    ) {
+    AdaptiveScrollColumn {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(FocusSpacing.xs)
         ) {
             IconButton(onClick = onBack) { Icon(Icons.Outlined.ArrowBack, "뒤로") }
-            AppSymbol(app, 48.dp)
+            InstalledAppIcon(app, 48.dp)
             Column(Modifier.weight(1f)) {
                 Text(app.name, style = MaterialTheme.typography.headlineMedium)
                 Text(
@@ -236,7 +235,9 @@ fun AppDetailScreen(
 
 @Composable
 private fun AppDetailHistoryChart(values: List<Int?>, startDate: LocalDate) {
-    var selectedIndex by remember(values, startDate) { mutableIntStateOf(values.lastIndex) }
+    var savedIndex by rememberSaveable(startDate.toString(), values.size) { mutableIntStateOf(values.lastIndex) }
+    if (values.isEmpty()) return
+    val selectedIndex = ChartSelectionPolicy.index(values.size, savedIndex)
     val maximum = values.filterNotNull().maxOrNull()?.coerceAtLeast(1) ?: 1
     val selectedDate = startDate.plusDays(selectedIndex.toLong())
     Text(
@@ -259,8 +260,9 @@ private fun AppDetailHistoryChart(values: List<Int?>, startDate: LocalDate) {
             Column(
                 modifier = Modifier.width(FocusSpacing.minTouchTarget).heightIn(min = 146.dp)
                     .testTag("app-history-bar-$index")
-                    .clickable(role = Role.Button) { selectedIndex = index }
+                    .clickable(role = Role.Button) { savedIndex = index }
                     .semantics {
+                        this.selected = selectedIndex == index
                         contentDescription =
                             "${date.format(DateTimeFormatter.ofPattern("M월 d일 EEEE", Locale.KOREAN))}, ${minutes?.let(UsageFormat::minutesLabel) ?: "기록 미확인"}"
                     },
@@ -296,7 +298,8 @@ private fun AppDetailHistoryChart(values: List<Int?>, startDate: LocalDate) {
 private fun InfoPair(label: String, value: String) {
     Row(Modifier.fillMaxWidth().padding(vertical = 7.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(label, Modifier.weight(1f), fontSize = 13.sp)
-        Text(value, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, Modifier.weight(1f), fontSize = 13.sp, textAlign = TextAlign.End,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -335,7 +338,7 @@ fun GoalSheet(
             ) {
                 Text("사용 목표 설정", style = MaterialTheme.typography.headlineMedium)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(FocusSpacing.sm)) {
-                    AppSymbol(app)
+                    InstalledAppIcon(app, 38.dp)
                     Text(app.name, style = MaterialTheme.typography.titleMedium)
                 }
                 FocusCard {

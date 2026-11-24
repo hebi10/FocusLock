@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.sp
 import com.haebi.focuslock.R
 import com.haebi.focuslock.data.AppUsage
@@ -250,7 +251,7 @@ fun AnalysisScreen(
     var query by rememberSaveable { mutableStateOf("") }
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        val wide = maxWidth >= 700.dp
+        val wide = maxWidth >= 700.dp && maxWidth / LocalDensity.current.fontScale >= 600.dp
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState())
                 .padding(horizontal = FocusSpacing.md, vertical = FocusSpacing.md),

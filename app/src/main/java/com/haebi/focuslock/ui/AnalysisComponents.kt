@@ -19,6 +19,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
@@ -28,6 +29,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.semantics.selected
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import com.haebi.focuslock.data.AppUsage
 import com.haebi.focuslock.data.UsageFormat
 import com.haebi.focuslock.data.UsageMetrics
@@ -37,7 +42,7 @@ import com.haebi.focuslock.data.UsageWindow
 @Composable
 fun AnalysisChart(snapshot: UsageSnapshot, period: String) {
     val bars = AnalysisModels.bars(snapshot, period)
-    var selectedIndex by rememberSaveable(period) { mutableIntStateOf(-1) }
+    var selectedIndex by rememberSaveable(period, snapshot.window(period).startDate.toString()) { mutableIntStateOf(-1) }
     FocusCard {
         SectionTitle(if (period == "오늘") "시간대별 사용량" else "일별 사용 시간")
         when {
@@ -62,10 +67,10 @@ fun AnalysisChart(snapshot: UsageSnapshot, period: String) {
                 )
                 val maxValue = bars.maxOf { it.minutes }.coerceAtLeast(1)
                 BoxWithConstraints(Modifier.fillMaxWidth()) {
-                    val barWidth = if (bars.size <= 7) maxWidth / bars.size else FocusSpacing.minTouchTarget
-                    val touchWidth = if (barWidth < FocusSpacing.minTouchTarget) FocusSpacing.minTouchTarget else barWidth
+                    val touchWidth = maxOf(maxWidth / bars.size, FocusSpacing.minTouchTarget)
+                    val chartScroll = rememberScrollState()
                     Row(
-                        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        Modifier.fillMaxWidth().horizontalScroll(chartScroll),
                         horizontalArrangement = Arrangement.spacedBy(0.dp)
                     ) {
                         bars.forEachIndexed { index, bar ->
@@ -75,6 +80,7 @@ fun AnalysisChart(snapshot: UsageSnapshot, period: String) {
                                     .clickable(role = Role.Button) { selectedIndex = index }
                                     .semantics {
                                         contentDescription = "${bar.detail}, ${bar.valueLabel}"
+                                        this.selected = selectedIndex == index
                                     },
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(FocusSpacing.xs)
@@ -212,7 +218,7 @@ fun AnalysisAppList(
                     onClick = { categoryMenu = true },
                     modifier = Modifier.fillMaxWidth().heightIn(min = FocusSpacing.minTouchTarget)
                 ) {
-                    Text("분류: $category", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text("분류: $category", maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
                 DropdownMenu(expanded = categoryMenu, onDismissRequest = { categoryMenu = false }) {
                     categories.forEach { item ->
@@ -230,7 +236,7 @@ fun AnalysisAppList(
                         .heightIn(min = FocusSpacing.minTouchTarget)
                         .testTag("analysis-sort-button")
                 ) {
-                    Text("정렬: $effectiveSort", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text("정렬: $effectiveSort", maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
                 DropdownMenu(expanded = sortMenu, onDismissRequest = { sortMenu = false }) {
                     availableSorts.forEach { item ->
@@ -294,7 +300,7 @@ private fun AnalysisAppRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(FocusSpacing.sm)
     ) {
-        AnalysisAppIcon(app)
+        InstalledAppIcon(app)
         Column(Modifier.weight(1f)) {
             Text(
                 app.name,
@@ -327,20 +333,24 @@ private fun AnalysisAppRow(
 }
 
 @Composable
-private fun AnalysisAppIcon(app: AppUsage) {
+internal fun InstalledAppIcon(app: AppUsage, size: Dp = 40.dp) {
     val context = LocalContext.current
-    val icon = remember(context, app.packageName) {
-        app.packageName?.let { packageName ->
-            runCatching {
-                val drawable = context.packageManager.getApplicationIcon(packageName).mutate()
-                val bitmap = Bitmap.createBitmap(96, 96, Bitmap.Config.ARGB_8888)
-                val canvas = Canvas(bitmap)
-                drawable.setBounds(0, 0, 96, 96)
-                drawable.draw(canvas)
-                bitmap.asImageBitmap()
-            }.getOrNull()
+    var icon by remember(context, app.packageName) { mutableStateOf<ImageBitmap?>(null) }
+    LaunchedEffect(context, app.packageName) {
+        icon = withContext(Dispatchers.IO) {
+            app.packageName?.let { packageName ->
+                runCatching {
+                    val drawable = context.packageManager.getApplicationIcon(packageName).mutate()
+                    val bitmap = Bitmap.createBitmap(96, 96, Bitmap.Config.ARGB_8888)
+                    val canvas = Canvas(bitmap)
+                    drawable.setBounds(0, 0, 96, 96)
+                    drawable.draw(canvas)
+                    bitmap.asImageBitmap()
+                }.getOrNull()
+            }
         }
     }
-    if (icon == null) AppSymbol(app, 40.dp)
-    else Image(bitmap = icon, contentDescription = null, modifier = Modifier.size(40.dp))
+    val loaded = icon
+    if (loaded == null) AppSymbol(app, size)
+    else Image(bitmap = loaded, contentDescription = null, modifier = Modifier.size(size))
 }
