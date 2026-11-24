@@ -33,6 +33,7 @@ import com.haebi.focuslock.data.UsageSnapshot
 import com.haebi.focuslock.data.FocusSessionEntity
 import com.haebi.focuslock.data.FocusSessionStatus
 import com.haebi.focuslock.data.FocusSessionStore
+import com.haebi.focuslock.data.FocusTiming
 import com.haebi.focuslock.data.FocusSummary
 import com.haebi.focuslock.data.GoalAlerts
 import com.haebi.focuslock.data.GoalDayPolicy
@@ -166,7 +167,6 @@ fun FocusLockApp() {
     var elapsedSeconds by rememberSaveable { mutableIntStateOf(0) }
     var remainingSeconds by rememberSaveable { mutableIntStateOf(25 * 60) }
     var startElapsed by rememberSaveable { mutableLongStateOf(0L) }
-    var endElapsed by rememberSaveable { mutableLongStateOf(0L) }
     var paused by rememberSaveable { mutableStateOf(false) }
     var completed by rememberSaveable { mutableStateOf(false) }
     var experience by rememberSaveable { mutableIntStateOf(0) }
@@ -175,6 +175,7 @@ fun FocusLockApp() {
     var resultPoints by rememberSaveable { mutableIntStateOf(0) }
     var startInProgress by remember { mutableStateOf(false) }
     var finishInProgress by remember { mutableStateOf(false) }
+    var pauseInProgress by remember { mutableStateOf(false) }
     var todayExperience by remember { mutableIntStateOf(0) }
     var stopConfirm by rememberSaveable { mutableStateOf(false) }
     var focusSessionId by remember { mutableStateOf<String?>(null) }
@@ -184,12 +185,12 @@ fun FocusLockApp() {
     fun applySession(session: FocusSessionEntity) {
         focusSessionId = session.id
         focusDuration = session.durationMinutes
-        elapsedSeconds = session.elapsedSeconds
-        remainingSeconds = if (session.durationMinutes == 0) 0 else
-            (session.durationMinutes * 60 - session.elapsedSeconds).coerceAtLeast(0)
         startElapsed = session.checkpointElapsedRealtime - session.elapsedSeconds * 1000L
-        endElapsed = session.checkpointElapsedRealtime + remainingSeconds * 1000L
         paused = session.status == FocusSessionStatus.PAUSED
+        val millis = if (paused) session.elapsedSeconds.toLong() * 1000L else
+            FocusTiming.elapsedMillis(0, startElapsed, SystemClock.elapsedRealtime(), session.durationMinutes)
+        elapsedSeconds = FocusTiming.seconds(millis)
+        remainingSeconds = FocusTiming.remainingSeconds(session.durationMinutes, millis)
         focusPhase = "running"
     }
 
@@ -206,6 +207,11 @@ fun FocusLockApp() {
         recovered.session?.let {
             applySession(it)
             focusRestoreMessage = recovered.pausedByRestart
+        } ?: run {
+            if (focusPhase == "running" && focusSessionId == null) {
+                focusPhase = "setup"
+                stopConfirm = false
+            }
         }
     }
     LaunchedEffect(goalSettingsVersion) { GoalAlerts.schedule(context.applicationContext) }
@@ -265,13 +271,13 @@ fun FocusLockApp() {
         }
     }
 
-    fun finishFocus() {
+    fun finishFocus(onlyIfDue: Boolean = false) {
         val id = focusSessionId ?: return
-        if (finishInProgress) return
+        if (finishInProgress || pauseInProgress) return
         finishInProgress = true
         scope.launch {
             try {
-                val result = withContext(Dispatchers.IO) { focusStore.finish(id) } ?: return@launch
+                val result = withContext(Dispatchers.IO) { focusStore.finish(id, onlyIfDue) } ?: return@launch
                 completed = result.reward != null
                 resultExperience = result.reward?.experience ?: 0
                 resultPoints = result.reward?.points ?: 0
@@ -289,26 +295,29 @@ fun FocusLockApp() {
         }
     }
 
-    LaunchedEffect(focusPhase, paused, focusSessionId) {
-        var lastCheckpoint = -1
-        while (focusPhase == "running" && !paused && focusSessionId != null) {
-            delay(1000L)
-            val now = SystemClock.elapsedRealtime()
-            if (focusDuration == 0) {
-                elapsedSeconds = ((now - startElapsed) / 1000L).toInt().coerceAtLeast(0)
-            } else {
-                remainingSeconds = ((endElapsed - now + 999L) / 1000L).toInt().coerceAtLeast(0)
-                elapsedSeconds = (focusDuration * 60 - remainingSeconds).coerceAtLeast(0)
-                if (remainingSeconds == 0) {
-                    paused = true
-                    finishFocus()
-                    break
+    LaunchedEffect(focusPhase, paused, focusSessionId, lifecycleOwner) {
+        var lastCheckpointBucket = elapsedSeconds / 10
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            while (focusPhase == "running" && !paused && focusSessionId != null) {
+                val millis = FocusTiming.elapsedMillis(0, startElapsed, SystemClock.elapsedRealtime(), focusDuration)
+                elapsedSeconds = FocusTiming.seconds(millis)
+                remainingSeconds = FocusTiming.remainingSeconds(focusDuration, millis)
+                if (focusDuration > 0 && remainingSeconds == 0) {
+                    finishFocus(onlyIfDue = true)
+                    delay(250L)
+                    continue
                 }
-            }
-            if (elapsedSeconds > 0 && elapsedSeconds % 10 == 0 && lastCheckpoint != elapsedSeconds) {
-                lastCheckpoint = elapsedSeconds
-                val id = focusSessionId ?: break
-                withContext(Dispatchers.IO) { focusStore.checkpoint(id) }
+                val bucket = elapsedSeconds / 10
+                if (bucket > lastCheckpointBucket && !finishInProgress && !pauseInProgress) {
+                    lastCheckpointBucket = bucket
+                    val id = focusSessionId ?: break
+                    val saved = withContext(Dispatchers.IO) { focusStore.checkpoint(id) }
+                    if (saved?.status == FocusSessionStatus.PAUSED && !pauseInProgress) {
+                        applySession(saved)
+                        focusRestoreMessage = true
+                    }
+                }
+                delay(FocusTiming.nextTickDelay(millis))
             }
         }
     }
@@ -394,11 +403,18 @@ fun FocusLockApp() {
                         restoredAfterReboot = focusRestoreMessage,
                         onPauseToggle = {
                             val id = focusSessionId
-                            if (id != null) scope.launch {
-                                val changed = withContext(Dispatchers.IO) { focusStore.togglePause(id) }
-                                if (changed != null) {
-                                    applySession(changed)
-                                    focusRestoreMessage = false
+                            if (id != null && !pauseInProgress && !finishInProgress) {
+                                pauseInProgress = true
+                                scope.launch {
+                                    try {
+                                        val changed = withContext(Dispatchers.IO) { focusStore.togglePause(id) }
+                                        if (changed != null && focusSessionId == id) {
+                                            applySession(changed)
+                                            focusRestoreMessage = false
+                                        }
+                                    } finally {
+                                        pauseInProgress = false
+                                    }
                                 }
                             }
                         },
@@ -592,7 +608,7 @@ fun FocusLockApp() {
                         "지금 종료하면 보상 없이 기록됩니다."
                 )
             },
-            confirmButton={TextButton(onClick=::finishFocus){Text("종료")}},
+            confirmButton={TextButton(onClick={finishFocus()}, enabled=!finishInProgress && !pauseInProgress){Text("종료")}},
             dismissButton={TextButton(onClick={stopConfirm=false}){Text("계속 집중")}}
         )
         if(showInfo) AlertDialog(

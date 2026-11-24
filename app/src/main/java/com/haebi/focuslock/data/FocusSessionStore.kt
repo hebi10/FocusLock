@@ -53,15 +53,26 @@ class FocusSessionStore(
             FocusSessionStore(FocusDatabase.get(context), AndroidFocusClock(context))
     }
 
-    private fun elapsed(session: FocusSessionEntity): Int {
-        if (session.status != FocusSessionStatus.RUNNING ||
-            session.bootCount != clock.bootCount() ||
-            clock.monotonicMillis() < session.checkpointElapsedRealtime
-        ) return session.elapsedSeconds
-        val delta = ((clock.monotonicMillis() - session.checkpointElapsedRealtime) / 1000L)
-            .coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
-        val total = (session.elapsedSeconds.toLong() + delta).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
-        return if (session.durationMinutes > 0) total.coerceAtMost(session.durationMinutes * 60) else total
+    private fun sameBoot(session: FocusSessionEntity, now: Long, boot: Int): Boolean =
+        session.bootCount == boot && now >= session.checkpointElapsedRealtime
+
+    private fun elapsed(session: FocusSessionEntity, now: Long, boot: Int): Int {
+        if (session.status != FocusSessionStatus.RUNNING || !sameBoot(session, now, boot))
+            return session.elapsedSeconds
+        return FocusTiming.seconds(FocusTiming.elapsedMillis(
+            session.elapsedSeconds, session.checkpointElapsedRealtime, now, session.durationMinutes
+        ))
+    }
+
+    private fun runningCheckpoint(session: FocusSessionEntity, now: Long, boot: Int): FocusSessionEntity {
+        if (!sameBoot(session, now, boot)) return session.copy(status = FocusSessionStatus.PAUSED)
+        val seconds = elapsed(session, now, boot)
+        return session.copy(
+            elapsedSeconds = seconds,
+            checkpointElapsedRealtime = FocusTiming.nextCheckpoint(
+                session.checkpointElapsedRealtime, session.elapsedSeconds, seconds
+            )
+        )
     }
 
     suspend fun start(durationMinutes: Int): FocusSessionEntity = database.withTransaction {
@@ -78,11 +89,11 @@ class FocusSessionStore(
 
     suspend fun restore(): FocusRestore = database.withTransaction {
         val previous = dao.activeSession() ?: return@withTransaction FocusRestore(null)
-        val differentBoot = previous.status == FocusSessionStatus.RUNNING &&
-            (previous.bootCount != clock.bootCount() || clock.monotonicMillis() < previous.checkpointElapsedRealtime)
-        val recovered = if (differentBoot) previous.copy(status = FocusSessionStatus.PAUSED)
-        else if (previous.status == FocusSessionStatus.RUNNING)
-            previous.copy(elapsedSeconds = elapsed(previous), checkpointElapsedRealtime = clock.monotonicMillis())
+        val now = clock.monotonicMillis()
+        val boot = clock.bootCount()
+        val differentBoot = previous.status == FocusSessionStatus.RUNNING && !sameBoot(previous, now, boot)
+        val recovered = if (previous.status == FocusSessionStatus.RUNNING)
+            runningCheckpoint(previous, now, boot)
         else previous
         dao.updateSession(recovered)
         FocusRestore(recovered, differentBoot)
@@ -91,31 +102,28 @@ class FocusSessionStore(
     suspend fun checkpoint(id: String): FocusSessionEntity? = database.withTransaction {
         val current = dao.sessionById(id) ?: return@withTransaction null
         if (current.status != FocusSessionStatus.RUNNING) return@withTransaction current
-        val updated = if (current.bootCount != clock.bootCount() ||
-            clock.monotonicMillis() < current.checkpointElapsedRealtime
-        ) current.copy(status = FocusSessionStatus.PAUSED)
-        else current.copy(elapsedSeconds = elapsed(current), checkpointElapsedRealtime = clock.monotonicMillis())
+        val updated = runningCheckpoint(current, clock.monotonicMillis(), clock.bootCount())
         dao.updateSession(updated)
         updated
     }
 
     suspend fun togglePause(id: String): FocusSessionEntity? = database.withTransaction {
         val current = dao.sessionById(id) ?: return@withTransaction null
+        val now = clock.monotonicMillis()
+        val boot = clock.bootCount()
         val next = when (current.status) {
             FocusSessionStatus.RUNNING -> {
-                val isSameBoot = current.bootCount == clock.bootCount() &&
-                    clock.monotonicMillis() >= current.checkpointElapsedRealtime
                 current.copy(
-                    elapsedSeconds = elapsed(current),
+                    elapsedSeconds = elapsed(current, now, boot),
                     status = FocusSessionStatus.PAUSED,
-                    checkpointElapsedRealtime = clock.monotonicMillis(),
-                    bootCount = if (isSameBoot) current.bootCount else clock.bootCount()
+                    checkpointElapsedRealtime = now,
+                    bootCount = boot
                 )
             }
             FocusSessionStatus.PAUSED -> current.copy(
                 status = FocusSessionStatus.RUNNING,
-                checkpointElapsedRealtime = clock.monotonicMillis(),
-                bootCount = clock.bootCount()
+                checkpointElapsedRealtime = now,
+                bootCount = boot
             )
             else -> return@withTransaction current
         }
@@ -123,19 +131,26 @@ class FocusSessionStore(
         next
     }
 
-    suspend fun finish(id: String): FocusFinish? = database.withTransaction {
+    suspend fun finish(id: String, onlyIfDue: Boolean = false): FocusFinish? = database.withTransaction {
         val original = dao.sessionById(id) ?: return@withTransaction null
         if (original.status == FocusSessionStatus.COMPLETED || original.status == FocusSessionStatus.STOPPED)
             return@withTransaction FocusFinish(original, dao.rewardBySession(id))
-        val seconds = elapsed(original)
+        val now = clock.monotonicMillis()
+        val boot = clock.bootCount()
+        val seconds = elapsed(original, now, boot)
         val earned = FocusRewardRules.qualifies(original.durationMinutes, seconds)
+        // An early automatic finish must never persist STOPPED or award a paused/rebooted session.
+        if (onlyIfDue && (original.durationMinutes <= 0 || !earned ||
+                original.status != FocusSessionStatus.RUNNING || !sameBoot(original, now, boot)))
+            return@withTransaction null
+        val finishedAt = clock.wallMillis()
         val result = original.copy(
             elapsedSeconds = seconds,
-            finishedAtMillis = clock.wallMillis(),
+            finishedAtMillis = finishedAt,
             status = if (earned) FocusSessionStatus.COMPLETED else FocusSessionStatus.STOPPED
         )
         dao.updateSession(result)
-        if (earned) dao.insertReward(FocusRewardEntity(id, clock.wallMillis(), 30, 20))
+        if (earned) dao.insertReward(FocusRewardEntity(id, finishedAt, 30, 20))
         FocusFinish(result, dao.rewardBySession(id))
     }
 
