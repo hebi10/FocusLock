@@ -34,10 +34,24 @@ class FocusPersistenceQaTest {
         try {
             val store = FocusSessionStore(original, clock)
             val session = store.start(10)
-            clock.monotonic += 600_000L
-            clock.wall += 600_000L
-            val first = store.finish(session.id)
+            // Non-integral checkpoints used to discard fractional elapsed time at every save.
+            repeat(59) {
+                clock.monotonic += 10_007L
+                clock.wall += 10_007L
+                store.checkpoint(session.id)
+            }
+            val recovered = store.restore().session
+            assertEquals(session.id, recovered?.id)
+            assertEquals(590, recovered?.elapsedSeconds)
+            clock.monotonic += 9_586L
+            clock.wall += 9_586L
+            assertEquals(null, store.finish(session.id, onlyIfDue = true))
+            assertEquals(FocusSessionStatus.RUNNING, store.restore().session?.status)
+            clock.monotonic += 1L
+            clock.wall += 1L
+            val first = store.finish(session.id, onlyIfDue = true)
             val second = store.finish(session.id)
+            assertEquals(600, first?.session?.elapsedSeconds)
             assertNotNull(first?.reward)
             assertEquals(first?.reward, second?.reward)
             assertEquals(30, store.totalExperience())
@@ -89,6 +103,7 @@ class FocusPersistenceQaTest {
             assertEquals(20, checkpoint?.elapsedSeconds)
             clock.boot++
             clock.monotonic = 5_000L
+            assertEquals(null, store.finish(original.id, onlyIfDue = true))
             val recovery = store.restore()
             assertTrue(recovery.pausedByRestart)
             assertEquals(FocusSessionStatus.PAUSED, recovery.session?.status)
