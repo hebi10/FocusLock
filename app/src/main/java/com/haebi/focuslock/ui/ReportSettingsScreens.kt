@@ -41,22 +41,24 @@ fun ReportScreen(state: UsageLoadState, excluded: Map<String, Boolean>, focusSum
             }
         } else {
             val selected = snapshot.window(period)
-            val prev = snapshot.prior(period)
             val visibleApps = selected.apps.filter { excluded[it.id] != true }
             FocusCard {
-                Metric(UsageFormat.minutesLabel(selected.totalMinutes), "최근 ${period} 총 사용 시간")
+                Metric(if (selected.apps.isEmpty()) "기록 미확인" else UsageFormat.minutesLabel(selected.totalMinutes), "최근 ${period} 총 사용 시간")
                 Text(
-                    ReportChangePolicy.totalChange(snapshot, period)
-                        ?: "이전 기간의 관측 기록이 부족해 정확한 변화를 계산할 수 없습니다.",
+                    UsageComparisonPolicy.summary(snapshot, period),
                     fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                Text(UsageComparisonPolicy.partialTodayNotice, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(UsageComparisonPolicy.foregroundNotice, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             FocusCard {
                 SectionTitle("사용 시간 추이")
-                val values = snapshot.chart(period) ?: emptyList()
-                if (values.any { it > 0 }) {
+                val recorded = snapshot.observedChart(period).orEmpty()
+                val values = recorded.map { it ?: 0 }
+                if (recorded.any { it != null }) {
                     val labels = if (period == "7일") listOf("6일 전", "5일 전", "4일 전", "3일 전", "2일 전", "어제", "오늘") else thirtyDayAxisLabels(values.size)
-                    BarChart(values, labels, (values.maxOrNull() ?: 1).coerceAtLeast(1), -1)
+                    BarChart(values, labels, (values.maxOrNull() ?: 1).coerceAtLeast(1), -1, observed = recorded.map { it != null })
+                    Text("회색 짧은 선은 기록 미확인 날짜입니다. 0분으로 집계하지 않습니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     if (period == "30일") {
                         Text("가로축 숫자는 오늘 기준 며칠 전인지를 표시합니다. (0 = 오늘)", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }

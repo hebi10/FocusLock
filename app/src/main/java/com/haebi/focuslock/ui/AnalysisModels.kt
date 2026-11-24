@@ -6,7 +6,9 @@ import java.text.Collator
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-data class AnalysisBar(val label: String, val detail: String, val minutes: Int)
+data class AnalysisBar(val label: String, val detail: String, val minutes: Int, val observed: Boolean = true) {
+    val valueLabel: String get() = if (observed) com.haebi.focuslock.data.UsageFormat.minutesLabel(minutes) else "기록 미확인"
+}
 
 object AnalysisModels {
     val periods = listOf("오늘", "7일", "30일")
@@ -53,20 +55,21 @@ object AnalysisModels {
         listOf("전체") + apps.map { it.category }.distinct().sorted()
 
     fun bars(snapshot: UsageSnapshot, period: String): List<AnalysisBar>? {
-        val values = snapshot.chart(period) ?: return null
+        val values = snapshot.observedChart(period) ?: return null
         val start = snapshot.window(period).startDate
         val dateDetail = DateTimeFormatter.ofPattern("M월 d일 EEEE", Locale.KOREAN)
         val shortDate = DateTimeFormatter.ofPattern("M/d", Locale.KOREAN)
         val weekday = DateTimeFormatter.ofPattern("E", Locale.KOREAN)
         return values.mapIndexed { i, minutes ->
             if (period == "오늘") {
-                AnalysisBar("${i}시", "${i}시", minutes)
+                AnalysisBar("${i}시", "${i}시", minutes ?: 0, minutes != null)
             } else {
                 val date = start.plusDays(i.toLong())
                 AnalysisBar(
                     if (period == "7일") date.format(weekday) else date.format(shortDate),
                     date.format(dateDetail),
-                    minutes
+                    minutes ?: 0,
+                    minutes != null
                 )
             }
         }

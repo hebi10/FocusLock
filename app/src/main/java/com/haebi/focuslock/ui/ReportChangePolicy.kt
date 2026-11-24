@@ -15,18 +15,8 @@ internal data class ReportAppChange(
 internal object ReportChangePolicy {
     private const val MINUTE = 60_000L
 
-    private fun hasComparableObservations(snapshot: UsageSnapshot, period: String): Boolean {
-        if (period != "7일" && period != "30일") return false
-        val coverage = snapshot.coverage ?: return false
-        val current = snapshot.window(period)
-        val prior = snapshot.prior(period)
-        val periodDays = coverage.periodDays(current.startDate, current.endDate)
-        if ((period == "7일" && periodDays != 7) ||
-            (period == "30일" && periodDays != 30) ||
-            coverage.periodDays(prior.startDate, prior.endDate) != periodDays) return false
-        return coverage.observedDays(current.startDate, current.endDate) == periodDays &&
-            coverage.observedDays(prior.startDate, prior.endDate) == periodDays
-    }
+    private fun hasComparableObservations(snapshot: UsageSnapshot, period: String): Boolean =
+        UsageComparisonPolicy.hasComparablePeriods(snapshot, period)
 
     fun totalChange(snapshot: UsageSnapshot, period: String): String? {
         if (!hasComparableObservations(snapshot, period)) return null
@@ -73,5 +63,6 @@ internal object ReportChangePolicy {
 
     const val sourceNotice =
         "Android 사용 통계의 관측된 날짜를 기준으로 비교합니다. " +
-        "관측일이 있어도 데이터가 완전하다는 보장은 없으며, 표시하지 않은 앱을 0분으로 간주하지 않습니다."
+        "관측일이 있어도 데이터가 완전하다는 보장은 없으며, 표시하지 않은 앱을 0분으로 간주하지 않습니다. " +
+        UsageComparisonPolicy.partialTodayNotice
 }

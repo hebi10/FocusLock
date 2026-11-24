@@ -43,7 +43,8 @@ data class UsageSnapshot(
     val hourlyToday: List<Int>?,
     val collectedAtMillis: Long,
     val appDaily30: Map<String, List<Int>> = emptyMap(),
-    val coverage: UsageCoverage? = null
+    val coverage: UsageCoverage? = null,
+    val appObservedDates: Map<String, Set<LocalDate>> = emptyMap()
 ) {
     fun window(period: String): UsageWindow = when (period) {
         "7일" -> last7
@@ -61,6 +62,24 @@ data class UsageSnapshot(
         "7일" -> daily7
         "30일" -> daily30
         else -> hourlyToday
+    }
+
+    /** Null means no confirmed observation, never a measured zero. */
+    fun observedChart(period: String): List<Int?>? = chart(period)?.mapIndexed { index, minutes ->
+        if (period == "오늘") minutes.takeIf { it > 0 }
+        else minutes.takeIf {
+            it > 0 || coverage?.observedDates?.contains(window(period).startDate.plusDays(index.toLong())) == true
+        }
+    }
+
+    fun observedAppChart(appId: String, period: String): List<Int?>? {
+        if (period == "오늘") return listOf(today.apps.firstOrNull { it.id == appId }?.minutes)
+        val values = if (period == "7일") appDaily7[appId] else appDaily30[appId]
+        return values?.mapIndexed { index, minutes ->
+            minutes.takeIf {
+                it > 0 || appObservedDates[appId]?.contains(window(period).startDate.plusDays(index.toLong())) == true
+            }
+        }
     }
 }
 
@@ -98,7 +117,6 @@ private data class LaunchKey(val day: LocalDate, val pkg: String)
 class UsageRepository(private val context: Context) {
     private val manager = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
     private val packages = context.packageManager
-    private val zone = ZoneId.systemDefault()
     private val fmt = DateTimeFormatter.ofPattern("M월 d일 HH:mm", Locale.KOREAN)
 
     fun load(nowMillis: Long = System.currentTimeMillis()): UsageLoadState {
@@ -106,6 +124,7 @@ class UsageRepository(private val context: Context) {
         val userManager = context.getSystemService(Context.USER_SERVICE) as UserManager
         if (!userManager.isUserUnlocked) return UsageLoadState.Unavailable("기기 잠금을 해제한 뒤 사용 기록을 확인해 주세요.")
         return try {
+            val zone = ZoneId.systemDefault()
             val today = Instant.ofEpochMilli(nowMillis).atZone(zone).toLocalDate()
             val firstDay = today.minusDays(59)
             val startMillis = firstDay.atStartOfDay(zone).toInstant().toEpochMilli()
@@ -140,7 +159,7 @@ class UsageRepository(private val context: Context) {
                     when (event.eventType) {
                         resumedType -> {
                             sawAnyEvents = true
-                            if (previousResumed != null) appendHourly(previousTime, timestamp, previousResumed!!, today, hourlyMillis)
+                            if (previousResumed != null) appendHourly(previousTime, timestamp, previousResumed!!, today, hourlyMillis, zone)
                             val key = LaunchKey(day, packageName)
                             val last = lastLaunch[packageName]
                             if (last == null || timestamp - last > 1500L) {
@@ -151,16 +170,16 @@ class UsageRepository(private val context: Context) {
                             previousTime = timestamp
                         }
                         pausedType -> if (packageName == previousResumed) {
-                            appendHourly(previousTime, timestamp, packageName, today, hourlyMillis)
+                            appendHourly(previousTime, timestamp, packageName, today, hourlyMillis, zone)
                             previousResumed = null
                         }
                         UsageEvents.Event.SCREEN_NON_INTERACTIVE, UsageEvents.Event.KEYGUARD_SHOWN -> {
-                            if (previousResumed != null) appendHourly(previousTime, timestamp, previousResumed!!, today, hourlyMillis)
+                            if (previousResumed != null) appendHourly(previousTime, timestamp, previousResumed!!, today, hourlyMillis, zone)
                             previousResumed = null
                         }
                     }
                 }
-                if (previousResumed != null) appendHourly(previousTime, nowMillis, previousResumed!!, today, hourlyMillis)
+                if (previousResumed != null) appendHourly(previousTime, nowMillis, previousResumed!!, today, hourlyMillis, zone)
             }
             val appMeta = mutableMapOf<String, AppMeta>()
             val window: (Int, Int, Boolean) -> UsageWindow = { from, to, includeEvents ->
@@ -212,7 +231,8 @@ class UsageRepository(private val context: Context) {
             val coverage = UsageCoverage(rows.map { it.day }.toSet())
             UsageLoadState.Ready(UsageSnapshot(
                 todayWindow, last7, last30, yesterday, previous7, previous30,
-                daily7, daily30, appDaily7, hourly, nowMillis, appDaily30, coverage
+                daily7, daily30, appDaily7, hourly, nowMillis, appDaily30, coverage,
+                byApp.mapValues { (_, samples) -> samples.map { it.day }.toSet() }
             ))
         } catch (_: SecurityException) {
             UsageLoadState.PermissionRequired
@@ -221,13 +241,13 @@ class UsageRepository(private val context: Context) {
         }
     }
 
-    private fun appendHourly(start: Long, end: Long, pkg: String, today: LocalDate, hours: LongArray) {
+    private fun appendHourly(start: Long, end: Long, pkg: String, today: LocalDate, hours: LongArray, zone: ZoneId) {
         if (end <= start || pkg == context.packageName) return
         var cursor = maxOf(start, today.atStartOfDay(zone).toInstant().toEpochMilli())
         while (cursor < end) {
             val local = Instant.ofEpochMilli(cursor).atZone(zone)
             val hour = local.hour
-            val nextHour = local.toLocalDate().atTime(hour, 0).atZone(zone).plusHours(1).toInstant().toEpochMilli()
+            val nextHour = UsageTimePolicy.nextHourBoundary(cursor, zone)
             val until = minOf(end, nextHour)
             if (until <= cursor) break
             hours[hour] += until - cursor

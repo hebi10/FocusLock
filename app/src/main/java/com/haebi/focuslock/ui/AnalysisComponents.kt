@@ -46,7 +46,7 @@ fun AnalysisChart(snapshot: UsageSnapshot, period: String) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            bars.isEmpty() || bars.all { it.minutes == 0 } -> Text(
+            bars.isEmpty() || bars.none { it.observed } -> Text(
                 "이 기간에 그래프로 표시할 사용 기록이 없습니다.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -55,7 +55,7 @@ fun AnalysisChart(snapshot: UsageSnapshot, period: String) {
                 val selected = bars.getOrNull(selectedIndex)
                 Text(
                     if (selected == null) "막대를 선택하면 해당 시간의 사용량을 확인할 수 있습니다."
-                    else "${selected.detail} · ${UsageFormat.minutesLabel(selected.minutes)}",
+                    else "${selected.detail} · ${selected.valueLabel}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.testTag("analysis-chart-selected")
@@ -74,7 +74,7 @@ fun AnalysisChart(snapshot: UsageSnapshot, period: String) {
                                     .testTag("analysis-chart-bar-$index")
                                     .clickable(role = Role.Button) { selectedIndex = index }
                                     .semantics {
-                                        contentDescription = "${bar.detail}, ${UsageFormat.minutesLabel(bar.minutes)}"
+                                        contentDescription = "${bar.detail}, ${bar.valueLabel}"
                                     },
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(FocusSpacing.xs)
@@ -84,7 +84,8 @@ fun AnalysisChart(snapshot: UsageSnapshot, period: String) {
                                     contentAlignment = Alignment.BottomCenter
                                 ) {
                                     val height = (98f * bar.minutes / maxValue).coerceAtLeast(if (bar.minutes > 0) 3f else 0f)
-                                    Box(
+                                    if (!bar.observed) Text("—", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    else Box(
                                         Modifier.width(20.dp).height(height.dp)
                                             .background(
                                                 MaterialTheme.colorScheme.primary.copy(
@@ -106,7 +107,7 @@ fun AnalysisChart(snapshot: UsageSnapshot, period: String) {
                     }
                 }
                 if (period == "오늘") Text(
-                    "시간대별 정보는 Android에 보관된 앱 전환 이벤트 기반이며 일부 누락될 수 있습니다.",
+                    "시간대별 정보는 Android 앱 전환 이벤트 기준 참고 값입니다. 동시 앱 사용과 이벤트 누락으로 실제 경과 시간과 다를 수 있습니다. —는 기록 미확인입니다.",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -122,7 +123,7 @@ fun AnalysisChart(snapshot: UsageSnapshot, period: String) {
                     modifier = Modifier.testTag("analysis-observed-day-coverage")
                 )
                 Text(
-                    "기록이 없는 날짜는 미사용인지 Android 기록 미보관인지 구분할 수 없습니다.",
+                    "—는 기록 미확인입니다. 미사용인지 Android 기록 미보관인지 구분할 수 없습니다.",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

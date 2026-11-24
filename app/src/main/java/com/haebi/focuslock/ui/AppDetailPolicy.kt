@@ -38,17 +38,8 @@ internal object AppDetailPolicy {
         )
     }
 
-    private fun comparable(snapshot: UsageSnapshot, period: String): Boolean {
-        if (period != "7일" && period != "30일") return false
-        val coverage = snapshot.coverage ?: return false
-        val current = snapshot.window(period)
-        val previous = snapshot.prior(period)
-        val count = coverage.periodDays(current.startDate, current.endDate)
-        if (count !in 7..30 ||
-            coverage.periodDays(previous.startDate, previous.endDate) != count) return false
-        return coverage.observedDays(current.startDate, current.endDate) == count &&
-            coverage.observedDays(previous.startDate, previous.endDate) == count
-    }
+    private fun comparable(snapshot: UsageSnapshot, period: String): Boolean =
+        UsageComparisonPolicy.hasComparablePeriods(snapshot, period)
 
     fun periodComparison(snapshot: UsageSnapshot, appId: String, period: String): String? {
         if (!comparable(snapshot, period)) return null
