@@ -61,23 +61,28 @@ internal fun restoredMainTab(value: String): MainTab = when (value) {
 }
 
 @Composable
-fun FocusLockApp() {
+fun FocusLockApp(goalAlertTarget: String? = null, onGoalAlertHandled: () -> Unit = {}) {
     val context = LocalContext.current
     val prefs = remember(context) { context.getSharedPreferences("focuslock_ui_prototype", 0) }
     val repository = remember(context) { UsageRepository(context.applicationContext) }
     val focusStore = remember(context) { FocusSessionStore.onDevice(context.applicationContext) }
     val scope = rememberCoroutineScope()
     var goalSettingsVersion by remember { mutableIntStateOf(0) }
-    val notificationPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { reload ->
-        if (reload) goalSettingsVersion++
-    }
     val lifecycleOwner = LocalLifecycleOwner.current
     var reloadToken by remember { mutableIntStateOf(0) }
-    val usageAccessGranted = remember(reloadToken) { hasUsageAccess(context) }
-    var usageState by remember { mutableStateOf<UsageLoadState>(UsageLoadState.Loading) }
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        goalSettingsVersion++
+        reloadToken++
+    }
+    var usageAccessGranted by remember { mutableStateOf(hasUsageAccess(context)) }
+    var usageState by remember { mutableStateOf<UsageLoadState>(if (usageAccessGranted) UsageLoadState.Loading else UsageLoadState.PermissionRequired) }
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) reloadToken++
+            if (event == Lifecycle.Event.ON_RESUME) {
+                usageAccessGranted = hasUsageAccess(context)
+                usageState = if (usageAccessGranted) UsageLoadState.Loading else UsageLoadState.PermissionRequired
+                reloadToken++
+            }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
@@ -87,7 +92,13 @@ fun FocusLockApp() {
             var date = LocalDate.now()
             var zone = ZoneId.systemDefault()
             while (true) {
-                delay(30_000L)
+                delay(5_000L)
+                val granted = hasUsageAccess(context)
+                if (granted != usageAccessGranted) {
+                    usageAccessGranted = granted
+                    usageState = if (granted) UsageLoadState.Loading else UsageLoadState.PermissionRequired
+                    reloadToken++
+                }
                 val currentDate = LocalDate.now()
                 val currentZone = ZoneId.systemDefault()
                 if (date != currentDate || zone != currentZone) {
@@ -99,10 +110,17 @@ fun FocusLockApp() {
         }
     }
     LaunchedEffect(reloadToken) {
+        usageAccessGranted = hasUsageAccess(context)
+        if (!usageAccessGranted) {
+            usageState = UsageLoadState.PermissionRequired
+            return@LaunchedEffect
+        }
         usageState = UsageLoadState.Loading
-        usageState = withContext(Dispatchers.IO) { repository.load() }
+        val loaded = withContext(Dispatchers.IO) { repository.load() }
+        usageAccessGranted = hasUsageAccess(context)
+        usageState = if (usageAccessGranted) loaded else UsageLoadState.PermissionRequired
     }
-    val usageSnapshot = (usageState as? UsageLoadState.Ready)?.snapshot
+    val usageSnapshot = if (usageAccessGranted) (usageState as? UsageLoadState.Ready)?.snapshot else null
     var onboarding by rememberSaveable { mutableIntStateOf(if (prefs.getBoolean("onboarding_completed", false)) -1 else 0) }
     var theme by rememberSaveable { mutableStateOf(prefs.getString("theme", "시스템") ?: "시스템") }
     var tab by rememberSaveable { mutableStateOf(MainTab.HOME.name) }
@@ -135,6 +153,7 @@ fun FocusLockApp() {
         }
     }
     var globalGoal by remember(prefs) { mutableIntStateOf(prefs.getInt(GoalHistoryStore.TOTAL_KEY, 0)) }
+    var globalAlerts by remember(prefs) { mutableStateOf(prefs.getBoolean(GoalHistoryStore.TOTAL_ALERT_KEY, false)) }
     val goalHistory = remember(goalSettingsVersion, reloadToken) { GoalHistoryStore.read(prefs) }
     LaunchedEffect(reloadToken) {
         if (GoalHistoryStore.seedCurrentGoals(prefs)) goalSettingsVersion++
@@ -189,6 +208,7 @@ fun FocusLockApp() {
     var focusSessionId by remember { mutableStateOf<String?>(null) }
     var focusRestoreMessage by remember { mutableStateOf(false) }
     var focusReport by remember { mutableStateOf(FocusSummary()) }
+    var focusRestored by remember { mutableStateOf(false) }
 
     fun applySession(session: FocusSessionEntity) {
         focusSessionId = session.id
@@ -221,11 +241,37 @@ fun FocusLockApp() {
                 stopConfirm = false
             }
         }
+        focusRestored = true
+    }
+    LaunchedEffect(goalAlertTarget, onboarding, focusPhase, focusRestored, usageState) {
+        val target = goalAlertTarget ?: return@LaunchedEffect
+        // Keep an existing focus session or unfinished onboarding intact.
+        if (!focusRestored || onboarding >= 0 || focusPhase != "setup" || usageState == UsageLoadState.Loading) return@LaunchedEffect
+        val record = if (target == GoalHistoryPolicy.TOTAL || (goals[target] ?: 0) <= 0) null
+            else listOfNotNull(usageSnapshot?.today, usageSnapshot?.last7, usageSnapshot?.last30)
+                .asSequence().flatMap { it.apps.asSequence() }.firstOrNull { it.id == target }
+        goalSheetId = ""
+        selectedGardenItemId = ""
+        showInfo = false
+        focusGardenOpen = false
+        if (record != null && usageAccessGranted) {
+            tab = MainTab.ANALYSIS.name
+            selectedAppId = record.id
+            selectedAppRecord = record
+            selectedAppPeriod = "오늘"
+            detail = "app"
+        } else {
+            tab = MainTab.HOME.name
+            selectedAppRecord = null
+            detail = "goals"
+        }
+        onGoalAlertHandled()
     }
     LaunchedEffect(goalSettingsVersion) { GoalAlerts.schedule(context.applicationContext) }
     LaunchedEffect(reloadToken, goalSettingsVersion, usageState) {
-        if (usageState is UsageLoadState.Ready)
-            withContext(Dispatchers.IO) { GoalAlerts.checkNow(context.applicationContext) }
+        val snapshot = usageSnapshot
+        if (snapshot != null)
+            withContext(Dispatchers.IO) { GoalAlerts.checkNow(context.applicationContext, snapshot) }
     }
     LaunchedEffect(detail, focusPhase, tab) {
         if (detail == "report" || tab == MainTab.REPORT.name || focusPhase == "result")
@@ -456,7 +502,11 @@ fun FocusLockApp() {
                         onDistraction = { distraction[selectedAppId] = it; prefs.edit().putBoolean("distraction.$selectedAppId", it).apply() },
                         onExcluded = { excluded[selectedAppId] = it; prefs.edit().putBoolean("excluded.$selectedAppId", it).apply() }
                     )
-                    detail == "app" -> InfoState("사용 기록 갱신됨", "선택한 앱의 사용 기록을 다시 확인해 주세요.", "사용 분석으로", {detail=""})
+                    detail == "app" -> when (usageState) {
+                        UsageLoadState.PermissionRequired -> InfoState("사용 정보 접근 필요", "권한이 없으므로 이전 사용 기록도 표시하지 않습니다.", "권한 설정 열기", { openUsageSettings(context) })
+                        UsageLoadState.Loading -> InfoState("기록 확인 중", "선택한 앱의 사용 기록을 확인합니다.")
+                        else -> InfoState("사용 기록 미확인", "선택한 앱의 사용 기록을 다시 확인해 주세요.", "사용 분석으로", { detail = "" })
+                    }
                     detail == "report" -> ReportScreen(
                         state = usageState,
                         excluded = excluded,
@@ -468,16 +518,23 @@ fun FocusLockApp() {
                     detail == "goals" -> GoalManagerScreen(
                         state = usageState,
                         globalGoal = globalGoal,
+                        globalAlerts = globalAlerts,
                         goals = goals,
                         history = goalHistory,
                         labelFor = { id -> prefs.getString("goal_label.$id", id) ?: id },
                         onBack = { detail = "" },
-                        onGlobalSave = { minutes ->
+                        onGlobalSave = { minutes, alerts ->
+                            val enabled = minutes > 0 && alerts
                             val editor = prefs.edit().putInt(GoalHistoryStore.TOTAL_KEY, minutes)
-                            GoalHistoryStore.record(prefs, editor, GoalHistoryPolicy.TOTAL, GoalConfig(minutes))
+                                .putBoolean(GoalHistoryStore.TOTAL_ALERT_KEY, enabled)
+                            GoalHistoryStore.record(prefs, editor, GoalHistoryPolicy.TOTAL,
+                                GoalConfig(minutes, warn80 = enabled, warn100 = enabled))
                             editor.apply()
                             globalGoal = minutes
+                            globalAlerts = enabled
                             goalSettingsVersion++
+                            if (enabled && Build.VERSION.SDK_INT >= 33 && !hasNotificationAccess(context))
+                                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                         },
                         onEditApp = { goalSheetId = it },
                         onAnalysis = { goMain(MainTab.ANALYSIS) }

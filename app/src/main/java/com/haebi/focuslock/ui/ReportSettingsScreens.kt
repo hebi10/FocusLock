@@ -175,7 +175,8 @@ fun PermissionManagementScreen(onBack: () -> Unit, onUsageSettings: () -> Unit, 
     val context = LocalContext.current
     var refresh by remember { mutableIntStateOf(0) }
     val usageGranted = remember(refresh) { hasUsageAccess(context) }
-    val notificationGranted = remember(refresh) { hasNotificationAccess(context) }
+    val notificationState = remember(refresh) { goalNotificationAvailability(context) }
+    val notificationGranted = notificationState == GoalNotificationAvailability.READY
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.Outlined.ArrowBack, "뒤로") }
@@ -191,9 +192,15 @@ fun PermissionManagementScreen(onBack: () -> Unit, onUsageSettings: () -> Unit, 
         }
         FocusCard {
             SectionTitle("알림")
-            Text(if(notificationGranted) "현재 상태: 허용" else "현재 상태: 미허용", color = if(notificationGranted) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("현재 상태: " + notificationState.label, color = if(notificationGranted) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Android 앱 알림과 목표 알림 채널이 모두 허용되어야 합니다.", style = MaterialTheme.typography.bodySmall)
             Text("앱별 목표 도달 알림을 받으려면 허용이 필요합니다. Android 백그라운드 제한으로 알림이 지연될 수 있습니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             OutlinedButton(onClick = onNotificationSettings, modifier = Modifier.fillMaxWidth()) { Text("Android 알림 설정") }
+            OutlinedButton(onClick = {
+                runCatching { com.haebi.focuslock.data.GoalAlerts.ensureChannel(context) }
+                openGoalChannelSettings(context)
+            }, modifier = Modifier.fillMaxWidth()) { Text("목표 알림 채널 설정") }
+            Text("제조사 절전 정책에 따라 15분 주기 확인보다 늦게 알림이 도착할 수 있습니다. 필요하면 Android 앱 배터리 설정을 확인해 주세요.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Text("Android 설정에서 돌아오면 권한 상태를 다시 확인합니다. 표시가 갱신되지 않으면 상단 새로고침을 눌러주세요.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }

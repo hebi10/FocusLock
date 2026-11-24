@@ -7,6 +7,7 @@ import java.time.ZoneId
 /** Local goal settings history; no historical Android usage values are persisted. */
 internal object GoalHistoryStore {
     const val TOTAL_KEY = "whole_usage_goal_minutes"
+    const val TOTAL_ALERT_KEY = "whole_usage_goal_alerts"
     private const val PREFIX = "goal_history_v1."
 
     fun read(prefs: SharedPreferences): List<GoalHistoryEvent> =
@@ -53,7 +54,10 @@ internal object GoalHistoryStore {
             }
         }
         val total = prefs.getInt(TOTAL_KEY, 0)
-        if (total > 0) changed = record(prefs, editor, GoalHistoryPolicy.TOTAL, GoalConfig(total)) || changed
+        if (total > 0) {
+            val alerts = prefs.getBoolean(TOTAL_ALERT_KEY, false)
+            changed = record(prefs, editor, GoalHistoryPolicy.TOTAL, GoalConfig(total, warn80 = alerts, warn100 = alerts)) || changed
+        }
         if (changed) editor.apply()
         return changed
     }
