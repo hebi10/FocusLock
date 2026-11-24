@@ -33,7 +33,7 @@ internal object GoalHistoryStore {
         zoneId: String = ZoneId.systemDefault().id
     ): Boolean {
         val latest = read(prefs).lastOrNull { it.scope == scope && !it.date.isAfter(date) }
-        if (latest?.config == config && latest.zoneId == zoneId) return false
+        if (latest != null && latest.config == config && latest.zoneId == zoneId) return false
         editor.putString(PREFIX + scope + "." + date.toEpochDay(),
             "${config.minutes}|${config.days}|${if (config.warn80) 1 else 0}|${if (config.warn100) 1 else 0}|$zoneId")
         return true

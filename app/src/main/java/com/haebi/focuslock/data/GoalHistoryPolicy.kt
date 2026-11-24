@@ -44,7 +44,7 @@ internal object GoalHistoryPolicy {
             val result = when {
                 changed -> GoalDayResult.CHANGED
                 limit == null -> GoalDayResult.NO_GOAL
-                zoneId == null || before.zoneId != zoneId || millis == null -> GoalDayResult.UNKNOWN
+                zoneId == null || before?.zoneId != zoneId || millis == null -> GoalDayResult.UNKNOWN
                 millis > limit.toLong() * 60_000L -> GoalDayResult.OVER
                 else -> GoalDayResult.WITHIN
             }
