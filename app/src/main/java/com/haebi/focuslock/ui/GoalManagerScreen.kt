@@ -63,8 +63,7 @@ internal fun GoalManagerScreen(
     val selected = if (scope in scopes) scope else GoalHistoryPolicy.TOTAL
     val days = if (period == "30일") 30 else 7
     val summary = remember(history, selected, snapshot, days) { summaryData(history, selected, snapshot, days) }
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(FocusSpacing.md),
-        verticalArrangement = Arrangement.spacedBy(FocusSpacing.md)) {
+    AdaptiveScrollColumn {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.Outlined.ArrowBack, "뒤로") }
             Text("목표 관리", style = MaterialTheme.typography.headlineMedium)

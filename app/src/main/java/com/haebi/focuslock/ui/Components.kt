@@ -4,6 +4,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -104,7 +109,7 @@ fun AppUsageRow(app: AppUsage, goal: Int? = null, totalMinutes: Int = 0, onClick
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        AppSymbol(app)
+        InstalledAppIcon(app, 38.dp)
         Column(Modifier.weight(1f)) {
             Text(app.name, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
             Text("${if (app.launches < 0) "실행 횟수 확인 불가" else "실행 ${app.launches}회"} · 마지막 사용 ${app.lastUsed}", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -132,7 +137,7 @@ fun PeriodSelector(options: List<String>, selected: String, onSelected: (String)
     val largeFontFourOptions = options.size >= 4 && LocalDensity.current.fontScale >= 1.35f
     val optionRows = if (largeFontFourOptions) options.chunked(2) else listOf(options)
     Column(
-        Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(10.dp)).padding(3.dp),
+        Modifier.fillMaxWidth().selectableGroup().background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(10.dp)).padding(3.dp),
         verticalArrangement = Arrangement.spacedBy(3.dp)
     ) {
         optionRows.forEach { rowOptions ->
@@ -143,15 +148,15 @@ fun PeriodSelector(options: List<String>, selected: String, onSelected: (String)
                         Modifier.weight(1f).heightIn(min = FocusSpacing.minTouchTarget)
                             .testTag("period-option-$option")
                             .background(if (active) MaterialTheme.colorScheme.primary else Color.Transparent, MaterialTheme.shapes.small)
-                            .clickable { onSelected(option) }.padding(vertical = FocusSpacing.xs),
+                            .selectable(selected = active, role = Role.Tab, onClick = { onSelected(option) })
+                            .padding(horizontal = 2.dp, vertical = FocusSpacing.xs),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             option,
                             color = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
-                            maxLines = 1,
-                            softWrap = false,
+                            maxLines = 2,
                             overflow = TextOverflow.Ellipsis
                         )
                     }
@@ -164,11 +169,13 @@ fun PeriodSelector(options: List<String>, selected: String, onSelected: (String)
 @Composable
 fun BarChart(values: List<Int>, labels: List<String>, maxValue: Int, highlight: Int = values.lastIndex, modifier: Modifier = Modifier, observed: List<Boolean>? = null) {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(Modifier.fillMaxWidth().height(140.dp), horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.Bottom) {
+        val barGap = if (values.size >= 20) 2.dp else 5.dp
+        Row(Modifier.fillMaxWidth().height(140.dp), horizontalArrangement = Arrangement.spacedBy(barGap), verticalAlignment = Alignment.Bottom) {
             values.forEachIndexed { i, value ->
                 Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.Bottom, horizontalAlignment = Alignment.CenterHorizontally) {
                     if (observed?.getOrNull(i) == false) {
-                        Box(Modifier.fillMaxWidth().height(2.dp).background(MaterialTheme.colorScheme.outlineVariant))
+                        Box(Modifier.fillMaxWidth().height(if (i == highlight) 4.dp else 2.dp)
+                            .background(if (i == highlight) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant))
                     } else Box(
                         Modifier.fillMaxWidth().height((136f * (value.toFloat() / maxValue.coerceAtLeast(1))).coerceAtLeast(if (value > 0) 3f else 0f).dp)
                             .background(if (i == highlight) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.55f), RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
@@ -231,3 +238,22 @@ fun InfoState(title: String, message: String, action: String? = null, onAction: 
 
 internal fun readableBarAxisLabels(labels: List<String>): List<String> =
     if (labels.size >= 20) labels.filter { it.isNotBlank() } else labels
+
+/** Readable centered content on expanded screens; phones retain the same spacing. */
+@Composable
+internal fun AdaptiveScrollColumn(
+    modifier: Modifier = Modifier,
+    maxContentWidth: Dp = 840.dp,
+    contentPadding: Dp = FocusSpacing.md,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val scrollState = rememberScrollState()
+    Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+        Column(
+            Modifier.widthIn(max = maxContentWidth).fillMaxWidth().fillMaxHeight()
+                .verticalScroll(scrollState).padding(contentPadding),
+            verticalArrangement = Arrangement.spacedBy(FocusSpacing.md),
+            content = content
+        )
+    }
+}

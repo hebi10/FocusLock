@@ -17,6 +17,7 @@ import androidx.compose.material.icons.outlined.DateRange
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
@@ -135,6 +136,12 @@ fun FocusLockApp(goalAlertTarget: String? = null, onGoalAlertHandled: () -> Unit
     var selectedAppId by rememberSaveable { mutableStateOf("") }
     var selectedAppPeriod by rememberSaveable { mutableStateOf("오늘") }
     var selectedAppRecord by remember { mutableStateOf<AppUsage?>(null) }
+    val tabStateHolder = rememberSaveableStateHolder()
+    val displayedAppRecord = usageSnapshot?.let { snapshot ->
+        listOf(snapshot.today, snapshot.last7, snapshot.last30).asSequence()
+            .flatMap { it.apps.asSequence() }.firstOrNull { it.id == selectedAppId }
+            ?: selectedAppRecord?.takeIf { it.id == selectedAppId }
+    }
     var goalSheetId by rememberSaveable { mutableStateOf("") }
     var selectedGardenItemId by rememberSaveable { mutableStateOf("") }
     var placedGardenItemId by rememberSaveable {
@@ -482,8 +489,8 @@ fun FocusLockApp(goalAlertTarget: String? = null, onGoalAlertHandled: () -> Unit
                         onHome = { focusPhase = "setup"; goMain(MainTab.HOME) },
                         onGarden = { focusPhase = "setup"; openGarden() }
                     )
-                    detail == "app" && usageSnapshot != null && selectedAppRecord != null -> AppDetailScreen(
-                        app = selectedAppRecord!!,
+                    detail == "app" && usageSnapshot != null && displayedAppRecord != null -> AppDetailScreen(
+                        app = displayedAppRecord,
                         snapshot = usageSnapshot,
                         period = selectedAppPeriod,
                         onPeriod = { selectedAppPeriod = it },
@@ -497,7 +504,7 @@ fun FocusLockApp(goalAlertTarget: String? = null, onGoalAlertHandled: () -> Unit
                         onBack = { detail = "" },
                         onGoal = { goalSheetId = selectedAppId },
                         onSystemSettings = {
-                            openInstalledAppInfo(context, selectedAppRecord?.packageName)
+                            openInstalledAppInfo(context, displayedAppRecord.packageName)
                         },
                         onDistraction = { distraction[selectedAppId] = it; prefs.edit().putBoolean("distraction.$selectedAppId", it).apply() },
                         onExcluded = { excluded[selectedAppId] = it; prefs.edit().putBoolean("excluded.$selectedAppId", it).apply() }
@@ -562,13 +569,16 @@ fun FocusLockApp(goalAlertTarget: String? = null, onGoalAlertHandled: () -> Unit
                             onSettings = {goMain(MainTab.SETTINGS)},
                             onUsageSettings = {openUsageSettings(context)}, onRefresh = {reloadToken++}
                         )
-                        MainTab.ANALYSIS -> AnalysisScreen(
-                            state = usageState,
-                            excluded = excluded,
-                            onApp = { app, period -> selectedAppId=app.id; selectedAppRecord=app; selectedAppPeriod=period;detail="app" }, onReport = {goMain(MainTab.REPORT)},
-                            onUsageSettings = {openUsageSettings(context)}, onRefresh = {reloadToken++}
-                        )
-                        MainTab.REPORT -> ReportScreen(
+                        MainTab.ANALYSIS -> tabStateHolder.SaveableStateProvider("analysis-tab") {
+                            AnalysisScreen(
+                                state = usageState,
+                                excluded = excluded,
+                                onApp = { app, period -> selectedAppId=app.id; selectedAppRecord=app; selectedAppPeriod=period;detail="app" }, onReport = {goMain(MainTab.REPORT)},
+                                onUsageSettings = {openUsageSettings(context)}, onRefresh = {reloadToken++}
+                            )
+                        }
+                        MainTab.REPORT -> tabStateHolder.SaveableStateProvider("report-tab") {
+                            ReportScreen(
                             state = usageState,
                             excluded = excluded,
                             focusSummary = focusReport,
@@ -582,7 +592,8 @@ fun FocusLockApp(goalAlertTarget: String? = null, onGoalAlertHandled: () -> Unit
                             },
                             onUsageSettings = { openUsageSettings(context) },
                             onRefresh = { reloadToken++ }
-                        )
+                            )
+                        }
                         MainTab.FOCUS -> {
                             if (focusGardenOpen) {
                                 GardenScreen(
