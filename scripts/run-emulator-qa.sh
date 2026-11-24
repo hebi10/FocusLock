@@ -33,6 +33,7 @@ run_case() {
 
 adb shell appops set com.haebi.focuslock GET_USAGE_STATS ignore
 run_case 'com.haebi.focuslock.FocusLockUsageStateAuditTest#permissionDeniedReallyReturnsPermissionRequired' ui-r00-usage-denied
+run_case 'com.haebi.focuslock.GoalAlertNavigationQaTest#deniedUsageNeverReturnsAnAlertReading' alert-denied
 run_case 'com.haebi.focuslock.FocusLockScreenQaTest#onboardingAndPermissionDeniedScreens' permission-denied
 run_case 'com.haebi.focuslock.FocusLockOnboardingQaTest#deniedPermissionAndNoGoalStillEnterUsableHome' ui-r02-denied-skip
 run_case 'com.haebi.focuslock.FocusLockOnboardingQaTest#permissionSettingsReturnRefreshesStepAndGoalIsSkippable' ui-r02-settings-return
@@ -58,6 +59,8 @@ run_case 'com.haebi.focuslock.FocusPersistenceQaTest#todayExperienceIsLimitedToE
 run_case 'com.haebi.focuslock.FocusPersistenceQaTest#rebootPausesSessionAndNeverInventsCompletion' room-reboot-recovery
 run_case 'com.haebi.focuslock.GoalManagerQaTest#legacyGoalsAndChangeHistoryRemainLocal' goal-history-local
 run_case 'com.haebi.focuslock.GoalManagerQaTest#settingsCanOpenGoalManagerWithoutChangingUserGoals' goal-manager-ui
+run_case 'com.haebi.focuslock.GoalAlertNavigationQaTest#distinctNotificationTargetsAndRealTodayReading' alert-targets
+run_case 'com.haebi.focuslock.GoalAlertNavigationQaTest#totalNotificationOpensGoalsWithoutChangingExistingSettings' alert-navigation
 run_case 'com.haebi.focuslock.FocusPersistenceQaTest#repeatedStartKeepsActiveSessionAndEarlyStopNeverEarnsRewards' room-duplicate-start-and-early-stop
 run_case 'com.haebi.focuslock.RenewNavigationQaTest#reportsAreTopLevelAndGardenRetainsFocusTab' renew-02a-navigation
 run_case 'com.haebi.focuslock.RenewHomeQaTest#homePresentsUsageBeforeOptionalFocusAndAllowsAnalysis' renew-02b-home

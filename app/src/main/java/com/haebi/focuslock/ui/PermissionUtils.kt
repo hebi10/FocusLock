@@ -37,7 +37,7 @@ internal fun classifyGoalNotifications(runtimeAllowed: Boolean, appAllowed: Bool
 }
 
 internal fun goalNotificationAvailability(context: Context): GoalNotificationAvailability = try {
-    val manager = context.getSystemService(NotificationManager::class.java)
+    val manager = (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
     classifyGoalNotifications(hasNotificationAccess(context), manager.areNotificationsEnabled(),
         manager.getNotificationChannel(GoalAlerts.CHANNEL)?.importance)
 } catch (_: RuntimeException) { GoalNotificationAvailability.UNKNOWN }

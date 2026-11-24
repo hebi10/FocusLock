@@ -47,7 +47,7 @@ object GoalAlerts {
         prefs.getBoolean("warn80.$id", true) || prefs.getBoolean("warn100.$id", true)
 
     internal fun ensureChannel(context: Context) {
-        context.getSystemService(NotificationManager::class.java).createNotificationChannel(
+        (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).createNotificationChannel(
             NotificationChannel(CHANNEL, "사용 목표 알림", NotificationManager.IMPORTANCE_DEFAULT)
         )
     }
@@ -83,7 +83,7 @@ object GoalAlerts {
         val reading = recent ?: UsageRepository(context.applicationContext).loadTodayForAlerts(now) ?: return
         if (reading.date != LocalDate.now() || reading.zoneId != ZoneId.systemDefault().id) return
         val prefs = context.getSharedPreferences(PREFS, 0)
-        val manager = context.getSystemService(NotificationManager::class.java)
+        val manager = (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
         val today = reading.date.toEpochDay()
 
         fun send(scope: String, label: String, millis: Long, total: Boolean) {

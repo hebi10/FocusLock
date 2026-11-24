@@ -65,6 +65,13 @@ class GoalManagerQaTest {
                 assertNotNull("Goal manager entry", goals)
                 goals!!.click()
                 assertTrue(device.wait(Until.hasObject(By.text("전체 앱 사용 목표")), 8_000L))
+                repeat(5) {
+                    if (!device.hasObject(By.res("whole-goal-save"))) {
+                        device.swipe(device.displayWidth / 2, device.displayHeight * 3 / 4,
+                            device.displayWidth / 2, device.displayHeight / 2, 35)
+                        device.waitForIdle(500L)
+                    }
+                }
                 assertTrue(device.wait(Until.hasObject(By.res("whole-goal-save")), 8_000L))
             }
         } finally {
