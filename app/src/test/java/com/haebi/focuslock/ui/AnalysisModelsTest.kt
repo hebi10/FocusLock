@@ -2,6 +2,7 @@ package com.haebi.focuslock.ui
 
 import com.haebi.focuslock.data.AppUsage
 import com.haebi.focuslock.data.UsageSnapshot
+import com.haebi.focuslock.data.UsageCoverage
 import com.haebi.focuslock.data.UsageWindow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -103,5 +104,23 @@ class AnalysisModelsTest {
     @Test
     fun unavailableHourlyEventsAreNotReplacedWithFakeZeros() {
         assertNull(AnalysisModels.bars(snapshot.copy(hourlyToday = null), "오늘"))
+    }
+    @Test
+    fun missingDatesAndHoursAreNotShownAsZero() {
+        val recorded = snapshot.copy(
+            daily7 = listOf(0, 0, 8, 0, 0, 0, 14),
+            coverage = UsageCoverage(setOf(today.minusDays(5), today.minusDays(4), today)),
+            appDaily7 = mapOf("video" to listOf(0, 0, 8, 0, 0, 0, 14)),
+            appObservedDates = mapOf("video" to setOf(today.minusDays(4), today))
+        )
+        assertEquals(listOf(null, 0, 8, null, null, null, 14), recorded.observedChart("7일"))
+        assertEquals(listOf(null, null, 8, null, null, null, 14), recorded.observedAppChart("video", "7일"))
+        val bars = AnalysisModels.bars(recorded, "7일")!!
+        assertEquals("기록 미확인", bars[0].valueLabel)
+        assertEquals("0분", bars[1].valueLabel)
+        assertTrue(bars[1].observed)
+        assertFalse(AnalysisModels.bars(recorded, "오늘")!![0].observed)
+        assertTrue(UsageComparisonPolicy.summary(recorded, "오늘").contains("직접 비교하지 않습니다"))
+        assertFalse(UsageComparisonPolicy.hasComparablePeriods(recorded, "7일"))
     }
 }

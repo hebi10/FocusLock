@@ -40,6 +40,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.repeatOnLifecycle
+import java.time.LocalDate
+import java.time.ZoneId
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -74,6 +77,22 @@ fun FocusLockApp() {
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            var date = LocalDate.now()
+            var zone = ZoneId.systemDefault()
+            while (true) {
+                delay(30_000L)
+                val currentDate = LocalDate.now()
+                val currentZone = ZoneId.systemDefault()
+                if (date != currentDate || zone != currentZone) {
+                    date = currentDate
+                    zone = currentZone
+                    reloadToken++
+                }
+            }
+        }
     }
     LaunchedEffect(reloadToken) {
         usageState = UsageLoadState.Loading

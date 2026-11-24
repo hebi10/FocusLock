@@ -51,6 +51,15 @@ class FocusLockUsageStateAuditTest {
         if (state is UsageLoadState.Ready) {
             val snapshot = state.snapshot
             val rowsToday = snapshot.today.apps
+            val observed = snapshot.observedChart("7일")!!
+            assertTrue("Missing dates must remain unknown", observed.indices.all { index ->
+                val date = snapshot.last7.startDate.plusDays(index.toLong())
+                val dayObserved = snapshot.coverage?.observedDates?.contains(date) == true
+                if (!dayObserved) observed[index] == null else observed[index] != null
+            })
+            assertTrue("Unobserved periods cannot produce a measured change",
+                com.haebi.focuslock.ui.UsageComparisonPolicy.hasComparablePeriods(snapshot, "7일") ||
+                    com.haebi.focuslock.ui.ReportChangePolicy.totalChange(snapshot, "7일") == null)
             report.put("observedState", "Ready")
                 .put("todayAppCount", rowsToday.size)
                 .put("todayTotalMinutes", snapshot.today.totalMinutes)

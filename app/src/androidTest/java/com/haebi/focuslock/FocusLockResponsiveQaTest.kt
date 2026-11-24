@@ -99,13 +99,29 @@ class FocusLockResponsiveQaTest {
             // Verify full tick text on the same real viewport, including compact 160% font.
             find("사용 시간 추이")
             val ticks = listOf("29", "24", "19", "14", "9", "4", "0")
-            repeat(4) {
-                if (device.findObject(By.res("report-axis-tick-29")) == null) {
-                    device.swipe(device.displayWidth * 2 / 3, device.displayHeight * 3 / 4,
-                        device.displayWidth * 2 / 3, device.displayHeight / 3, 24)
-                    device.waitForIdle(1000L)
+            fun axisVisible(): Boolean {
+                val first = device.findObject(By.res("report-axis-tick-29"))
+                val last = device.findObject(By.res("report-axis-tick-0"))
+                return first != null && last != null &&
+                    first.visibleBounds.height() > 0 && last.visibleBounds.height() > 0
+            }
+            // Small drags avoid jumping past the axis on compact screens; recover in reverse
+            // if the prior section search left the viewport below the chart.
+            repeat(10) {
+                if (!axisVisible()) {
+                    device.swipe(device.displayWidth / 2, device.displayHeight * 3 / 5,
+                        device.displayWidth / 2, device.displayHeight * 9 / 20, 40)
+                    device.waitForIdle(600L)
                 }
             }
+            repeat(22) {
+                if (!axisVisible()) {
+                    device.swipe(device.displayWidth / 2, device.displayHeight * 9 / 20,
+                        device.displayWidth / 2, device.displayHeight * 3 / 5, 40)
+                    device.waitForIdle(600L)
+                }
+            }
+            assertTrue("30-day axis not reachable ($variant)", axisVisible())
             val bounds = ticks.map { tick ->
                 val label = requireNotNull(device.wait(Until.findObject(By.res("report-axis-tick-$tick")), 5000L)) {
                     "Missing 30-day axis tick $tick ($variant)"

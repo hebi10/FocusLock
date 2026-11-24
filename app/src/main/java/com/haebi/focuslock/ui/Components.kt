@@ -162,12 +162,14 @@ fun PeriodSelector(options: List<String>, selected: String, onSelected: (String)
 }
 
 @Composable
-fun BarChart(values: List<Int>, labels: List<String>, maxValue: Int, highlight: Int = values.lastIndex, modifier: Modifier = Modifier) {
+fun BarChart(values: List<Int>, labels: List<String>, maxValue: Int, highlight: Int = values.lastIndex, modifier: Modifier = Modifier, observed: List<Boolean>? = null) {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(Modifier.fillMaxWidth().height(140.dp), horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.Bottom) {
             values.forEachIndexed { i, value ->
                 Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.Bottom, horizontalAlignment = Alignment.CenterHorizontally) {
-                    Box(
+                    if (observed?.getOrNull(i) == false) {
+                        Box(Modifier.fillMaxWidth().height(2.dp).background(MaterialTheme.colorScheme.outlineVariant))
+                    } else Box(
                         Modifier.fillMaxWidth().height((136f * (value.toFloat() / maxValue.coerceAtLeast(1))).coerceAtLeast(if (value > 0) 3f else 0f).dp)
                             .background(if (i == highlight) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.55f), RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
                     )

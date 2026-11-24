@@ -61,12 +61,9 @@ fun AppDetailScreen(
     }
     val selectedApp = snapshot.window(period).apps.firstOrNull { it.id == app.id }
         ?: app.copy(minutes = 0, launches = -1, lastUsed = "확인 불가", foregroundMillis = 0L)
-    val todayMinutes = snapshot.today.apps.firstOrNull { it.id == app.id }?.minutes ?: 0
-    val values = when (period) {
-        "오늘" -> listOf(todayMinutes)
-        "7일" -> snapshot.appDaily7[app.id]
-        else -> snapshot.appDaily30[app.id]
-    }
+    val todayRecord = snapshot.today.apps.firstOrNull { it.id == app.id }
+    val todayMinutes = todayRecord?.minutes ?: 0
+    val values = snapshot.observedAppChart(app.id, period)
 
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState())
@@ -95,7 +92,7 @@ fun AppDetailScreen(
         }
         PeriodSelector(listOf("오늘", "7일", "30일"), period, onPeriod)
         FocusCard {
-            Metric(UsageFormat.minutesLabel(selectedApp.minutes), "${period} 사용")
+            Metric(if (snapshot.window(period).apps.none { it.id == app.id }) "기록 미확인" else UsageFormat.minutesLabel(selectedApp.minutes), "${period} 사용")
             if (goalMinutes != null && goalMinutes > 0) {
                 Text(
                     "일일 사용 목표 " + UsageFormat.minutesLabel(goalMinutes),
@@ -113,7 +110,7 @@ fun AppDetailScreen(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                if (period == "오늘") {
+                if (period == "오늘" && todayRecord != null) {
                     ProgressBar(
                         todayMinutes.toFloat() / goalMinutes,
                         isWarning = todayMinutes > goalMinutes
@@ -128,7 +125,8 @@ fun AppDetailScreen(
                     )
                 } else {
                     Text(
-                        "일일 목표 진행률은 '오늘' 기준입니다. 과거 목표 변경 이력이 저장되지 않아 과거 달성률은 계산하지 않습니다.",
+                        if (period == "오늘") "오늘 앱 사용 기록을 확인할 수 없어 목표 진행률을 표시하지 않습니다."
+                        else "일일 목표 진행률은 '오늘' 기준입니다. 과거 목표 변경 이력이 저장되지 않아 과거 달성률은 계산하지 않습니다.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -149,7 +147,7 @@ fun AppDetailScreen(
         }
         FocusCard {
             SectionTitle(if (period == "오늘") "오늘 사용 기록" else "사용 패턴 · 최근 $period")
-            if (values == null || values.none { it > 0 }) {
+            if (values == null || values.none { it != null }) {
                 Text(
                     "선택한 기간에 확인된 앱 사용 기록이 없습니다.",
                     style = MaterialTheme.typography.bodySmall,
@@ -157,6 +155,7 @@ fun AppDetailScreen(
                 )
             } else {
                 AppDetailHistoryChart(values, snapshot.window(period).startDate)
+                Text("—는 앱 사용 기록 미확인입니다.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             InfoPair(
@@ -179,7 +178,7 @@ fun AppDetailScreen(
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Text(
-                    "Android 앱별 사용 기록 기준 참고 값입니다. 관측된 날짜가 있어도 전체 기록이 완전하다는 뜻은 아닙니다.",
+                    "Android 앱별 사용 기록 기준 참고 값입니다. 관측된 날짜가 있어도 전체 기록이 완전하다는 뜻은 아닙니다. " + UsageComparisonPolicy.partialTodayNotice,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -236,12 +235,12 @@ fun AppDetailScreen(
 }
 
 @Composable
-private fun AppDetailHistoryChart(values: List<Int>, startDate: LocalDate) {
+private fun AppDetailHistoryChart(values: List<Int?>, startDate: LocalDate) {
     var selectedIndex by remember(values, startDate) { mutableIntStateOf(values.lastIndex) }
-    val maximum = values.maxOrNull()?.coerceAtLeast(1) ?: 1
+    val maximum = values.filterNotNull().maxOrNull()?.coerceAtLeast(1) ?: 1
     val selectedDate = startDate.plusDays(selectedIndex.toLong())
     Text(
-        "${selectedDate.format(DateTimeFormatter.ofPattern("M월 d일", Locale.KOREAN))} · ${UsageFormat.minutesLabel(values[selectedIndex])}",
+        "${selectedDate.format(DateTimeFormatter.ofPattern("M월 d일", Locale.KOREAN))} · ${values[selectedIndex]?.let(UsageFormat::minutesLabel) ?: "기록 미확인"}",
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.testTag("app-history-selected")
@@ -263,7 +262,7 @@ private fun AppDetailHistoryChart(values: List<Int>, startDate: LocalDate) {
                     .clickable(role = Role.Button) { selectedIndex = index }
                     .semantics {
                         contentDescription =
-                            "${date.format(DateTimeFormatter.ofPattern("M월 d일 EEEE", Locale.KOREAN))}, ${UsageFormat.minutesLabel(minutes)}"
+                            "${date.format(DateTimeFormatter.ofPattern("M월 d일 EEEE", Locale.KOREAN))}, ${minutes?.let(UsageFormat::minutesLabel) ?: "기록 미확인"}"
                     },
                 verticalArrangement = Arrangement.spacedBy(FocusSpacing.xs),
                 horizontalAlignment = Alignment.CenterHorizontally
@@ -272,8 +271,9 @@ private fun AppDetailHistoryChart(values: List<Int>, startDate: LocalDate) {
                     Modifier.fillMaxWidth().height(106.dp),
                     contentAlignment = Alignment.BottomCenter
                 ) {
-                    val height = (94f * minutes / maximum).coerceAtLeast(if (minutes > 0) 3f else 0f)
-                    Box(
+                    val height = (94f * (minutes ?: 0) / maximum).coerceAtLeast(if ((minutes ?: 0) > 0) 3f else 0f)
+                    if (minutes == null) Text("—", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    else Box(
                         Modifier.width(20.dp).height(height.dp)
                             .background(
                                 MaterialTheme.colorScheme.primary.copy(alpha = if (index == selectedIndex) 1f else 0.5f),
