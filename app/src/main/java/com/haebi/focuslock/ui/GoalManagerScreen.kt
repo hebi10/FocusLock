@@ -41,11 +41,12 @@ internal fun GoalHistorySummary(history: List<GoalHistoryEvent>, scope: String, 
 internal fun GoalManagerScreen(
     state: UsageLoadState,
     globalGoal: Int,
+    globalAlerts: Boolean,
     goals: Map<String, Int>,
     history: List<GoalHistoryEvent>,
     labelFor: (String) -> String,
     onBack: () -> Unit,
-    onGlobalSave: (Int) -> Unit,
+    onGlobalSave: (Int, Boolean) -> Unit,
     onEditApp: (String) -> Unit,
     onAnalysis: () -> Unit
 ) {
@@ -56,6 +57,7 @@ internal fun GoalManagerScreen(
     val scopes = (listOf(GoalHistoryPolicy.TOTAL) + active.keys + history.map { it.scope }).distinct()
     fun label(id: String) = if (id == GoalHistoryPolicy.TOTAL) "전체 앱 사용 목표" else apps[id]?.name ?: labelFor(id)
     var draft by rememberSaveable(globalGoal) { mutableIntStateOf(if (globalGoal > 0) globalGoal else 180) }
+    var alertDraft by rememberSaveable(globalGoal, globalAlerts) { mutableStateOf(globalAlerts) }
     var scope by rememberSaveable { mutableStateOf(GoalHistoryPolicy.TOTAL) }
     var period by rememberSaveable { mutableStateOf("7일") }
     val selected = if (scope in scopes) scope else GoalHistoryPolicy.TOTAL
@@ -70,7 +72,7 @@ internal fun GoalManagerScreen(
         FocusCard {
             SectionTitle("전체 앱 사용 목표")
             Text(if (globalGoal > 0) "현재 목표: " + UsageFormat.minutesLabel(globalGoal) else "설정된 전체 목표가 없습니다.")
-            Text("Android 앱별 포그라운드 합계 기준입니다. 동시 사용 시 실제 경과 시간과 다를 수 있으며 전체 목표는 현재 알림을 보내지 않습니다.",
+            Text("Android 앱별 포그라운드 합계 기준입니다. 동시 사용 시 실제 경과 시간과 다를 수 있습니다.",
                 style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -78,8 +80,13 @@ internal fun GoalManagerScreen(
                 Text(UsageFormat.minutesLabel(draft), modifier = Modifier.weight(1.4f), style = MaterialTheme.typography.titleMedium)
                 OutlinedButton(onClick = { draft = (draft + 15).coerceAtMost(1440) }, modifier = Modifier.weight(1f)) { Text("+15분") }
             }
-            ActionButton("전체 목표 저장", { onGlobalSave(draft) }, modifier = Modifier.testTag("whole-goal-save"))
-            if (globalGoal > 0) TextButton(onClick = { onGlobalSave(0) }) { Text("전체 목표 해제") }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("전체 목표 80%·100% 경고", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                Switch(checked = alertDraft, onCheckedChange = { alertDraft = it })
+            }
+            Text("알림은 선택 사항이며 Android 권한과 절전 정책에 따라 지연될 수 있습니다.", style = MaterialTheme.typography.labelSmall)
+            ActionButton("전체 목표 저장", { onGlobalSave(draft, alertDraft) }, modifier = Modifier.testTag("whole-goal-save"))
+            if (globalGoal > 0) TextButton(onClick = { onGlobalSave(0, false) }) { Text("전체 목표 해제") }
         }
         FocusCard {
             SectionTitle("앱별 목표")

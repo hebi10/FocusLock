@@ -4,7 +4,7 @@ internal object SettingsDisclosurePolicy {
     const val subtitle = "스마트폰 사용 분석·선택형 목표·집중 설정"
     const val permissionSubtitle = "Android 사용 정보 접근과 알림 권한을 확인합니다."
     const val alertNotice =
-        "앱별 목표의 80%·100% 경고는 선택한 요일에만 확인합니다. " +
+        "앱별 목표의 80%·100% 경고는 선택한 요일에만 확인합니다. 전체 목표 경고는 별도로 켤 수 있습니다. 앱 알림과 목표 알림 채널 모두 허용해야 합니다. " +
         "WorkManager는 최소 약 15분 간격으로 동작하며 절전 정책 때문에 알림이 늦어질 수 있습니다."
     const val localDataNotice =
         "앱 사용 시간은 Android 시스템 통계에서 조회합니다. 목표 설정·변경 이력과 정원 배치, " +

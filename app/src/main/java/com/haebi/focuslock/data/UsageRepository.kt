@@ -107,6 +107,8 @@ object UsageFormat {
     }
 }
 
+internal data class GoalUsageReading(val date: LocalDate, val zoneId: String, val totalMillis: Long, val apps: List<AppUsage>)
+
 private data class DailySample(
     val packageName: String,
     val day: LocalDate,
@@ -121,6 +123,30 @@ class UsageRepository(private val context: Context) {
     private val manager = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
     private val packages = context.packageManager
     private val fmt = DateTimeFormatter.ofPattern("M월 d일 HH:mm", Locale.KOREAN)
+
+    /** Goal checks need only today's OS aggregates, not the 60-day report or event history. */
+    internal fun loadTodayForAlerts(nowMillis: Long = System.currentTimeMillis()): GoalUsageReading? {
+        if (!hasUsageAccess(context)) return null
+        val userManager = context.getSystemService(Context.USER_SERVICE) as UserManager
+        if (!userManager.isUserUnlocked) return null
+        return try {
+            val zone = ZoneId.systemDefault()
+            val today = Instant.ofEpochMilli(nowMillis).atZone(zone).toLocalDate()
+            val start = today.atStartOfDay(zone).toInstant().toEpochMilli()
+            val stats = manager.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, start, nowMillis) ?: return null
+            val apps = stats.filter {
+                it.packageName != context.packageName && it.totalTimeInForeground > 0 &&
+                    Instant.ofEpochMilli(it.firstTimeStamp).atZone(zone).toLocalDate() == today
+            }.groupBy { it.packageName }.map { (pkg, samples) ->
+                val millis = UsageMetrics.totalMillis(samples.map { it.totalTimeInForeground })
+                val meta = describeApp(pkg)
+                AppUsage(pkg, meta.name, meta.category, millisToMinutes(millis), -1, "확인 불가",
+                    meta.name.firstOrNull()?.uppercaseChar()?.toString() ?: "?", 0xFF666666, pkg, millis)
+            }
+            if (!hasUsageAccess(context)) null else GoalUsageReading(today, zone.id,
+                UsageMetrics.totalMillis(apps.map { it.foregroundMillis }), apps)
+        } catch (_: RuntimeException) { null }
+    }
 
     fun load(nowMillis: Long = System.currentTimeMillis()): UsageLoadState {
         if (!hasUsageAccess(context)) return UsageLoadState.PermissionRequired

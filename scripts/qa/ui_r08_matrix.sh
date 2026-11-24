@@ -59,6 +59,7 @@ set_viewport() {
 
 adb shell appops set com.haebi.focuslock GET_USAGE_STATS ignore
 run_case 'com.haebi.focuslock.FocusLockUsageStateAuditTest#permissionDeniedReallyReturnsPermissionRequired' "api${api}-denied" 1.0
+run_case 'com.haebi.focuslock.GoalAlertNavigationQaTest#deniedUsageNeverReturnsAnAlertReading' "api${api}-alert-denied" 1.0
 
 adb shell appops set com.haebi.focuslock GET_USAGE_STATS allow
 adb shell am start -a android.settings.SETTINGS >/dev/null
@@ -69,6 +70,8 @@ run_case 'com.haebi.focuslock.FocusPersistenceQaTest#storedRewardSurvivesDatabas
 run_case 'com.haebi.focuslock.FocusPersistenceQaTest#rebootPausesSessionAndNeverInventsCompletion' "api${api}-reboot" 1.0
 run_case 'com.haebi.focuslock.GoalManagerQaTest#legacyGoalsAndChangeHistoryRemainLocal' "api${api}-goal-history" 1.0
 run_case 'com.haebi.focuslock.GoalManagerQaTest#settingsCanOpenGoalManagerWithoutChangingUserGoals' "api${api}-goal-manager" 1.0
+run_case 'com.haebi.focuslock.GoalAlertNavigationQaTest#distinctNotificationTargetsAndRealTodayReading' "api${api}-alert-targets" 1.0
+run_case 'com.haebi.focuslock.GoalAlertNavigationQaTest#totalNotificationOpensGoalsWithoutChangingExistingSettings' "api${api}-alert-navigation" 1.0
 
 if [[ "${api}" == "29" || "${api}" == "35" ]]; then
   adb shell wm size reset
