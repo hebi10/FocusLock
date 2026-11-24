@@ -96,6 +96,28 @@ class FocusLockResponsiveQaTest {
                 verifiedMetric.visibleBounds.width() > 0 && verifiedMetric.visibleBounds.height() > 0)
             device.waitForIdle(1800L)
             capture("report-30")
+            // Verify full tick text on the same real viewport, including compact 160% font.
+            find("사용 시간 추이")
+            val ticks = listOf("29", "24", "19", "14", "9", "4", "0")
+            repeat(4) {
+                if (device.findObject(By.res("report-axis-tick-29")) == null) {
+                    device.swipe(device.displayWidth * 2 / 3, device.displayHeight * 3 / 4,
+                        device.displayWidth * 2 / 3, device.displayHeight / 3, 24)
+                    device.waitForIdle(1000L)
+                }
+            }
+            val bounds = ticks.map { tick ->
+                val label = requireNotNull(device.wait(Until.findObject(By.res("report-axis-tick-$tick")), 5000L)) {
+                    "Missing 30-day axis tick $tick ($variant)"
+                }
+                assertTrue("Truncated axis tick $tick", label.text == tick)
+                label.visibleBounds.also {
+                    assertTrue("Axis tick is not visible: $tick", it.width() > 0 && it.height() > 0)
+                    assertTrue("Axis tick outside display: $tick", it.left >= 0 && it.right <= device.displayWidth)
+                }
+            }
+            assertTrue("Axis labels overlap", bounds.zipWithNext().all { (left, right) -> left.right <= right.left })
+            capture("report-30-axis")
             tap("홈")
             tap("설정")
             assertTrue(visible("사용 정보·알림 권한 관리", 7000L) != null)
