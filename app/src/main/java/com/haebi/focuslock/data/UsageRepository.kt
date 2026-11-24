@@ -210,6 +210,16 @@ class UsageRepository(private val context: Context) {
                 }
                 if (previousResumed != null) appendHourly(previousTime, nowMillis, previousResumed!!, today, hourlyMillis, zone)
             }
+            val byApp = rows.groupBy { it.packageName }
+            val dailyTotals = rows.groupBy { it.day }.mapValues { (_, samples) ->
+                UsageMetrics.totalMillis(samples.map { it.foregroundMillis })
+            }
+            val appDailyTotals = byApp.mapValues { (_, samples) ->
+                samples.groupBy { it.day }.mapValues { (_, dayRows) ->
+                    UsageMetrics.totalMillis(dayRows.map { it.foregroundMillis })
+                }
+            }
+            val launchesByApp = launched.entries.groupBy { it.key.pkg }
             val appMeta = mutableMapOf<String, AppMeta>()
             val window: (Int, Int, Boolean) -> UsageWindow = { from, to, includeEvents ->
                 val start = today.minusDays(from.toLong())
@@ -221,8 +231,9 @@ class UsageRepository(private val context: Context) {
                     val meta = appMeta.getOrPut(pkg) { describeApp(pkg) }
                     val date = samples.maxOf { it.lastTimeUsed }
                     val count = if (includeEvents && events != null) {
-                        launched.filterKeys { it.pkg == pkg && !it.day.isBefore(start) && !it.day.isAfter(end) }
-                            .values.sum().takeIf { it > 0 } ?: -1
+                        launchesByApp[pkg].orEmpty()
+                            .filter { !it.key.day.isBefore(start) && !it.key.day.isAfter(end) }
+                            .sumOf { it.value }.takeIf { it > 0 } ?: -1
                     } else -1
                     AppUsage(
                         id = pkg, name = meta.name, category = meta.category,
@@ -242,30 +253,20 @@ class UsageRepository(private val context: Context) {
             val yesterday = window(1, 1, true)
             val previous7 = window(13, 7, false)
             val previous30 = window(59, 30, false)
-            fun dayMinutes(day: LocalDate): Int = millisToMinutes(rows.filter { it.day == day }.sumOf { it.foregroundMillis })
-            val daily7 = (6 downTo 0).map { dayMinutes(today.minusDays(it.toLong())) }
-            val daily30 = (29 downTo 0).map { dayMinutes(today.minusDays(it.toLong())) }
-            val byApp = rows.groupBy { it.packageName }
-            val appDaily7 = byApp.mapValues { (_, appRows) ->
-                (6 downTo 0).map { offset ->
-                    millisToMinutes(appRows.filter { it.day == today.minusDays(offset.toLong()) }.sumOf { it.foregroundMillis })
-                }
-            }
-            val appDaily30 = byApp.mapValues { (_, appRows) ->
-                (29 downTo 0).map { offset ->
-                    millisToMinutes(appRows.filter { it.day == today.minusDays(offset.toLong()) }.sumOf { it.foregroundMillis })
-                }
-            }
+            fun chart(totals: Map<LocalDate, Long>, days: Int): List<Int> =
+                (days - 1 downTo 0).map { offset -> millisToMinutes(totals[today.minusDays(offset.toLong())] ?: 0L) }
+            val daily30 = chart(dailyTotals, 30)
+            val daily7 = daily30.takeLast(7)
+            val appDaily30 = appDailyTotals.mapValues { (_, totals) -> chart(totals, 30) }
+            val appDaily7 = appDaily30.mapValues { (_, values) -> values.takeLast(7) }
             val hourly = if (sawAnyEvents) hourlyMillis.map(::millisToMinutes) else null
-            val coverage = UsageCoverage(rows.map { it.day }.toSet())
+            val coverage = UsageCoverage(dailyTotals.keys)
             UsageLoadState.Ready(UsageSnapshot(
                 todayWindow, last7, last30, yesterday, previous7, previous30,
                 daily7, daily30, appDaily7, hourly, nowMillis, appDaily30, coverage,
-                byApp.mapValues { (_, samples) -> samples.map { it.day }.toSet() },
-                rows.groupBy { it.day }.mapValues { (_, samples) -> UsageMetrics.totalMillis(samples.map { it.foregroundMillis }) },
-                byApp.mapValues { (_, samples) -> samples.groupBy { it.day }.mapValues { (_, dayRows) ->
-                    UsageMetrics.totalMillis(dayRows.map { it.foregroundMillis })
-                } },
+                appDailyTotals.mapValues { (_, totals) -> totals.keys },
+                dailyTotals,
+                appDailyTotals,
                 zone.id
             ))
         } catch (_: SecurityException) {
