@@ -1,29 +1,17 @@
-# RENEW-09 — 최종 Android 실화면·스토어 이미지·AAB 사전 검증
+# FL-FIX-09 / RENEW-09 — 최종 실화면 스토어 자료 준비
 
-기준: 2026-11-14, Google Drive FocusLock RENEW-00/01, GitHub RENEW-MASTER #41. 이 문서는 Google Play 등록 승인이 아닙니다.
+2026-11-24. 기존 PR #56 재사용, 선행 FL-FIX-08 #68과 정합화. 이 문서는 실행·배포 승인이 아니다.
 
-## 1. 기능 PR 병합 조건
-- PR #51~55 최신 main 기준 Android CI, API29·35·36, API36 전체 화면 QA 성공 및 보안 검토 완료
-- #53 리포트 화면과 #55 설정 화면 변경이 함께 적용됐는지 최종 검사
-- 저장된 사용자 목표·요일·Room 세션·보상·정원/권한·다크/라이트/글꼴160% 회귀 검증
-- 실기기 삼성/폴더블, TalkBack, 장기간 7/30일 Android 통계값 대조는 실제 기기 검증 전 미완료로 유지
+## 준비 및 검증 순서
+1. #68의 최신 Android CI 및 기기 QA 성공·main 병합.
+2. #56의 렌더러/문구/증빙 검증 테스트 성공·main 정합화 및 안전 병합. 최종 QA 전 준비 코드이며 실제 스토어 이미지 생성 완료가 아니다.
+3. 전체 코드와 준비 문서가 반영된 최신 main SHA를 고정하고 emulator-smoke.yml 수동 실행. QA artifact의 UI-R00 37장, FL-FIX-08 7장, 정확한 SHA/run ID 확인.
+4. STORE-01 mode=check, main에서 실제 8+1 이미지를 생성하고 artifact의 PNG/manifest 원본 해시·규격·순서·문구·민감정보 노출을 확인. Google Drive의 기존 자료를 보존하며 실제 파일 및 검증 근거로 갱신.
+5. 실기기 Fold/태블릿, TalkBack, 실제 알림 및 절전, 문서 선택 파일 저장 및 오류 검증을 별도 확인. 에뮬레이터 결과만으로 완료 판정하지 않는다.
 
-## 2. 스토어 이미지 생산
-- 모든 기능 병합 후 현재 main 동일 40자리 SHA에서 Android full-screen emulator QA 성공 및 37장 이상의 실제 캡처 확보
-- 1350×2400 RGB PNG 8장, 1024×500 RGB 대표 그래픽 1장, SHA-256 매니페스트 source_commit·source_workflow_run 확인
-- 순서: 01 오늘 홈, 02 사용 분석, 03 앱 상세, 04 선택형 목표, 05 집중, 06 결과, 07 정원, 08 사용 변화 리포트
-- 실제 앱 내부를 편집하거나 가짜 앱 사용 시간·활동 수치를 삽입하지 않음
-- 강제 앱 차단, 실시간 감시, 미구현 과거 목표 달성률 및 불확실한 30일 실행 횟수를 홍보하지 않음
-- 화이트·블랙·중성 회색·평면 구성, 기존 아이콘 원본 보존
-- 신규 캡처와 완성 이미지는 개인정보/계정/민감 내용 노출 여부를 사람이 최종 검수
-- Drive의 기존 2026-11-10/11 시안은 보존하되 최종 리뉴얼 이미지 대체 자료가 아님
-
-## 3. 별도 승인형 Play 작업
-- STORE-01 FocusLock Korean Play images: check로 최종 main 실화면 8+1 생성, Play 변화 없음. 승인 후 upload 및 OPS-01/06 검증
-- OPS-03 release-build: 최종 main SHA·버전코드·배치 승인에 따라 서명 AAB build-only, 업로드 없음
-- OPS-04 play-internal-release: 동일 AAB SHA256·서명·applicationId·versionCode 검증 후 사용자 별도 승인으로 internal 게시
-- OPS-05 play-closed-release: 완료된 동일 internal versionCode, 실제 Play 트랙 ID와 별도 승인 확인 후 closed 승격
-- Play API 응답/실제 Console 게시/테스터 설치는 구분해 보고; 정식 출시는 별도 작업
-
-## 4. 현재 판정
-RENEW-04~08 전체 최종 병합과 실기기 QA가 완료되기 전에는 최종 이미지·AAB·Play 내부/비공개 트랙 게시를 완료로 표시하지 않습니다.
+## 현재 변경 범위
+- 분석 중심 중성 색상 스토어 문구, 전체/앱별 목표 및 관측 날짜 선택 실제 캡처 활용.
+- 과거 37장 및 새 7장의 QA 증빙 해시 검증, 원본과 생성 PNG 및 대표 그래픽 소스 해시 기록. 과거 SHA/PR 캡처·불일치·누락 거절.
+- 한국어 listing-ko.json 초안 최신 구현에 맞춰 갱신. 공개 개인정보 문구 변경 초안은 FL-FIX-07 문서에 보존한다. docs/privacy-policy.html은 main 자동 Pages 게시 경로이므로 게시 승인 없이 수정하지 않는다.
+- 기존 Play 승인 게이트, 앱 코드·서명·트랙·웹 게시 불변. 업로드·내부 배포·비공개 승격·정식 출시 각각 AGENTS.md 기준 준수.
+- 변경사항이 최종 main SHA를 바꾸면 기존 최종 QA 결과를 재사용하지 않는다.

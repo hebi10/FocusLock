@@ -50,17 +50,8 @@ internal object UsageInsightPolicy {
         )
     }
 
-    private fun comparable(snapshot: UsageSnapshot, period: String): Boolean {
-        val coverage = snapshot.coverage ?: return false
-        val current = snapshot.window(period)
-        val previous = snapshot.prior(period)
-        val days = coverage.periodDays(current.startDate, current.endDate)
-        if (days !in 7..30 || coverage.periodDays(previous.startDate, previous.endDate) != days) {
-            return false
-        }
-        return coverage.observedDays(current.startDate, current.endDate) == days &&
-            coverage.observedDays(previous.startDate, previous.endDate) == days
-    }
+    private fun comparable(snapshot: UsageSnapshot, period: String): Boolean =
+        UsageComparisonPolicy.hasComparablePeriods(snapshot, period)
 
     private fun verifiedWeeklyChanges(
         snapshot: UsageSnapshot,
@@ -94,7 +85,7 @@ internal object UsageInsightPolicy {
                 "최근 7일 " + app.name + " 사용 시간이 이전 7일보다 " +
                     UsageFormat.minutesLabel(UsageMetrics.roundedMinutes(abs(delta))) +
                     " " + direction + "했습니다.",
-                "Android 앱별 실측 기록과 양 기간 관측일 기준 · 일부 기록 누락 가능"
+                "Android 앱별 실측 기록과 양 기간 관측일 기준 · 일부 기록 누락 가능 · " + UsageComparisonPolicy.partialTodayNotice
             )
         }
 
@@ -112,7 +103,7 @@ internal object UsageInsightPolicy {
             "I04",
             "최근 " + period + " 총 사용 시간이 직전 동일 기간보다 " +
                 percentage + "% " + direction + "했습니다.",
-            "Android 두 기간 실측 사용 시간 기준 · 관측일 확인은 기록의 완전성을 보장하지 않음"
+            "Android 두 기간 실측 사용 시간 기준 · 관측일 확인은 기록의 완전성을 보장하지 않음 · " + UsageComparisonPolicy.partialTodayNotice
         )
     }
 
@@ -150,7 +141,7 @@ internal object UsageInsightPolicy {
                 app.name + "의 최근 7일 사용 시간이 이전 7일보다 " +
                     UsageFormat.minutesLabel(UsageMetrics.roundedMinutes(delta)) +
                     " 늘었습니다. 원한다면 사용 목표를 설정할 수 있습니다.",
-                "실제 사용량에 근거한 선택형 제안 · 자동 차단이나 건강 진단이 아님"
+                "실제 사용량에 근거한 선택형 제안 · 자동 차단이나 건강 진단이 아님 · " + UsageComparisonPolicy.partialTodayNotice
             )
         )
     }

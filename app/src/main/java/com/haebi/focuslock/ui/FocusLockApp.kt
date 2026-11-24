@@ -17,6 +17,7 @@ import androidx.compose.material.icons.outlined.DateRange
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
@@ -33,13 +34,22 @@ import com.haebi.focuslock.data.UsageSnapshot
 import com.haebi.focuslock.data.FocusSessionEntity
 import com.haebi.focuslock.data.FocusSessionStatus
 import com.haebi.focuslock.data.FocusSessionStore
+import com.haebi.focuslock.data.FocusTiming
 import com.haebi.focuslock.data.FocusSummary
 import com.haebi.focuslock.data.GoalAlerts
 import com.haebi.focuslock.data.GoalDayPolicy
+import com.haebi.focuslock.data.GoalConfig
+import com.haebi.focuslock.data.GoalHistoryStore
+import com.haebi.focuslock.data.GoalHistoryPolicy
+import com.haebi.focuslock.data.LocalDataStore
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.repeatOnLifecycle
+import java.time.LocalDate
+import java.time.ZoneId
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -54,32 +64,69 @@ internal fun restoredMainTab(value: String): MainTab = when (value) {
 }
 
 @Composable
-fun FocusLockApp() {
+fun FocusLockApp(goalAlertTarget: String? = null, onGoalAlertHandled: () -> Unit = {}) {
     val context = LocalContext.current
     val prefs = remember(context) { context.getSharedPreferences("focuslock_ui_prototype", 0) }
     val repository = remember(context) { UsageRepository(context.applicationContext) }
     val focusStore = remember(context) { FocusSessionStore.onDevice(context.applicationContext) }
+    val localDataStore = remember(prefs, focusStore) { LocalDataStore(prefs, focusStore) }
     val scope = rememberCoroutineScope()
+    var dataBusy by remember { mutableStateOf(false) }
+    var dataMessage by rememberSaveable { mutableStateOf("") }
     var goalSettingsVersion by remember { mutableIntStateOf(0) }
-    val notificationPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { reload ->
-        if (reload) goalSettingsVersion++
-    }
     val lifecycleOwner = LocalLifecycleOwner.current
     var reloadToken by remember { mutableIntStateOf(0) }
-    val usageAccessGranted = remember(reloadToken) { hasUsageAccess(context) }
-    var usageState by remember { mutableStateOf<UsageLoadState>(UsageLoadState.Loading) }
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        goalSettingsVersion++
+        reloadToken++
+    }
+    var usageAccessGranted by remember { mutableStateOf(hasUsageAccess(context)) }
+    var usageState by remember { mutableStateOf<UsageLoadState>(if (usageAccessGranted) UsageLoadState.Loading else UsageLoadState.PermissionRequired) }
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) reloadToken++
+            if (event == Lifecycle.Event.ON_RESUME) {
+                usageAccessGranted = hasUsageAccess(context)
+                usageState = if (usageAccessGranted) UsageLoadState.Loading else UsageLoadState.PermissionRequired
+                reloadToken++
+            }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
-    LaunchedEffect(reloadToken) {
-        usageState = UsageLoadState.Loading
-        usageState = withContext(Dispatchers.IO) { repository.load() }
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            var date = LocalDate.now()
+            var zone = ZoneId.systemDefault()
+            while (true) {
+                delay(5_000L)
+                val granted = hasUsageAccess(context)
+                if (granted != usageAccessGranted) {
+                    usageAccessGranted = granted
+                    usageState = if (granted) UsageLoadState.Loading else UsageLoadState.PermissionRequired
+                    reloadToken++
+                }
+                val currentDate = LocalDate.now()
+                val currentZone = ZoneId.systemDefault()
+                if (date != currentDate || zone != currentZone) {
+                    date = currentDate
+                    zone = currentZone
+                    reloadToken++
+                }
+            }
+        }
     }
-    val usageSnapshot = (usageState as? UsageLoadState.Ready)?.snapshot
+    LaunchedEffect(reloadToken) {
+        usageAccessGranted = hasUsageAccess(context)
+        if (!usageAccessGranted) {
+            usageState = UsageLoadState.PermissionRequired
+            return@LaunchedEffect
+        }
+        usageState = UsageLoadState.Loading
+        val loaded = withContext(Dispatchers.IO) { repository.load() }
+        usageAccessGranted = hasUsageAccess(context)
+        usageState = if (usageAccessGranted) loaded else UsageLoadState.PermissionRequired
+    }
+    val usageSnapshot = if (usageAccessGranted) (usageState as? UsageLoadState.Ready)?.snapshot else null
     var onboarding by rememberSaveable { mutableIntStateOf(if (prefs.getBoolean("onboarding_completed", false)) -1 else 0) }
     var theme by rememberSaveable { mutableStateOf(prefs.getString("theme", "시스템") ?: "시스템") }
     var tab by rememberSaveable { mutableStateOf(MainTab.HOME.name) }
@@ -94,6 +141,12 @@ fun FocusLockApp() {
     var selectedAppId by rememberSaveable { mutableStateOf("") }
     var selectedAppPeriod by rememberSaveable { mutableStateOf("오늘") }
     var selectedAppRecord by remember { mutableStateOf<AppUsage?>(null) }
+    val tabStateHolder = rememberSaveableStateHolder()
+    val displayedAppRecord = usageSnapshot?.let { snapshot ->
+        listOf(snapshot.today, snapshot.last7, snapshot.last30).asSequence()
+            .flatMap { it.apps.asSequence() }.firstOrNull { it.id == selectedAppId }
+            ?: selectedAppRecord?.takeIf { it.id == selectedAppId }
+    }
     var goalSheetId by rememberSaveable { mutableStateOf("") }
     var selectedGardenItemId by rememberSaveable { mutableStateOf("") }
     var placedGardenItemId by rememberSaveable {
@@ -110,6 +163,12 @@ fun FocusLockApp() {
         mutableStateMapOf<String, Int>().also { map ->
             prefs.all.forEach { (key, value) -> if (key.startsWith("goal.") && value is Int) map[key.removePrefix("goal.")] = value }
         }
+    }
+    var globalGoal by remember(prefs) { mutableIntStateOf(prefs.getInt(GoalHistoryStore.TOTAL_KEY, 0)) }
+    var globalAlerts by remember(prefs) { mutableStateOf(prefs.getBoolean(GoalHistoryStore.TOTAL_ALERT_KEY, false)) }
+    val goalHistory = remember(goalSettingsVersion, reloadToken) { GoalHistoryStore.read(prefs) }
+    LaunchedEffect(reloadToken) {
+        if (GoalHistoryStore.seedCurrentGoals(prefs)) goalSettingsVersion++
     }
     val distraction = remember(prefs) {
         mutableStateMapOf<String, Boolean>().also { map ->
@@ -147,7 +206,6 @@ fun FocusLockApp() {
     var elapsedSeconds by rememberSaveable { mutableIntStateOf(0) }
     var remainingSeconds by rememberSaveable { mutableIntStateOf(25 * 60) }
     var startElapsed by rememberSaveable { mutableLongStateOf(0L) }
-    var endElapsed by rememberSaveable { mutableLongStateOf(0L) }
     var paused by rememberSaveable { mutableStateOf(false) }
     var completed by rememberSaveable { mutableStateOf(false) }
     var experience by rememberSaveable { mutableIntStateOf(0) }
@@ -156,49 +214,83 @@ fun FocusLockApp() {
     var resultPoints by rememberSaveable { mutableIntStateOf(0) }
     var startInProgress by remember { mutableStateOf(false) }
     var finishInProgress by remember { mutableStateOf(false) }
+    var pauseInProgress by remember { mutableStateOf(false) }
     var todayExperience by remember { mutableIntStateOf(0) }
     var stopConfirm by rememberSaveable { mutableStateOf(false) }
     var focusSessionId by remember { mutableStateOf<String?>(null) }
     var focusRestoreMessage by remember { mutableStateOf(false) }
     var focusReport by remember { mutableStateOf(FocusSummary()) }
+    var focusRestored by remember { mutableStateOf(false) }
 
     fun applySession(session: FocusSessionEntity) {
         focusSessionId = session.id
         focusDuration = session.durationMinutes
-        elapsedSeconds = session.elapsedSeconds
-        remainingSeconds = if (session.durationMinutes == 0) 0 else
-            (session.durationMinutes * 60 - session.elapsedSeconds).coerceAtLeast(0)
         startElapsed = session.checkpointElapsedRealtime - session.elapsedSeconds * 1000L
-        endElapsed = session.checkpointElapsedRealtime + remainingSeconds * 1000L
         paused = session.status == FocusSessionStatus.PAUSED
+        val millis = if (paused) session.elapsedSeconds.toLong() * 1000L else
+            FocusTiming.elapsedMillis(0, startElapsed, SystemClock.elapsedRealtime(), session.durationMinutes)
+        elapsedSeconds = FocusTiming.seconds(millis)
+        remainingSeconds = FocusTiming.remainingSeconds(session.durationMinutes, millis)
         focusPhase = "running"
     }
 
+    suspend fun refreshFocusMetrics() {
+        val metrics = withContext(Dispatchers.IO) { focusStore.metrics() }
+        experience = metrics.experience
+        growthPoints = metrics.points
+        todayExperience = metrics.todayExperience
+        focusReport = metrics.report
+    }
+
     LaunchedEffect(reloadToken) {
-        todayExperience = withContext(Dispatchers.IO) { focusStore.todayExperience() }
+        if (focusRestored && !dataBusy) refreshFocusMetrics()
     }
 
     LaunchedEffect(Unit) {
         val recovered = withContext(Dispatchers.IO) { focusStore.restore() }
-        experience = withContext(Dispatchers.IO) { focusStore.totalExperience() }
-        growthPoints = withContext(Dispatchers.IO) { focusStore.totalPoints() }
-        todayExperience = withContext(Dispatchers.IO) { focusStore.todayExperience() }
-        focusReport = withContext(Dispatchers.IO) { focusStore.report() }
+        refreshFocusMetrics()
         recovered.session?.let {
             applySession(it)
             focusRestoreMessage = recovered.pausedByRestart
+        } ?: run {
+            if (focusPhase == "running" && focusSessionId == null) {
+                focusPhase = "setup"
+                stopConfirm = false
+            }
         }
+        focusRestored = true
+    }
+    LaunchedEffect(goalAlertTarget, onboarding, focusPhase, focusRestored, usageState, dataBusy) {
+        val target = goalAlertTarget ?: return@LaunchedEffect
+        // Keep an existing focus session or unfinished onboarding intact.
+        if (!focusRestored || dataBusy || onboarding >= 0 || focusPhase != "setup" || usageState == UsageLoadState.Loading) return@LaunchedEffect
+        val record = if (target == GoalHistoryPolicy.TOTAL || (goals[target] ?: 0) <= 0) null
+            else listOfNotNull(usageSnapshot?.today, usageSnapshot?.last7, usageSnapshot?.last30)
+                .asSequence().flatMap { it.apps.asSequence() }.firstOrNull { it.id == target }
+        goalSheetId = ""
+        selectedGardenItemId = ""
+        showInfo = false
+        focusGardenOpen = false
+        if (record != null && usageAccessGranted) {
+            tab = MainTab.ANALYSIS.name
+            selectedAppId = record.id
+            selectedAppRecord = record
+            selectedAppPeriod = "오늘"
+            detail = "app"
+        } else {
+            tab = MainTab.HOME.name
+            selectedAppRecord = null
+            detail = "goals"
+        }
+        onGoalAlertHandled()
     }
     LaunchedEffect(goalSettingsVersion) { GoalAlerts.schedule(context.applicationContext) }
     LaunchedEffect(reloadToken, goalSettingsVersion, usageState) {
-        if (usageState is UsageLoadState.Ready)
-            withContext(Dispatchers.IO) { GoalAlerts.checkNow(context.applicationContext) }
+        val snapshot = usageSnapshot
+        if (snapshot != null)
+            withContext(Dispatchers.IO) { GoalAlerts.checkNow(context.applicationContext, snapshot) }
     }
-    LaunchedEffect(detail, focusPhase, tab) {
-        if (detail == "report" || tab == MainTab.REPORT.name || focusPhase == "result")
-            focusReport = withContext(Dispatchers.IO) { focusStore.report() }
-    }
-    DisposableEffect(lifecycleOwner, focusSessionId) {
+     DisposableEffect(lifecycleOwner, focusSessionId) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_STOP) {
                 val id = focusSessionId
@@ -212,6 +304,7 @@ fun FocusLockApp() {
     }
 
     fun goMain(destination: MainTab) {
+        if (dataBusy) return
         detail = ""
         focusGardenOpen = false
         tab = destination.name
@@ -226,7 +319,7 @@ fun FocusLockApp() {
         onboarding = -1
     }
     fun startFocus(minutes: Int) {
-        if (startInProgress || focusSessionId != null) return
+        if (dataBusy || startInProgress || focusSessionId != null) return
         startInProgress = true
         scope.launch {
             try {
@@ -246,21 +339,18 @@ fun FocusLockApp() {
         }
     }
 
-    fun finishFocus() {
+    fun finishFocus(onlyIfDue: Boolean = false) {
         val id = focusSessionId ?: return
-        if (finishInProgress) return
+        if (finishInProgress || pauseInProgress) return
         finishInProgress = true
         scope.launch {
             try {
-                val result = withContext(Dispatchers.IO) { focusStore.finish(id) } ?: return@launch
+                val result = withContext(Dispatchers.IO) { focusStore.finish(id, onlyIfDue) } ?: return@launch
                 completed = result.reward != null
                 resultExperience = result.reward?.experience ?: 0
                 resultPoints = result.reward?.points ?: 0
                 elapsedSeconds = result.session.elapsedSeconds
-                experience = withContext(Dispatchers.IO) { focusStore.totalExperience() }
-                growthPoints = withContext(Dispatchers.IO) { focusStore.totalPoints() }
-                todayExperience = withContext(Dispatchers.IO) { focusStore.todayExperience() }
-                focusReport = withContext(Dispatchers.IO) { focusStore.report() }
+                refreshFocusMetrics()
                 focusSessionId = null
                 focusPhase = "result"
                 stopConfirm = false
@@ -270,32 +360,36 @@ fun FocusLockApp() {
         }
     }
 
-    LaunchedEffect(focusPhase, paused, focusSessionId) {
-        var lastCheckpoint = -1
-        while (focusPhase == "running" && !paused && focusSessionId != null) {
-            delay(1000L)
-            val now = SystemClock.elapsedRealtime()
-            if (focusDuration == 0) {
-                elapsedSeconds = ((now - startElapsed) / 1000L).toInt().coerceAtLeast(0)
-            } else {
-                remainingSeconds = ((endElapsed - now + 999L) / 1000L).toInt().coerceAtLeast(0)
-                elapsedSeconds = (focusDuration * 60 - remainingSeconds).coerceAtLeast(0)
-                if (remainingSeconds == 0) {
-                    paused = true
-                    finishFocus()
-                    break
+    LaunchedEffect(focusPhase, paused, focusSessionId, lifecycleOwner) {
+        var lastCheckpointBucket = elapsedSeconds / 10
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            while (focusPhase == "running" && !paused && focusSessionId != null) {
+                val millis = FocusTiming.elapsedMillis(0, startElapsed, SystemClock.elapsedRealtime(), focusDuration)
+                elapsedSeconds = FocusTiming.seconds(millis)
+                remainingSeconds = FocusTiming.remainingSeconds(focusDuration, millis)
+                if (focusDuration > 0 && remainingSeconds == 0) {
+                    finishFocus(onlyIfDue = true)
+                    delay(250L)
+                    continue
                 }
-            }
-            if (elapsedSeconds > 0 && elapsedSeconds % 10 == 0 && lastCheckpoint != elapsedSeconds) {
-                lastCheckpoint = elapsedSeconds
-                val id = focusSessionId ?: break
-                withContext(Dispatchers.IO) { focusStore.checkpoint(id) }
+                val bucket = elapsedSeconds / 10
+                if (bucket > lastCheckpointBucket && !finishInProgress && !pauseInProgress) {
+                    lastCheckpointBucket = bucket
+                    val id = focusSessionId ?: break
+                    val saved = withContext(Dispatchers.IO) { focusStore.checkpoint(id) }
+                    if (saved?.status == FocusSessionStatus.PAUSED && !pauseInProgress) {
+                        applySession(saved)
+                        focusRestoreMessage = true
+                    }
+                }
+                delay(FocusTiming.nextTickDelay(millis))
             }
         }
     }
 
-    BackHandler(enabled = onboarding > 0 || detail.isNotEmpty() || focusPhase != "setup" || focusGardenOpen) {
+    BackHandler(enabled = dataBusy || onboarding > 0 || detail.isNotEmpty() || focusPhase != "setup" || focusGardenOpen) {
         when {
+            dataBusy -> Unit
             onboarding > 0 -> onboarding--
             focusPhase == "running" -> stopConfirm = true
             focusPhase == "result" -> { focusPhase = "setup"; goMain(MainTab.HOME) }
@@ -324,6 +418,7 @@ fun FocusLockApp() {
                                 modifier = Modifier.testTag("nav-${item.name}"),
                                 selected = restoredMainTab(tab) == item,
                                 onClick = { goMain(item) },
+                                enabled = !dataBusy,
                                 icon = { Icon(icon, contentDescription = item.label, modifier = Modifier.size(FocusSpacing.icon)) },
                                 label = {
                                     val navigationLabel = if (LocalDensity.current.fontScale >= 1.4f && item == MainTab.ANALYSIS) "분석" else item.label
@@ -375,11 +470,18 @@ fun FocusLockApp() {
                         restoredAfterReboot = focusRestoreMessage,
                         onPauseToggle = {
                             val id = focusSessionId
-                            if (id != null) scope.launch {
-                                val changed = withContext(Dispatchers.IO) { focusStore.togglePause(id) }
-                                if (changed != null) {
-                                    applySession(changed)
-                                    focusRestoreMessage = false
+                            if (id != null && !pauseInProgress && !finishInProgress) {
+                                pauseInProgress = true
+                                scope.launch {
+                                    try {
+                                        val changed = withContext(Dispatchers.IO) { focusStore.togglePause(id) }
+                                        if (changed != null && focusSessionId == id) {
+                                            applySession(changed)
+                                            focusRestoreMessage = false
+                                        }
+                                    } finally {
+                                        pauseInProgress = false
+                                    }
                                 }
                             }
                         },
@@ -393,29 +495,126 @@ fun FocusLockApp() {
                         onHome = { focusPhase = "setup"; goMain(MainTab.HOME) },
                         onGarden = { focusPhase = "setup"; openGarden() }
                     )
-                    detail == "app" && usageSnapshot != null && selectedAppRecord != null -> AppDetailScreen(
-                        app = selectedAppRecord!!,
+                    detail == "app" && usageSnapshot != null && displayedAppRecord != null -> AppDetailScreen(
+                        app = displayedAppRecord,
                         snapshot = usageSnapshot,
                         period = selectedAppPeriod,
                         onPeriod = { selectedAppPeriod = it },
                         goalMinutes = goals[selectedAppId],
+                        goalDaysMask = goalDays[selectedAppId]
+                            ?: GoalDayPolicy.fromLegacyEveryday(everydayGoal[selectedAppId] ?: true),
+                        warn80 = warningAt80[selectedAppId] ?: true,
+                        warn100 = warningAt100[selectedAppId] ?: true,
                         isDistraction = distraction[selectedAppId] ?: false,
                         isExcluded = excluded[selectedAppId] ?: false,
                         onBack = { detail = "" },
                         onGoal = { goalSheetId = selectedAppId },
                         onSystemSettings = {
-                            openInstalledAppInfo(context, selectedAppRecord?.packageName)
+                            openInstalledAppInfo(context, displayedAppRecord.packageName)
                         },
                         onDistraction = { distraction[selectedAppId] = it; prefs.edit().putBoolean("distraction.$selectedAppId", it).apply() },
                         onExcluded = { excluded[selectedAppId] = it; prefs.edit().putBoolean("excluded.$selectedAppId", it).apply() }
                     )
-                    detail == "app" -> InfoState("사용 기록 갱신됨", "선택한 앱의 사용 기록을 다시 확인해 주세요.", "사용 분석으로", {detail=""})
+                    detail == "app" -> when (usageState) {
+                        UsageLoadState.PermissionRequired -> InfoState("사용 정보 접근 필요", "권한이 없으므로 이전 사용 기록도 표시하지 않습니다.", "권한 설정 열기", { openUsageSettings(context) })
+                        UsageLoadState.Loading -> InfoState("기록 확인 중", "선택한 앱의 사용 기록을 확인합니다.")
+                        else -> InfoState("사용 기록 미확인", "선택한 앱의 사용 기록을 다시 확인해 주세요.", "사용 분석으로", { detail = "" })
+                    }
                     detail == "report" -> ReportScreen(
                         state = usageState,
                         excluded = excluded,
                         focusSummary = focusReport,
+                        goalHistory = goalHistory, onGoals = { detail = "goals" },
                         onBack = {detail = ""}, onApp = { app, period -> selectedAppId=app.id; selectedAppRecord=app; selectedAppPeriod=period; detail="app" },
                         onUsageSettings = {openUsageSettings(context)}, onRefresh = {reloadToken++}
+                    )
+                    detail == "goals" -> GoalManagerScreen(
+                        state = usageState,
+                        globalGoal = globalGoal,
+                        globalAlerts = globalAlerts,
+                        goals = goals,
+                        history = goalHistory,
+                        labelFor = { id -> prefs.getString("goal_label.$id", id) ?: id },
+                        onBack = { detail = "" },
+                        onGlobalSave = { minutes, alerts ->
+                            val enabled = minutes > 0 && alerts
+                            val editor = prefs.edit().putInt(GoalHistoryStore.TOTAL_KEY, minutes)
+                                .putBoolean(GoalHistoryStore.TOTAL_ALERT_KEY, enabled)
+                            GoalHistoryStore.record(prefs, editor, GoalHistoryPolicy.TOTAL,
+                                GoalConfig(minutes, warn80 = enabled, warn100 = enabled))
+                            editor.apply()
+                            globalGoal = minutes
+                            globalAlerts = enabled
+                            goalSettingsVersion++
+                            if (enabled && Build.VERSION.SDK_INT >= 33 && !hasNotificationAccess(context))
+                                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        },
+                        onEditApp = { goalSheetId = it },
+                        onAnalysis = { goMain(MainTab.ANALYSIS) }
+                    )
+                    detail == "local-data" -> LocalDataScreen(
+                        busy = dataBusy || !focusRestored,
+                        message = dataMessage,
+                        onBack = { if (!dataBusy) detail = "" },
+                        onExport = { uri ->
+                            if (!dataBusy && focusRestored) {
+                                dataBusy = true
+                                dataMessage = ""
+                                scope.launch {
+                                    try {
+                                        withContext(Dispatchers.IO) {
+                                            val json = localDataStore.exportJson()
+                                            val stream = requireNotNull(context.contentResolver.openOutputStream(uri, "wt"))
+                                            stream.bufferedWriter(Charsets.UTF_8).use { it.write(json) }
+                                        }
+                                        dataMessage = "JSON 파일을 저장했습니다."
+                                    } catch (cancelled: CancellationException) { throw cancelled }
+                                    catch (_: Exception) {
+                                        dataMessage = "파일 저장을 확인하지 못했습니다. 선택한 파일을 확인한 뒤 다시 시도해 주세요."
+                                    } finally { dataBusy = false }
+                                }
+                            }
+                        },
+                        onClearGoalHistory = {
+                            if (!dataBusy && focusRestored) {
+                                dataBusy = true
+                                dataMessage = ""
+                                scope.launch {
+                                    try {
+                                        val saved = withContext(Dispatchers.IO) { localDataStore.clearGoalHistory() }
+                                        dataMessage = if (saved) "과거 목표 이력을 삭제했습니다. 현재 목표는 유지됩니다."
+                                            else "목표 이력 변경의 저장을 확인하지 못했습니다."
+                                    } catch (cancelled: CancellationException) { throw cancelled }
+                                    catch (_: Exception) { dataMessage = "목표 이력 삭제를 확인하지 못했습니다." }
+                                    finally { goalSettingsVersion++; dataBusy = false }
+                                }
+                            }
+                        },
+                        onClearFocusHistory = {
+                            if (!dataBusy && focusRestored && focusSessionId == null &&
+                                !startInProgress && !finishInProgress && !pauseInProgress) {
+                                dataBusy = true
+                                dataMessage = ""
+                                scope.launch {
+                                    try {
+                                        val removed = withContext(Dispatchers.IO) { localDataStore.clearFocusHistory() }
+                                        if (removed == null) dataMessage = "진행 중인 집중 세션이 있어 삭제하지 않았습니다."
+                                        else {
+                                            refreshFocusMetrics()
+                                            resultExperience = 0
+                                            resultPoints = 0
+                                            val validItem = GardenCatalog.placed(placedGardenItemId, experience).id
+                                            placedGardenItemId = validItem
+                                            prefs.edit().putString("placed_garden_item_id", validItem).apply()
+                                            dataMessage = "집중 기록 ${removed}개와 연결된 보상을 삭제했습니다."
+                                        }
+                                    } catch (cancelled: CancellationException) { throw cancelled }
+                                    catch (_: Exception) {
+                                        dataMessage = "집중 기록 삭제 결과를 확인하지 못했습니다. 기록을 다시 확인해 주세요."
+                                    } finally { dataBusy = false }
+                                }
+                            }
+                        }
                     )
                     detail == "permissions" -> key(reloadToken) { PermissionManagementScreen(
                         onBack = {detail = ""},
@@ -429,6 +628,8 @@ fun FocusLockApp() {
                             excluded = excluded,
                             todayExperience = todayExperience,
                             totalExperience = experience,
+                            globalGoal = globalGoal,
+                            onGoals = { detail = "goals" },
                             onSetGoal = { goalSheetId = it.id },
                             onFocus = {goMain(MainTab.FOCUS)},
                             onAnalysis = {goMain(MainTab.ANALYSIS)},
@@ -438,16 +639,20 @@ fun FocusLockApp() {
                             onSettings = {goMain(MainTab.SETTINGS)},
                             onUsageSettings = {openUsageSettings(context)}, onRefresh = {reloadToken++}
                         )
-                        MainTab.ANALYSIS -> AnalysisScreen(
-                            state = usageState,
-                            excluded = excluded,
-                            onApp = { app, period -> selectedAppId=app.id; selectedAppRecord=app; selectedAppPeriod=period;detail="app" }, onReport = {goMain(MainTab.REPORT)},
-                            onUsageSettings = {openUsageSettings(context)}, onRefresh = {reloadToken++}
-                        )
-                        MainTab.REPORT -> ReportScreen(
+                        MainTab.ANALYSIS -> tabStateHolder.SaveableStateProvider("analysis-tab") {
+                            AnalysisScreen(
+                                state = usageState,
+                                excluded = excluded,
+                                onApp = { app, period -> selectedAppId=app.id; selectedAppRecord=app; selectedAppPeriod=period;detail="app" }, onReport = {goMain(MainTab.REPORT)},
+                                onUsageSettings = {openUsageSettings(context)}, onRefresh = {reloadToken++}
+                            )
+                        }
+                        MainTab.REPORT -> tabStateHolder.SaveableStateProvider("report-tab") {
+                            ReportScreen(
                             state = usageState,
                             excluded = excluded,
                             focusSummary = focusReport,
+                            goalHistory = goalHistory, onGoals = { detail = "goals" },
                             onBack = null,
                             onApp = { app, period ->
                                 selectedAppId = app.id
@@ -457,7 +662,8 @@ fun FocusLockApp() {
                             },
                             onUsageSettings = { openUsageSettings(context) },
                             onRefresh = { reloadToken++ }
-                        )
+                            )
+                        }
                         MainTab.FOCUS -> {
                             if (focusGardenOpen) {
                                 GardenScreen(
@@ -487,7 +693,9 @@ fun FocusLockApp() {
                             theme = theme,
                             onTheme = { theme=it;prefs.edit().putString("theme",it).apply() },
                             onPermissions = {detail="permissions"},
-                            onInfo = {showInfo=true}
+                            onInfo = {showInfo=true},
+                            onGoals = {detail="goals"},
+                            onLocalData = { dataMessage = ""; detail = "local-data" }
                         )
                     }
                 }
@@ -496,6 +704,12 @@ fun FocusLockApp() {
         if(goalSheetId.isNotEmpty()) {
             val app = listOfNotNull(usageSnapshot?.today, usageSnapshot?.last7, usageSnapshot?.last30)
                 .flatMap { it.apps }.firstOrNull { it.id == goalSheetId }
+                ?: if ((goals[goalSheetId] ?: 0) > 0) {
+                    val label = prefs.getString("goal_label.$goalSheetId", goalSheetId) ?: goalSheetId
+                    // Metadata-only fallback for editing an existing goal without usage access.
+                    AppUsage(goalSheetId, label, "기타", 0, -1, "확인 불가",
+                        label.take(1), 0xFF666666, goalSheetId)
+                } else null
             if (app != null) GoalSheet(
                 app=app,
                 current=goals[app.id] ?: 60,
@@ -516,6 +730,9 @@ fun FocusLockApp() {
                         .putBoolean("warn100.${app.id}", warn100)
                         .putInt("goalDays.${app.id}", normalizedDays)
                         .putBoolean("everyday.${app.id}", normalizedDays != GoalDayPolicy.NONE)
+                        .putString("goal_label.${app.id}", app.name)
+                        .also { editor -> GoalHistoryStore.record(prefs, editor, app.id,
+                            GoalConfig(minutes, normalizedDays, warn80, warn100)) }
                         .apply()
                     goalSettingsVersion++
                     goalSheetId = ""
@@ -531,7 +748,9 @@ fun FocusLockApp() {
                     goalDays.remove(app.id)
                     prefs.edit().remove("goal.${app.id}").remove("warn80.${app.id}")
                         .remove("warn100.${app.id}").remove("everyday.${app.id}")
-                        .remove("goalDays.${app.id}").apply()
+                        .remove("goalDays.${app.id}")
+                        .also { editor -> GoalHistoryStore.record(prefs, editor, app.id, GoalConfig(0)) }
+                        .apply()
                     goalSettingsVersion++
                     goalSheetId = ""
                 },
@@ -569,7 +788,7 @@ fun FocusLockApp() {
                         "지금 종료하면 보상 없이 기록됩니다."
                 )
             },
-            confirmButton={TextButton(onClick=::finishFocus){Text("종료")}},
+            confirmButton={TextButton(onClick={finishFocus()}, enabled=!finishInProgress && !pauseInProgress){Text("종료")}},
             dismissButton={TextButton(onClick={stopConfirm=false}){Text("계속 집중")}}
         )
         if(showInfo) AlertDialog(

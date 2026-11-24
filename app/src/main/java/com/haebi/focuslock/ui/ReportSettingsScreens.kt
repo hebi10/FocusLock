@@ -12,6 +12,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -19,11 +22,13 @@ import com.haebi.focuslock.data.AppUsage
 import com.haebi.focuslock.data.UsageFormat
 import com.haebi.focuslock.data.UsageLoadState
 import com.haebi.focuslock.data.FocusSummary
+import com.haebi.focuslock.data.GoalHistoryEvent
+import com.haebi.focuslock.data.GoalHistoryPolicy
 
 @Composable
-fun ReportScreen(state: UsageLoadState, excluded: Map<String, Boolean>, focusSummary: FocusSummary, onBack: (() -> Unit)?, onApp: (AppUsage, String) -> Unit, onUsageSettings: () -> Unit, onRefresh: () -> Unit) {
+internal fun ReportScreen(state: UsageLoadState, excluded: Map<String, Boolean>, focusSummary: FocusSummary, onBack: (() -> Unit)?, onApp: (AppUsage, String) -> Unit, onUsageSettings: () -> Unit, onRefresh: () -> Unit, goalHistory: List<GoalHistoryEvent> = emptyList(), onGoals: () -> Unit = {}) {
     var period by rememberSaveable { mutableStateOf("7일") }
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    AdaptiveScrollColumn {
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (onBack != null) {
                 IconButton(onClick = onBack) { Icon(Icons.Outlined.ArrowBack, "뒤로") }
@@ -41,23 +46,74 @@ fun ReportScreen(state: UsageLoadState, excluded: Map<String, Boolean>, focusSum
             }
         } else {
             val selected = snapshot.window(period)
-            val prev = snapshot.prior(period)
             val visibleApps = selected.apps.filter { excluded[it.id] != true }
             FocusCard {
-                Metric(UsageFormat.minutesLabel(selected.totalMinutes), "최근 ${period} 총 사용 시간")
-                Text(UsageFormat.comparison(selected.totalMinutes, prev.totalMinutes) ?: "비교할 이전 기록이 없습니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Metric(if (selected.apps.isEmpty()) "기록 미확인" else UsageFormat.minutesLabel(selected.totalMinutes), "최근 ${period} 총 사용 시간")
+                Text(
+                    UsageComparisonPolicy.summary(snapshot, period),
+                    fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(UsageComparisonPolicy.partialTodayNotice, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(UsageComparisonPolicy.foregroundNotice, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             FocusCard {
                 SectionTitle("사용 시간 추이")
-                val values = snapshot.chart(period) ?: emptyList()
-                if (values.any { it > 0 }) {
+                val recorded = snapshot.observedChart(period).orEmpty()
+                val values = recorded.map { it ?: 0 }
+                if (recorded.any { it != null }) {
                     val labels = if (period == "7일") listOf("6일 전", "5일 전", "4일 전", "3일 전", "2일 전", "어제", "오늘") else thirtyDayAxisLabels(values.size)
-                    BarChart(values, labels, (values.maxOrNull() ?: 1).coerceAtLeast(1), -1)
+                    var savedIndex by rememberSaveable(period, selected.startDate.toString(), recorded.size) {
+                        mutableIntStateOf(recorded.lastIndex)
+                    }
+                    val index = ChartSelectionPolicy.index(recorded.size, savedIndex)
+                    BarChart(values, labels, (values.maxOrNull() ?: 1).coerceAtLeast(1), index, observed = recorded.map { it != null })
+                    val day = selected.startDate.plusDays(index.toLong())
+                    val dateLabel = day.format(DateTimeFormatter.ofPattern("M월 d일", Locale.KOREAN))
+                    val valueLabel = recorded[index]?.let(UsageFormat::minutesLabel) ?: "기록 미확인"
+                    Text("$dateLabel · $valueLabel", style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.testTag("report-chart-selected"))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.xs)) {
+                        OutlinedButton(onClick = { savedIndex = ChartSelectionPolicy.step(recorded.size, index, -1) },
+                            enabled = index > 0,
+                            modifier = Modifier.weight(1f).heightIn(min = FocusSpacing.minTouchTarget)
+                                .testTag("report-chart-prev")) { Text("이전 날짜") }
+                        OutlinedButton(onClick = { savedIndex = ChartSelectionPolicy.step(recorded.size, index, 1) },
+                            enabled = index < recorded.lastIndex,
+                            modifier = Modifier.weight(1f).heightIn(min = FocusSpacing.minTouchTarget)
+                                .testTag("report-chart-next")) { Text("다음 날짜") }
+                    }
+                    Text("회색 짧은 선은 기록 미확인 날짜입니다. 0분으로 집계하지 않습니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     if (period == "30일") {
                         Text("가로축 숫자는 오늘 기준 며칠 전인지를 표시합니다. (0 = 오늘)", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 } else Text("선택 기간의 일별 사용 기록이 없습니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+            FocusCard {
+                SectionTitle("앱별 사용 변화")
+                val changes = ReportChangePolicy.appChanges(snapshot, period, excluded)
+                if (changes.isEmpty()) {
+                    Text(
+                        "동일 앱의 양 기간 기록이 충분하지 않아 증감 순위를 표시하지 않습니다.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    changes.forEach { change ->
+                        Text(
+                            ReportChangePolicy.appChangeLabel(change),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        TextButton(onClick = { onApp(change.app, period) }) {
+                            Text(change.app.name + " 상세 보기")
+                        }
+                    }
+                }
+                Text(
+                    ReportChangePolicy.sourceNotice,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+             }
             FocusCard {
                 SectionTitle("사용량 상위 앱")
                 if (visibleApps.isEmpty()) Text(if (selected.apps.isEmpty()) "선택 기간의 앱 사용 기록이 없습니다." else "분석 제외 설정으로 표시할 앱이 없습니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -66,6 +122,10 @@ fun ReportScreen(state: UsageLoadState, excluded: Map<String, Boolean>, focusSum
                     if(index < minOf(5, visibleApps.size) - 1) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 }
             }
+        }
+        FocusCard {
+            SectionTitle("전체 사용 목표 리포트", "목표 관리", onGoals)
+            GoalHistorySummary(goalHistory, GoalHistoryPolicy.TOTAL, snapshot, if (period == "30일") 30 else 7)
         }
         FocusCard {
             SectionTitle("집중 성과 · ${period}")
@@ -91,12 +151,16 @@ private fun InfoPairReport(label: String, value: String) {
 }
 
 @Composable
-fun SettingsScreen(theme: String, onTheme: (String) -> Unit, onPermissions: () -> Unit, onInfo: () -> Unit) {
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        PageTitle("설정", "FocusLock의 사용 환경을 관리합니다")
+fun SettingsScreen(theme: String, onTheme: (String) -> Unit, onPermissions: () -> Unit, onInfo: () -> Unit, onGoals: () -> Unit = {}, onLocalData: () -> Unit = {}) {
+    AdaptiveScrollColumn {
+        PageTitle("설정", SettingsDisclosurePolicy.subtitle)
         FocusCard {
             SectionTitle("권한")
-            SettingRow("사용 정보·알림 권한 관리", "권한별 허용 상태, 용도 및 시스템 설정 확인", onClick = onPermissions)
+            SettingRow("사용 정보·알림 권한 관리", SettingsDisclosurePolicy.permissionSubtitle, onClick = onPermissions)
+        }
+        FocusCard {
+            SectionTitle("사용 목표")
+            SettingRow("목표 관리", "전체 앱 사용 목표와 개별 앱 목표 및 변경 이력", onClick = onGoals)
         }
         FocusCard {
             SectionTitle("화면")
@@ -105,16 +169,25 @@ fun SettingsScreen(theme: String, onTheme: (String) -> Unit, onPermissions: () -
         }
         FocusCard {
             SectionTitle("알림")
-            Text("앱별 목표 설정에서 80%·100% 경고 및 적용 요일을 선택합니다. WorkManager는 최소 약 15분 간격으로 확인하며 Android 절전 정책에 따라 알림이 지연될 수 있습니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(SettingsDisclosurePolicy.alertNotice, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         FocusCard {
             SectionTitle("데이터")
-            Text("사용 기록은 Android 시스템에서 읽으며, FocusLock의 집중 세션·보상과 목표 설정은 기기에 저장됩니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("전체 데이터 삭제 기능은 현재 제공하지 않습니다. Android 앱 정보의 저장공간 메뉴에서 앱 데이터 초기화가 가능하지만 모든 앱 설정과 기록이 삭제됩니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(SettingsDisclosurePolicy.localDataNotice, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(SettingsDisclosurePolicy.deleteNotice, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            SettingRow("데이터 관리", "로컬 기록 JSON 내보내기 및 종류별 삭제", onClick = onLocalData)
+        }
+        FocusCard {
+            SectionTitle("기능 범위")
+            Text(
+                SettingsDisclosurePolicy.limitsNotice,
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
         FocusCard {
             SectionTitle("앱 정보")
-            SettingRow("현재 구현 범위", "실제 사용 통계·권한·목표 경고·집중 기록 저장", onClick = onInfo)
+            SettingRow("현재 구현 범위", "사용 통계·목표 알림·집중 기록·정원 관리", onClick = onInfo)
             Text("FocusLock 0.3.0", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
@@ -125,14 +198,15 @@ fun PermissionManagementScreen(onBack: () -> Unit, onUsageSettings: () -> Unit, 
     val context = LocalContext.current
     var refresh by remember { mutableIntStateOf(0) }
     val usageGranted = remember(refresh) { hasUsageAccess(context) }
-    val notificationGranted = remember(refresh) { hasNotificationAccess(context) }
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    val notificationState = remember(refresh) { goalNotificationAvailability(context) }
+    val notificationGranted = notificationState == GoalNotificationAvailability.READY
+    AdaptiveScrollColumn {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.Outlined.ArrowBack, "뒤로") }
             Text("권한 관리", fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
             IconButton(onClick = { refresh++ }) { Icon(Icons.Outlined.Refresh, "권한 새로고침") }
         }
-        InfoState("개인정보 보호", "사용 기록은 Android 시스템에서 읽고 기기 내부에만 표시합니다. 외부 서버에 전송하지 않습니다.")
+        InfoState("개인정보 보호", SettingsDisclosurePolicy.privacyNotice)
         FocusCard {
             SectionTitle("사용 정보 접근")
             Text(if(usageGranted) "현재 상태: 허용" else "현재 상태: 미허용", color = if(usageGranted) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant)
@@ -141,9 +215,15 @@ fun PermissionManagementScreen(onBack: () -> Unit, onUsageSettings: () -> Unit, 
         }
         FocusCard {
             SectionTitle("알림")
-            Text(if(notificationGranted) "현재 상태: 허용" else "현재 상태: 미허용", color = if(notificationGranted) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("현재 상태: " + notificationState.label, color = if(notificationGranted) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Android 앱 알림과 목표 알림 채널이 모두 허용되어야 합니다.", style = MaterialTheme.typography.bodySmall)
             Text("앱별 목표 도달 알림을 받으려면 허용이 필요합니다. Android 백그라운드 제한으로 알림이 지연될 수 있습니다.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             OutlinedButton(onClick = onNotificationSettings, modifier = Modifier.fillMaxWidth()) { Text("Android 알림 설정") }
+            OutlinedButton(onClick = {
+                runCatching { com.haebi.focuslock.data.GoalAlerts.ensureChannel(context) }
+                openGoalChannelSettings(context)
+            }, modifier = Modifier.fillMaxWidth()) { Text("목표 알림 채널 설정") }
+            Text("제조사 절전 정책에 따라 15분 주기 확인보다 늦게 알림이 도착할 수 있습니다. 필요하면 Android 앱 배터리 설정을 확인해 주세요.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Text("Android 설정에서 돌아오면 권한 상태를 다시 확인합니다. 표시가 갱신되지 않으면 상단 새로고침을 눌러주세요.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }

@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.sp
 import com.haebi.focuslock.R
 import com.haebi.focuslock.data.AppUsage
@@ -48,7 +49,9 @@ fun HomeScreen(
     onReport: () -> Unit,
     onSettings: () -> Unit,
     onUsageSettings: () -> Unit,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    globalGoal: Int = 0,
+    onGoals: () -> Unit = {}
 ) {
     val snapshot = (state as? UsageLoadState.Ready)?.snapshot
     val visibleApps = snapshot?.today?.apps.orEmpty().filter { excluded[it.id] != true }
@@ -62,10 +65,7 @@ fun HomeScreen(
     val goalSuggestion = snapshot?.let {
         UsageInsightPolicy.goalSuggestion(it, goals, excluded)
     }
-    val totalGoals = goals.values.filter { it > 0 }.sum()
-    val managedMinutes = snapshot?.today?.apps.orEmpty()
-        .filter { (goals[it.id] ?: 0) > 0 }
-        .sumOf { it.minutes }
+    val goalCount = goals.values.count { it > 0 }
 
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState())
@@ -80,7 +80,7 @@ fun HomeScreen(
             UsageStatus(state, onUsageSettings, onRefresh)
         } else {
             FocusCard {
-                Metric(UsageFormat.minutesLabel(snapshot.today.totalMinutes), "오늘 사용 시간")
+                Metric(if (snapshot.today.apps.isEmpty()) "기록 미확인" else UsageFormat.minutesLabel(snapshot.today.totalMinutes), "오늘 사용 시간")
                 if (snapshot.today.apps.isEmpty()) {
                     Text(
                         "아직 확인된 앱 사용 기록이 없습니다. 다른 앱을 사용한 뒤 다시 확인해 주세요.",
@@ -89,14 +89,18 @@ fun HomeScreen(
                     )
                 } else {
                     Text(
-                        UsageFormat.comparison(snapshot.today.totalMinutes, snapshot.yesterday.totalMinutes)
-                            ?.replace("이전 기간", "어제") ?: "어제와 비교할 사용 기록이 부족합니다.",
+                        UsageComparisonPolicy.summary(snapshot, "오늘"),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 Text(
                     "Android에서 제공한 기기 사용 통계입니다.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    UsageComparisonPolicy.foregroundNotice,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -171,52 +175,28 @@ fun HomeScreen(
             }
         }
 
-        if (snapshot != null) {
-            FocusCard {
-                SectionTitle("사용 목표")
-                if (totalGoals > 0) {
-                    Text(
-                        "설정한 앱별 목표의 합계 " + UsageFormat.minutesLabel(totalGoals),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        UsageFormat.minutesLabel(managedMinutes) + " / " +
-                            UsageFormat.minutesLabel(totalGoals),
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                    ProgressBar(
-                        managedMinutes.toFloat() / totalGoals,
-                        isWarning = managedMinutes > totalGoals
-                    )
-                    Text(
-                        if (managedMinutes > totalGoals)
-                            "목표를 설정한 앱의 합산 사용 시간이 " +
-                                UsageFormat.minutesLabel(managedMinutes - totalGoals) + " 초과했습니다."
-                        else "설정된 앱 목표 합계까지 " +
-                            UsageFormat.minutesLabel(totalGoals - managedMinutes) + " 남았습니다.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (managedMinutes > totalGoals) MaterialTheme.colorScheme.error
-                            else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    val editable = listOf(snapshot.today, snapshot.last7, snapshot.last30)
-                        .asSequence().flatMap { it.apps.asSequence() }
-                        .firstOrNull { (goals[it.id] ?: 0) > 0 }
-                    if (editable != null) {
-                        TextButton(onClick = { onSetGoal(editable) }) { Text("앱 목표 수정") }
-                    }
-                } else {
-                    Text(
-                        "사용 목표는 선택 사항입니다. 필요할 때 앱별로 설정할 수 있습니다.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    if (topApp != null) {
-                        TextButton(onClick = { onSetGoal(topApp) }) { Text("앱별 사용 목표 설정") }
-                    } else {
-                        TextButton(onClick = onAnalysis) { Text("사용 분석에서 앱 확인") }
-                    }
+        FocusCard {
+            SectionTitle("사용 목표", "목표 관리", onGoals)
+            if (globalGoal > 0) {
+                Text("전체 앱 사용 목표 · " + UsageFormat.minutesLabel(globalGoal),
+                    style = MaterialTheme.typography.titleMedium)
+                val millis = snapshot?.today?.totalForegroundMillis?.takeIf { it > 0 }
+                if (millis == null) Text("오늘 사용 기록 미확인", style = MaterialTheme.typography.bodySmall)
+                else {
+                    val limit = globalGoal.toLong() * 60_000L
+                    Text(UsageFormat.minutesLabel(snapshot!!.today.totalMinutes) + " / " + UsageFormat.minutesLabel(globalGoal),
+                        style = MaterialTheme.typography.bodyMedium)
+                    ProgressBar((millis.toDouble() / limit).toFloat(), isWarning = millis > limit)
+                    Text(if (millis > limit) "관측 사용량이 전체 목표를 초과했습니다." else "오늘은 진행 중입니다.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+            } else Text("하루 전체 앱 사용 목표를 선택해서 설정할 수 있습니다.",
+                style = MaterialTheme.typography.bodySmall)
+            Text("설정된 앱별 목표 ${goalCount}개", style = MaterialTheme.typography.bodyMedium)
+            Text("개별 앱 목표의 합계와 전체 앱 사용 목표는 별개입니다.",
+                style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (goalCount == 0 && topApp != null) {
+                TextButton(onClick = { onSetGoal(topApp) }) { Text("앱별 사용 목표 설정") }
             }
         }
 
@@ -234,12 +214,11 @@ fun HomeScreen(
             FocusCard {
                 SectionTitle("지난 7일 변화", "리포트 보기", onReport)
                 Text(
-                    UsageFormat.minutesLabel(snapshot.last7.totalMinutes),
+                    if (snapshot.last7.apps.isEmpty()) "기록 미확인" else UsageFormat.minutesLabel(snapshot.last7.totalMinutes),
                     style = MaterialTheme.typography.titleLarge
                 )
                 Text(
-                    UsageFormat.comparison(snapshot.last7.totalMinutes, snapshot.previous7.totalMinutes)
-                        ?.replace("이전 기간", "이전 7일") ?: "이전 7일과 비교할 기록이 부족합니다.",
+                    UsageComparisonPolicy.summary(snapshot, "7일") + "\n" + UsageComparisonPolicy.partialTodayNotice,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -272,7 +251,7 @@ fun AnalysisScreen(
     var query by rememberSaveable { mutableStateOf("") }
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        val wide = maxWidth >= 700.dp
+        val wide = maxWidth >= 700.dp && maxWidth / LocalDensity.current.fontScale >= 600.dp
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState())
                 .padding(horizontal = FocusSpacing.md, vertical = FocusSpacing.md),
@@ -291,7 +270,6 @@ fun AnalysisScreen(
             } else {
                 val snapshot = state.snapshot
                 val selected = snapshot.window(period)
-                val prior = snapshot.prior(period)
 
                 if (selected.apps.isEmpty()) {
                     InfoState("사용 기록 없음", "선택한 기간에 Android가 제공하는 앱 사용 기록이 없습니다.", "새로고침", onRefresh)
@@ -299,8 +277,8 @@ fun AnalysisScreen(
                     FocusCard {
                         Metric(UsageFormat.minutesLabel(selected.totalMinutes), "총 사용 시간")
                         Text(
-                            UsageFormat.comparison(selected.totalMinutes, prior.totalMinutes)
-                                ?: "이전 기간의 비교 기록 없음",
+                            UsageComparisonPolicy.summary(snapshot, period) + "\n" +
+                                (if (period == "오늘") UsageComparisonPolicy.foregroundNotice else UsageComparisonPolicy.partialTodayNotice + "\n" + UsageComparisonPolicy.foregroundNotice),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

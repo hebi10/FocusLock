@@ -43,7 +43,11 @@ data class UsageSnapshot(
     val hourlyToday: List<Int>?,
     val collectedAtMillis: Long,
     val appDaily30: Map<String, List<Int>> = emptyMap(),
-    val coverage: UsageCoverage? = null
+    val coverage: UsageCoverage? = null,
+    val appObservedDates: Map<String, Set<LocalDate>> = emptyMap(),
+    val dailyForegroundMillis: Map<LocalDate, Long> = emptyMap(),
+    val appDailyForegroundMillis: Map<String, Map<LocalDate, Long>> = emptyMap(),
+    val observedZoneId: String? = null
 ) {
     fun window(period: String): UsageWindow = when (period) {
         "7일" -> last7
@@ -61,6 +65,24 @@ data class UsageSnapshot(
         "7일" -> daily7
         "30일" -> daily30
         else -> hourlyToday
+    }
+
+    /** Null means no confirmed observation, never a measured zero. */
+    fun observedChart(period: String): List<Int?>? = chart(period)?.mapIndexed { index, minutes ->
+        if (period == "오늘") minutes.takeIf { it > 0 }
+        else minutes.takeIf {
+            it > 0 || coverage?.observedDates?.contains(window(period).startDate.plusDays(index.toLong())) == true
+        }
+    }
+
+    fun observedAppChart(appId: String, period: String): List<Int?>? {
+        if (period == "오늘") return listOf(today.apps.firstOrNull { it.id == appId }?.minutes)
+        val values = if (period == "7일") appDaily7[appId] else appDaily30[appId]
+        return values?.mapIndexed { index, minutes ->
+            minutes.takeIf {
+                it > 0 || appObservedDates[appId]?.contains(window(period).startDate.plusDays(index.toLong())) == true
+            }
+        }
     }
 }
 
@@ -85,6 +107,8 @@ object UsageFormat {
     }
 }
 
+internal data class GoalUsageReading(val date: LocalDate, val zoneId: String, val totalMillis: Long, val apps: List<AppUsage>)
+
 private data class DailySample(
     val packageName: String,
     val day: LocalDate,
@@ -98,14 +122,38 @@ private data class LaunchKey(val day: LocalDate, val pkg: String)
 class UsageRepository(private val context: Context) {
     private val manager = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
     private val packages = context.packageManager
-    private val zone = ZoneId.systemDefault()
     private val fmt = DateTimeFormatter.ofPattern("M월 d일 HH:mm", Locale.KOREAN)
+
+    /** Goal checks need only today's OS aggregates, not the 60-day report or event history. */
+    internal fun loadTodayForAlerts(nowMillis: Long = System.currentTimeMillis()): GoalUsageReading? {
+        if (!hasUsageAccess(context)) return null
+        val userManager = context.getSystemService(Context.USER_SERVICE) as UserManager
+        if (!userManager.isUserUnlocked) return null
+        return try {
+            val zone = ZoneId.systemDefault()
+            val today = Instant.ofEpochMilli(nowMillis).atZone(zone).toLocalDate()
+            val start = today.atStartOfDay(zone).toInstant().toEpochMilli()
+            val stats = manager.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, start, nowMillis) ?: return null
+            val apps = stats.filter {
+                it.packageName != context.packageName && it.totalTimeInForeground > 0 &&
+                    Instant.ofEpochMilli(it.firstTimeStamp).atZone(zone).toLocalDate() == today
+            }.groupBy { it.packageName }.map { (pkg, samples) ->
+                val millis = UsageMetrics.totalMillis(samples.map { it.totalTimeInForeground })
+                val meta = describeApp(pkg)
+                AppUsage(pkg, meta.name, meta.category, millisToMinutes(millis), -1, "확인 불가",
+                    meta.name.firstOrNull()?.uppercaseChar()?.toString() ?: "?", 0xFF666666, pkg, millis)
+            }
+            if (!hasUsageAccess(context)) null else GoalUsageReading(today, zone.id,
+                UsageMetrics.totalMillis(apps.map { it.foregroundMillis }), apps)
+        } catch (_: RuntimeException) { null }
+    }
 
     fun load(nowMillis: Long = System.currentTimeMillis()): UsageLoadState {
         if (!hasUsageAccess(context)) return UsageLoadState.PermissionRequired
         val userManager = context.getSystemService(Context.USER_SERVICE) as UserManager
         if (!userManager.isUserUnlocked) return UsageLoadState.Unavailable("기기 잠금을 해제한 뒤 사용 기록을 확인해 주세요.")
         return try {
+            val zone = ZoneId.systemDefault()
             val today = Instant.ofEpochMilli(nowMillis).atZone(zone).toLocalDate()
             val firstDay = today.minusDays(59)
             val startMillis = firstDay.atStartOfDay(zone).toInstant().toEpochMilli()
@@ -140,7 +188,7 @@ class UsageRepository(private val context: Context) {
                     when (event.eventType) {
                         resumedType -> {
                             sawAnyEvents = true
-                            if (previousResumed != null) appendHourly(previousTime, timestamp, previousResumed!!, today, hourlyMillis)
+                            if (previousResumed != null) appendHourly(previousTime, timestamp, previousResumed!!, today, hourlyMillis, zone)
                             val key = LaunchKey(day, packageName)
                             val last = lastLaunch[packageName]
                             if (last == null || timestamp - last > 1500L) {
@@ -151,17 +199,27 @@ class UsageRepository(private val context: Context) {
                             previousTime = timestamp
                         }
                         pausedType -> if (packageName == previousResumed) {
-                            appendHourly(previousTime, timestamp, packageName, today, hourlyMillis)
+                            appendHourly(previousTime, timestamp, packageName, today, hourlyMillis, zone)
                             previousResumed = null
                         }
                         UsageEvents.Event.SCREEN_NON_INTERACTIVE, UsageEvents.Event.KEYGUARD_SHOWN -> {
-                            if (previousResumed != null) appendHourly(previousTime, timestamp, previousResumed!!, today, hourlyMillis)
+                            if (previousResumed != null) appendHourly(previousTime, timestamp, previousResumed!!, today, hourlyMillis, zone)
                             previousResumed = null
                         }
                     }
                 }
-                if (previousResumed != null) appendHourly(previousTime, nowMillis, previousResumed!!, today, hourlyMillis)
+                if (previousResumed != null) appendHourly(previousTime, nowMillis, previousResumed!!, today, hourlyMillis, zone)
             }
+            val byApp = rows.groupBy { it.packageName }
+            val dailyTotals = rows.groupBy { it.day }.mapValues { (_, samples) ->
+                UsageMetrics.totalMillis(samples.map { it.foregroundMillis })
+            }
+            val appDailyTotals = byApp.mapValues { (_, samples) ->
+                samples.groupBy { it.day }.mapValues { (_, dayRows) ->
+                    UsageMetrics.totalMillis(dayRows.map { it.foregroundMillis })
+                }
+            }
+            val launchesByApp = launched.entries.groupBy { it.key.pkg }
             val appMeta = mutableMapOf<String, AppMeta>()
             val window: (Int, Int, Boolean) -> UsageWindow = { from, to, includeEvents ->
                 val start = today.minusDays(from.toLong())
@@ -173,8 +231,9 @@ class UsageRepository(private val context: Context) {
                     val meta = appMeta.getOrPut(pkg) { describeApp(pkg) }
                     val date = samples.maxOf { it.lastTimeUsed }
                     val count = if (includeEvents && events != null) {
-                        launched.filterKeys { it.pkg == pkg && !it.day.isBefore(start) && !it.day.isAfter(end) }
-                            .values.sum().takeIf { it > 0 } ?: -1
+                        launchesByApp[pkg].orEmpty()
+                            .filter { !it.key.day.isBefore(start) && !it.key.day.isAfter(end) }
+                            .sumOf { it.value }.takeIf { it > 0 } ?: -1
                     } else -1
                     AppUsage(
                         id = pkg, name = meta.name, category = meta.category,
@@ -194,25 +253,21 @@ class UsageRepository(private val context: Context) {
             val yesterday = window(1, 1, true)
             val previous7 = window(13, 7, false)
             val previous30 = window(59, 30, false)
-            fun dayMinutes(day: LocalDate): Int = millisToMinutes(rows.filter { it.day == day }.sumOf { it.foregroundMillis })
-            val daily7 = (6 downTo 0).map { dayMinutes(today.minusDays(it.toLong())) }
-            val daily30 = (29 downTo 0).map { dayMinutes(today.minusDays(it.toLong())) }
-            val byApp = rows.groupBy { it.packageName }
-            val appDaily7 = byApp.mapValues { (_, appRows) ->
-                (6 downTo 0).map { offset ->
-                    millisToMinutes(appRows.filter { it.day == today.minusDays(offset.toLong()) }.sumOf { it.foregroundMillis })
-                }
-            }
-            val appDaily30 = byApp.mapValues { (_, appRows) ->
-                (29 downTo 0).map { offset ->
-                    millisToMinutes(appRows.filter { it.day == today.minusDays(offset.toLong()) }.sumOf { it.foregroundMillis })
-                }
-            }
+            fun chart(totals: Map<LocalDate, Long>, days: Int): List<Int> =
+                (days - 1 downTo 0).map { offset -> millisToMinutes(totals[today.minusDays(offset.toLong())] ?: 0L) }
+            val daily30 = chart(dailyTotals, 30)
+            val daily7 = daily30.takeLast(7)
+            val appDaily30 = appDailyTotals.mapValues { (_, totals) -> chart(totals, 30) }
+            val appDaily7 = appDaily30.mapValues { (_, values) -> values.takeLast(7) }
             val hourly = if (sawAnyEvents) hourlyMillis.map(::millisToMinutes) else null
-            val coverage = UsageCoverage(rows.map { it.day }.toSet())
+            val coverage = UsageCoverage(dailyTotals.keys)
             UsageLoadState.Ready(UsageSnapshot(
                 todayWindow, last7, last30, yesterday, previous7, previous30,
-                daily7, daily30, appDaily7, hourly, nowMillis, appDaily30, coverage
+                daily7, daily30, appDaily7, hourly, nowMillis, appDaily30, coverage,
+                appDailyTotals.mapValues { (_, totals) -> totals.keys },
+                dailyTotals,
+                appDailyTotals,
+                zone.id
             ))
         } catch (_: SecurityException) {
             UsageLoadState.PermissionRequired
@@ -221,13 +276,13 @@ class UsageRepository(private val context: Context) {
         }
     }
 
-    private fun appendHourly(start: Long, end: Long, pkg: String, today: LocalDate, hours: LongArray) {
+    private fun appendHourly(start: Long, end: Long, pkg: String, today: LocalDate, hours: LongArray, zone: ZoneId) {
         if (end <= start || pkg == context.packageName) return
         var cursor = maxOf(start, today.atStartOfDay(zone).toInstant().toEpochMilli())
         while (cursor < end) {
             val local = Instant.ofEpochMilli(cursor).atZone(zone)
             val hour = local.hour
-            val nextHour = local.toLocalDate().atTime(hour, 0).atZone(zone).plusHours(1).toInstant().toEpochMilli()
+            val nextHour = UsageTimePolicy.nextHourBoundary(cursor, zone)
             val until = minOf(end, nextHour)
             if (until <= cursor) break
             hours[hour] += until - cursor

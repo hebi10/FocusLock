@@ -15,11 +15,11 @@ CAPTURES = [
     ("01-home.png", "14-home-granted.png", "스마트폰 사용 습관", "오늘의 사용 시간 한눈에"),
     ("02-analysis.png", "15-analysis-today.png", "앱 사용 패턴 분석", "오늘 · 7일 · 30일 사용 기록"),
     ("03-app-detail.png", "18-app-detail.png", "앱별 사용 기록", "사용 시간과 관측된 이벤트 확인"),
-    ("04-goals.png", "19-goal-sheet.png", "선택형 앱 사용 목표", "시간과 요일별 알림 직접 설정"),
+    ("04-goals.png", "qa-flfix08-captures/goal-manager.png", "나에게 맞는 사용 목표", "전체 앱 목표와 개별 목표 설정"),
     ("05-focus.png", "09-focus-running.png", "필요할 때 집중", "선택형 타이머로 시간 기록"),
-    ("06-result.png", "11-focus-result.png", "집중 성과 기록", "완료 시간과 실제 보상 확인"),
+    ("06-result.png", "11-focus-result.png", "집중 성과 기록", "종료한 집중 기록과 보상 확인"),
     ("07-garden.png", "12-garden.png", "기록으로 키우는 정원", "경험치로 아이템 해금"),
-    ("08-report.png", "20-report.png", "사용 변화 리포트", "7일·30일 사용 시간 비교"),
+    ("08-report.png", "qa-r08/api36-phone-report-day-selection.png", "사용 변화 리포트", "날짜별 관측 사용 시간 확인"),
 ]
 
 def font(weight, size):
@@ -59,6 +59,17 @@ def render_screen(source, index, title, subtitle):
     frame.paste(native, (x, y))
     return frame
 
+FEATURE_SOURCES = ("14-home-granted.png", "09-focus-running.png")
+
+def source_file(captures, source):
+    # The existing CLI points to qa-captures inside the verified QA artifact.
+    # Only fixed, inventoried paths are allowed; never accept an arbitrary file.
+    allowed = {row[1] for row in CAPTURES} | set(FEATURE_SOURCES)
+    if source not in allowed or captures.name != "qa-captures":
+        raise ValueError("Unexpected Android screenshot source")
+    return (captures.parent if "/" in source else captures) / source
+
+
 def render_feature(captures):
     w, h = 1024, 500
     im = Image.new("RGB", (w, h), "#F7F7F7")
@@ -72,7 +83,7 @@ def render_feature(captures):
         ("14-home-granted.png", 684, 44, 240, 485),
         ("09-focus-running.png", 851, 97, 166, 360),
     ]:
-        native = rgb_image(captures / filename)
+        native = rgb_image(source_file(captures, filename))
         native = native.crop((0, 90, 1080, 2280))
         ratio = min(cw / native.width, ch / native.height)
         thumb = native.resize((int(native.width * ratio), int(native.height * ratio)), Image.Resampling.LANCZOS)
@@ -91,14 +102,59 @@ def verify_manifest_provenance(manifest):
     if not isinstance(run, str) or re.fullmatch(r"[1-9][0-9]*", run) is None:
         raise ValueError("Store images require a verified source workflow run ID")
 
+def verify_qa_evidence(captures, commit, run_id):
+    verify_manifest_provenance({"source_commit": commit, "source_workflow_run": str(run_id)})
+    root = captures.parent
+    baseline = json.loads((root / "ui-r00-audit-report.json").read_text(encoding="utf-8"))
+    extra = json.loads((root / "fl-fix08-evidence.json").read_text(encoding="utf-8"))
+    if baseline.get("status") != "emulator_evidence_verified" or baseline.get("tested_commit") != commit:
+        raise ValueError("Baseline QA evidence is not for the approved source commit")
+    if baseline.get("android_capture_count") != 37:
+        raise ValueError("Incomplete baseline Android capture inventory")
+    if extra.get("status") != "additional_emulator_evidence_verified" or extra.get("tested_commit") != commit or str(extra.get("workflow_run")) != str(run_id):
+        raise ValueError("Additional QA evidence is not from the approved source run")
+    if extra.get("screenshot_count") != 7:
+        raise ValueError("Incomplete new-screen evidence")
+    # Verify every inventoried capture, not just those selected for promotion.
+    expected = {}
+    for prefix, evidence, count in (("qa-captures/", baseline, 37), ("", extra, 7)):
+        hashes = evidence.get("screenshot_sha256")
+        if not isinstance(hashes, dict) or len(hashes) != count:
+            raise ValueError("Missing screenshot hashes")
+        for name, digest in hashes.items():
+            rel = prefix + name
+            if not isinstance(name, str) or not re.fullmatch(r"(?:qa-flfix08-captures/|qa-r08/)?[A-Za-z0-9_-]+\.png", name):
+                raise ValueError("Unexpected evidence path")
+            if prefix and "/" in name:
+                raise ValueError("Unexpected baseline evidence path")
+            if not prefix and not name.startswith(("qa-flfix08-captures/", "qa-r08/")):
+                raise ValueError("Unexpected additional evidence path")
+            if not isinstance(digest, str) or re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+                raise ValueError("Invalid evidence SHA-256")
+            path = root / rel
+            if not path.is_file() or sha256(path.read_bytes()) != digest:
+                raise ValueError("Capture differs from successful QA: " + rel)
+            expected[rel] = digest
+    result = {}
+    for source in {row[1] for row in CAPTURES} | set(FEATURE_SOURCES):
+        rel = source if "/" in source else "qa-captures/" + source
+        if rel not in expected:
+            raise ValueError("Missing exact QA source: " + rel)
+        result[source] = expected[rel]
+    return result
+
+
 def generate(captures, output, commit, run_id):
+    source_hashes = verify_qa_evidence(captures, commit, run_id)
     output.mkdir(parents=True, exist_ok=True)
     entries = []
     for index, (filename, source, title, subtitle) in enumerate(CAPTURES, start=1):
-        source_file = captures / source
-        raw_hash = sha256(source_file.read_bytes())
+        original = source_file(captures, source)
+        raw_hash = sha256(original.read_bytes())
+        if raw_hash != source_hashes[source]:
+            raise ValueError("Capture changed during rendering")
         out = output / filename
-        render_screen(source_file, index, title, subtitle).save(out, format="PNG", optimize=True)
+        render_screen(original, index, title, subtitle).save(out, format="PNG", optimize=True)
         entries.append({"file": filename, "source": source, "source_sha256": raw_hash,
                         "dimensions": [WIDTH, HEIGHT], "sha256": sha256(out.read_bytes()), "title": title})
     feature = output / "feature-graphic.png"
@@ -108,7 +164,8 @@ def generate(captures, output, commit, run_id):
         "source_commit": commit, "source_workflow_run": str(run_id),
         "provenance": "Actual Android API 36 instrumentation captures; promotional text outside the UI; no simulated data or in-app edits",
         "screenshots": entries,
-        "feature_graphic": {"file": feature.name, "dimensions": [1024, 500], "sha256": sha256(feature.read_bytes())},
+        "feature_graphic": {"file": feature.name, "dimensions": [1024, 500], "sha256": sha256(feature.read_bytes()),
+                            "sources": [{"source": name, "source_sha256": source_hashes[name]} for name in FEATURE_SOURCES]},
     }
     (output / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     validate(output)
@@ -125,6 +182,11 @@ def validate(output):
     for item, (_, expected_source, _, _) in zip(images, CAPTURES):
         if item.get("source") != expected_source or not re.fullmatch(r"[0-9a-f]{64}", str(item.get("source_sha256", ""))):
             raise ValueError("Missing or incorrect actual Android source capture provenance")
+    feature_sources = manifest.get("feature_graphic", {}).get("sources")
+    if not isinstance(feature_sources, list) or [item.get("source") for item in feature_sources] != list(FEATURE_SOURCES):
+        raise ValueError("Missing feature graphic source provenance")
+    if any(not re.fullmatch(r"[0-9a-f]{64}", str(item.get("source_sha256", ""))) for item in feature_sources):
+        raise ValueError("Invalid feature graphic source hash")
     allowed = {a[0] for a in CAPTURES} | {"feature-graphic.png", "manifest.json"}
     if {p.name for p in output.iterdir()} != allowed:
         raise ValueError("Unexpected files in image folder")

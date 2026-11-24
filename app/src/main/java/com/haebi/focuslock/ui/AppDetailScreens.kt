@@ -19,6 +19,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -42,6 +45,9 @@ fun AppDetailScreen(
     period: String,
     onPeriod: (String) -> Unit,
     goalMinutes: Int?,
+    goalDaysMask: Int = GoalDayPolicy.EVERY_DAY,
+    warn80: Boolean = true,
+    warn100: Boolean = true,
     isDistraction: Boolean,
     isExcluded: Boolean,
     onBack: () -> Unit,
@@ -57,25 +63,18 @@ fun AppDetailScreen(
         permissions = withContext(Dispatchers.IO) { AppPermissionRepository(context.applicationContext).inspect(app.packageName) }
     }
     val selectedApp = snapshot.window(period).apps.firstOrNull { it.id == app.id }
-        ?: app.copy(minutes = 0, launches = -1, lastUsed = "확인 불가")
-    val todayMinutes = snapshot.today.apps.firstOrNull { it.id == app.id }?.minutes ?: 0
-    val values = when (period) {
-        "오늘" -> listOf(todayMinutes)
-        "7일" -> snapshot.appDaily7[app.id]
-        else -> snapshot.appDaily30[app.id]
-    }
+        ?: app.copy(minutes = 0, launches = -1, lastUsed = "확인 불가", foregroundMillis = 0L)
+    val todayRecord = snapshot.today.apps.firstOrNull { it.id == app.id }
+    val todayMinutes = todayRecord?.minutes ?: 0
+    val values = snapshot.observedAppChart(app.id, period)
 
-    Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-            .padding(horizontal = FocusSpacing.md, vertical = FocusSpacing.md),
-        verticalArrangement = Arrangement.spacedBy(FocusSpacing.md)
-    ) {
+    AdaptiveScrollColumn {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(FocusSpacing.xs)
         ) {
             IconButton(onClick = onBack) { Icon(Icons.Outlined.ArrowBack, "뒤로") }
-            AppSymbol(app, 48.dp)
+            InstalledAppIcon(app, 48.dp)
             Column(Modifier.weight(1f)) {
                 Text(app.name, style = MaterialTheme.typography.headlineMedium)
                 Text(
@@ -83,18 +82,34 @@ fun AppDetailScreen(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                Text(
+                    "Android 시스템 분류 · 앱별 카테고리 직접 편집은 아직 지원하지 않습니다.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
         PeriodSelector(listOf("오늘", "7일", "30일"), period, onPeriod)
         FocusCard {
-            Metric(UsageFormat.minutesLabel(selectedApp.minutes), "${period} 사용")
+            Metric(if (snapshot.window(period).apps.none { it.id == app.id }) "기록 미확인" else UsageFormat.minutesLabel(selectedApp.minutes), "${period} 사용")
             if (goalMinutes != null && goalMinutes > 0) {
                 Text(
                     "일일 사용 목표 " + UsageFormat.minutesLabel(goalMinutes),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                if (period == "오늘") {
+                InfoPair("현재 알림 요일", AppDetailPolicy.activeDays(goalDaysMask))
+                Text(
+                    AppDetailPolicy.warningSummary(goalDaysMask, warn80, warn100),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    "목표 알림은 Android 백그라운드 정책에 따라 지연될 수 있습니다.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (period == "오늘" && todayRecord != null) {
                     ProgressBar(
                         todayMinutes.toFloat() / goalMinutes,
                         isWarning = todayMinutes > goalMinutes
@@ -109,7 +124,8 @@ fun AppDetailScreen(
                     )
                 } else {
                     Text(
-                        "일일 목표 진행률은 '오늘' 기간에서 확인할 수 있습니다.",
+                        if (period == "오늘") "오늘 앱 사용 기록을 확인할 수 없어 목표 진행률을 표시하지 않습니다."
+                        else "일일 목표 진행률은 '오늘' 기준입니다. 목표 관리에서 관측 기록을 기준으로 과거 목표 달성률을 확인할 수 있습니다.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -130,7 +146,7 @@ fun AppDetailScreen(
         }
         FocusCard {
             SectionTitle(if (period == "오늘") "오늘 사용 기록" else "사용 패턴 · 최근 $period")
-            if (values == null || values.none { it > 0 }) {
+            if (values == null || values.none { it != null }) {
                 Text(
                     "선택한 기간에 확인된 앱 사용 기록이 없습니다.",
                     style = MaterialTheme.typography.bodySmall,
@@ -138,6 +154,7 @@ fun AppDetailScreen(
                 )
             } else {
                 AppDetailHistoryChart(values, snapshot.window(period).startDate)
+                Text("—는 앱 사용 기록 미확인입니다.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             InfoPair(
@@ -150,6 +167,21 @@ fun AppDetailScreen(
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
+        if (period == "7일" || period == "30일") {
+            FocusCard {
+                SectionTitle("이전 기간 사용 변화")
+                Text(
+                    AppDetailPolicy.periodComparison(snapshot, app.id, period)
+                        ?: "양 기간의 관측 기록이 충분하지 않아 앱별 변화를 계산할 수 없습니다.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    "Android 앱별 사용 기록 기준 참고 값입니다. 관측된 날짜가 있어도 전체 기록이 완전하다는 뜻은 아닙니다. " + UsageComparisonPolicy.partialTodayNotice,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
         FocusCard {
             SectionTitle("요청 권한")
@@ -175,8 +207,8 @@ fun AppDetailScreen(
                 Icon(Icons.Outlined.Info, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("배터리 소비량 측정이 아닌 사용 패턴 정보입니다.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            val referenceTotal = snapshot.window(period).totalMinutes
-            InfoPair("해당 기간 앱 사용 비중", "${UsageFormat.sharePercent(selectedApp.minutes, referenceTotal)}%")
+            val appShare = AppDetailPolicy.appShare(snapshot.window(period), app.id)
+            InfoPair("해당 기간 앱 사용 비중", appShare?.let { "$it%" } ?: "확인 불가")
             InfoPair("사용 이벤트", if (selectedApp.launches < 0) "확인 불가" else "${selectedApp.launches}회")
             SettingRow("배터리 정보 확인", "시스템 앱 정보 화면에서 배터리 사용량을 확인합니다.", onClick = onSystemSettings)
         }
@@ -202,12 +234,14 @@ fun AppDetailScreen(
 }
 
 @Composable
-private fun AppDetailHistoryChart(values: List<Int>, startDate: LocalDate) {
-    var selectedIndex by remember(values, startDate) { mutableIntStateOf(values.lastIndex) }
-    val maximum = values.maxOrNull()?.coerceAtLeast(1) ?: 1
+private fun AppDetailHistoryChart(values: List<Int?>, startDate: LocalDate) {
+    var savedIndex by rememberSaveable(startDate.toString(), values.size) { mutableIntStateOf(values.lastIndex) }
+    if (values.isEmpty()) return
+    val selectedIndex = ChartSelectionPolicy.index(values.size, savedIndex)
+    val maximum = values.filterNotNull().maxOrNull()?.coerceAtLeast(1) ?: 1
     val selectedDate = startDate.plusDays(selectedIndex.toLong())
     Text(
-        "${selectedDate.format(DateTimeFormatter.ofPattern("M월 d일", Locale.KOREAN))} · ${UsageFormat.minutesLabel(values[selectedIndex])}",
+        "${selectedDate.format(DateTimeFormatter.ofPattern("M월 d일", Locale.KOREAN))} · ${values[selectedIndex]?.let(UsageFormat::minutesLabel) ?: "기록 미확인"}",
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.testTag("app-history-selected")
@@ -226,10 +260,11 @@ private fun AppDetailHistoryChart(values: List<Int>, startDate: LocalDate) {
             Column(
                 modifier = Modifier.width(FocusSpacing.minTouchTarget).heightIn(min = 146.dp)
                     .testTag("app-history-bar-$index")
-                    .clickable(role = Role.Button) { selectedIndex = index }
+                    .clickable(role = Role.Button) { savedIndex = index }
                     .semantics {
+                        this.selected = selectedIndex == index
                         contentDescription =
-                            "${date.format(DateTimeFormatter.ofPattern("M월 d일 EEEE", Locale.KOREAN))}, ${UsageFormat.minutesLabel(minutes)}"
+                            "${date.format(DateTimeFormatter.ofPattern("M월 d일 EEEE", Locale.KOREAN))}, ${minutes?.let(UsageFormat::minutesLabel) ?: "기록 미확인"}"
                     },
                 verticalArrangement = Arrangement.spacedBy(FocusSpacing.xs),
                 horizontalAlignment = Alignment.CenterHorizontally
@@ -238,8 +273,9 @@ private fun AppDetailHistoryChart(values: List<Int>, startDate: LocalDate) {
                     Modifier.fillMaxWidth().height(106.dp),
                     contentAlignment = Alignment.BottomCenter
                 ) {
-                    val height = (94f * minutes / maximum).coerceAtLeast(if (minutes > 0) 3f else 0f)
-                    Box(
+                    val height = (94f * (minutes ?: 0) / maximum).coerceAtLeast(if ((minutes ?: 0) > 0) 3f else 0f)
+                    if (minutes == null) Text("—", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    else Box(
                         Modifier.width(20.dp).height(height.dp)
                             .background(
                                 MaterialTheme.colorScheme.primary.copy(alpha = if (index == selectedIndex) 1f else 0.5f),
@@ -262,7 +298,8 @@ private fun AppDetailHistoryChart(values: List<Int>, startDate: LocalDate) {
 private fun InfoPair(label: String, value: String) {
     Row(Modifier.fillMaxWidth().padding(vertical = 7.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(label, Modifier.weight(1f), fontSize = 13.sp)
-        Text(value, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, Modifier.weight(1f), fontSize = 13.sp, textAlign = TextAlign.End,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -301,7 +338,7 @@ fun GoalSheet(
             ) {
                 Text("사용 목표 설정", style = MaterialTheme.typography.headlineMedium)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(FocusSpacing.sm)) {
-                    AppSymbol(app)
+                    InstalledAppIcon(app, 38.dp)
                     Text(app.name, style = MaterialTheme.typography.titleMedium)
                 }
                 FocusCard {

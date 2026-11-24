@@ -15,10 +15,11 @@ adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
 run_case() {
   local test_name="$1"
   local log_name="$2"
+  shift 2
   local log_path="captures/qa-logs/${log_name}.txt"
   echo "::group::${test_name}"
 
-  if ! adb shell am instrument -w -r -e class "${test_name}" \
+  if ! adb shell am instrument -w -r -e class "${test_name}" -e flfix08_capture true "$@" \
       com.haebi.focuslock.test/androidx.test.runner.AndroidJUnitRunner 2>&1 | tee "${log_path}"; then
     echo "::error::Instrumentation command failed: ${test_name}"
     failed=1
@@ -33,6 +34,7 @@ run_case() {
 
 adb shell appops set com.haebi.focuslock GET_USAGE_STATS ignore
 run_case 'com.haebi.focuslock.FocusLockUsageStateAuditTest#permissionDeniedReallyReturnsPermissionRequired' ui-r00-usage-denied
+run_case 'com.haebi.focuslock.GoalAlertNavigationQaTest#deniedUsageNeverReturnsAnAlertReading' alert-denied
 run_case 'com.haebi.focuslock.FocusLockScreenQaTest#onboardingAndPermissionDeniedScreens' permission-denied
 run_case 'com.haebi.focuslock.FocusLockOnboardingQaTest#deniedPermissionAndNoGoalStillEnterUsableHome' ui-r02-denied-skip
 run_case 'com.haebi.focuslock.FocusLockOnboardingQaTest#permissionSettingsReturnRefreshesStepAndGoalIsSkippable' ui-r02-settings-return
@@ -48,12 +50,24 @@ run_case 'com.haebi.focuslock.FocusLockAnalysisQaTest#periodTabsShowWeeklyAndMon
 run_case 'com.haebi.focuslock.FocusLockUsageStateAuditTest#permissionGrantedCapturesRealUsageCoverage' ui-r00-usage-granted
 run_case 'com.haebi.focuslock.RenewUsageCoverageQaTest#actualAndroidUsageSummaryKeepsRawTotalsAndCoverageHonest' renew-03-usage-coverage
 run_case 'com.haebi.focuslock.Renew04ObservedInsightsQaTest#realAndroidRecordsNeverProduceInventedInsights' renew-04-observed-insights
+run_case 'com.haebi.focuslock.Renew05AppDetailPolicyQaTest#existingGoalDaysAndRecordedComparisonRemainHonest' renew-05-app-goal-contract
+run_case 'com.haebi.focuslock.Renew06ReportQaTest#realAndroidReportNeverInventsHistoryWhenObservationsAreMissing' renew-06-report-no-fake-history
+run_case 'com.haebi.focuslock.Renew07FocusGardenUiQaTest#rewardAndGardenPersistenceRulesRemainConsistent' renew-07-focus-garden
+run_case 'com.haebi.focuslock.Renew08OnboardingDisclosureQaTest#introductoryUserJourneyDescribesAnalysisAndOptionalGoals' renew-08-onboarding-copy
+run_case 'com.haebi.focuslock.Renew08SettingsDisclosureQaTest#settingsShowLocalDataAndHonestLimits' renew-08-settings-disclosure
 run_case 'com.haebi.focuslock.FocusPersistenceQaTest#storedRewardSurvivesDatabaseReopenAndIsNotDuplicated' room-reopen-reward
 run_case 'com.haebi.focuslock.FocusPersistenceQaTest#todayExperienceIsLimitedToEarnedRewardsFromLocalDay' room-today-experience
 run_case 'com.haebi.focuslock.FocusPersistenceQaTest#rebootPausesSessionAndNeverInventsCompletion' room-reboot-recovery
+run_case 'com.haebi.focuslock.GoalManagerQaTest#legacyGoalsAndChangeHistoryRemainLocal' goal-history-local
+run_case 'com.haebi.focuslock.GoalManagerQaTest#settingsCanOpenGoalManagerWithoutChangingUserGoals' goal-manager-ui
+run_case 'com.haebi.focuslock.GoalAlertNavigationQaTest#distinctNotificationTargetsAndRealTodayReading' alert-targets
+run_case 'com.haebi.focuslock.GoalAlertNavigationQaTest#totalNotificationOpensGoalsWithoutChangingExistingSettings' alert-navigation
+run_case 'com.haebi.focuslock.LocalDataQaTest#exportAndSelectiveDeletionPreserveActiveAndUnrelatedData' local-data-storage
+run_case 'com.haebi.focuslock.LocalDataQaTest#dataScreenHasExportAndCancellableDeletion' local-data-ui
 run_case 'com.haebi.focuslock.FocusPersistenceQaTest#repeatedStartKeepsActiveSessionAndEarlyStopNeverEarnsRewards' room-duplicate-start-and-early-stop
 run_case 'com.haebi.focuslock.RenewNavigationQaTest#reportsAreTopLevelAndGardenRetainsFocusTab' renew-02a-navigation
 run_case 'com.haebi.focuslock.RenewHomeQaTest#homePresentsUsageBeforeOptionalFocusAndAllowsAnalysis' renew-02b-home
+run_case 'com.haebi.focuslock.FocusLockResponsiveQaTest#homeReportSettingsAndPermissionsRemainAccessible' fl-fix08-report-day -e qa_variant api36-phone
 
 if ! adb pull /sdcard/Android/data/com.haebi.focuslock/files/qa-r00/ captures/; then
   echo "::error::Could not pull UI-R00 real usage evidence"
@@ -100,6 +114,19 @@ done
 echo "Captured $(find captures/qa-captures -name '*.png' -type f 2>/dev/null | wc -l) of ${#expected[@]} required screens"
 if ! python3 scripts/qa/ui_r00_verify.py run --capture-root captures --output captures/ui-r00-audit-report.json; then
   echo "::error::UI-R00 screenshot, permission or usage-state report validation failed"
+  failed=1
+fi
+# New feature captures use separate directories to preserve the strict historical UI-R00 inventory.
+if ! adb pull /sdcard/Android/data/com.haebi.focuslock/files/qa-flfix08-captures/ captures/; then
+  echo "::error::Could not pull FL-FIX-08 goal and data management evidence"
+  failed=1
+fi
+if ! adb pull /sdcard/Android/data/com.haebi.focuslock/files/qa-r08/ captures/; then
+  echo "::error::Could not pull FL-FIX-08 date selection evidence"
+  failed=1
+fi
+if ! python3 scripts/qa/fl_fix08_evidence.py --capture-root captures --output captures/fl-fix08-evidence.json; then
+  echo "::error::FL-FIX-08 new screen evidence validation failed"
   failed=1
 fi
 exit "${failed}"

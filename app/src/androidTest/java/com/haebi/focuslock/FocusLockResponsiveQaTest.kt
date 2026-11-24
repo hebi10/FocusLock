@@ -96,6 +96,82 @@ class FocusLockResponsiveQaTest {
                 verifiedMetric.visibleBounds.width() > 0 && verifiedMetric.visibleBounds.height() > 0)
             device.waitForIdle(1800L)
             capture("report-30")
+            // Verify full tick text on the same real viewport, including compact 160% font.
+            find("사용 시간 추이")
+            val ticks = listOf("29", "24", "19", "14", "9", "4", "0")
+            fun axisVisible(): Boolean {
+                val first = device.findObject(By.res("report-axis-tick-29"))
+                val last = device.findObject(By.res("report-axis-tick-0"))
+                return first != null && last != null &&
+                    first.visibleBounds.height() > 0 && last.visibleBounds.height() > 0
+            }
+            // Small drags avoid jumping past the axis on compact screens; recover in reverse
+            // if the prior section search left the viewport below the chart.
+            repeat(10) {
+                if (!axisVisible()) {
+                    device.swipe(device.displayWidth / 2, device.displayHeight * 3 / 5,
+                        device.displayWidth / 2, device.displayHeight * 9 / 20, 40)
+                    device.waitForIdle(600L)
+                }
+            }
+            repeat(22) {
+                if (!axisVisible()) {
+                    device.swipe(device.displayWidth / 2, device.displayHeight * 9 / 20,
+                        device.displayWidth / 2, device.displayHeight * 3 / 5, 40)
+                    device.waitForIdle(600L)
+                }
+            }
+            assertTrue("30-day axis not reachable ($variant)", axisVisible())
+            val bounds = ticks.map { tick ->
+                val label = requireNotNull(device.wait(Until.findObject(By.res("report-axis-tick-$tick")), 5000L)) {
+                    "Missing 30-day axis tick $tick ($variant)"
+                }
+                assertTrue("Truncated axis tick $tick", label.text == tick)
+                label.visibleBounds.also {
+                    assertTrue("Axis tick is not visible: $tick", it.width() > 0 && it.height() > 0)
+                    assertTrue("Axis tick outside display: $tick", it.left >= 0 && it.right <= device.displayWidth)
+                }
+            }
+            assertTrue("Axis labels overlap", bounds.zipWithNext().all { (left, right) -> left.right <= right.left })
+            capture("report-30-axis")
+            // On the full-width and compact phone cases, verify that an actual day can be
+            // selected and returned to the latest day without changing its stored statistics.
+            if (variant == "api36-phone" || variant == "api36-compact-font160" || variant == "api29-phone" || variant == "api35-phone") {
+                fun chartControlsVisible(): Boolean {
+                    val prev = device.findObject(By.res("report-chart-prev"))
+                    val selected = device.findObject(By.res("report-chart-selected"))
+                    val next = device.findObject(By.res("report-chart-next"))
+                    return prev != null && selected != null && next != null &&
+                        prev.visibleBounds.height() > 0 && selected.visibleBounds.height() > 0 &&
+                        next.visibleBounds.height() > 0
+                }
+                repeat(8) {
+                    if (!chartControlsVisible()) {
+                        device.swipe(device.displayWidth / 2, device.displayHeight * 3 / 5,
+                            device.displayWidth / 2, device.displayHeight * 9 / 20, 40)
+                        device.waitForIdle(600L)
+                    }
+                }
+                repeat(12) {
+                    if (!chartControlsVisible()) {
+                        device.swipe(device.displayWidth / 2, device.displayHeight * 9 / 20,
+                            device.displayWidth / 2, device.displayHeight * 3 / 5, 40)
+                        device.waitForIdle(600L)
+                    }
+                }
+                assertTrue("Day selection controls must be reachable ($variant)", chartControlsVisible())
+                val original = requireNotNull(device.findObject(By.res("report-chart-selected"))).text
+                assertTrue("Selected day must have a readable value", !original.isNullOrBlank())
+                requireNotNull(device.findObject(By.res("report-chart-prev"))).click()
+                device.waitForIdle(1000L)
+                val previous = requireNotNull(device.findObject(By.res("report-chart-selected"))).text
+                assertTrue("Previous day must change the visible date", previous != original)
+                requireNotNull(device.findObject(By.res("report-chart-next"))).click()
+                device.waitForIdle(1000L)
+                assertTrue("Next day must restore the latest day",
+                    requireNotNull(device.findObject(By.res("report-chart-selected"))).text == original)
+                capture("report-day-selection")
+            }
             tap("홈")
             tap("설정")
             assertTrue(visible("사용 정보·알림 권한 관리", 7000L) != null)

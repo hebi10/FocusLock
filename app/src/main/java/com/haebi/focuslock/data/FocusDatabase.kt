@@ -70,6 +70,18 @@ interface FocusDao {
 
     @Query("SELECT * FROM focus_sessions WHERE finishedAtMillis >= :sinceMillis ORDER BY finishedAtMillis DESC")
     suspend fun finishedSince(sinceMillis: Long): List<FocusSessionEntity>
+
+    @Query("SELECT * FROM focus_sessions WHERE status IN ('COMPLETED','STOPPED') ORDER BY finishedAtMillis DESC, id")
+    suspend fun finalizedSessions(): List<FocusSessionEntity>
+
+    @Query("SELECT * FROM focus_rewards WHERE sessionId IN (SELECT id FROM focus_sessions WHERE status IN ('COMPLETED','STOPPED')) ORDER BY earnedAtMillis DESC, sessionId")
+    suspend fun finalizedRewards(): List<FocusRewardEntity>
+
+    @Query("DELETE FROM focus_rewards WHERE sessionId IN (SELECT id FROM focus_sessions WHERE status IN ('COMPLETED','STOPPED'))")
+    suspend fun deleteFinalizedRewards(): Int
+
+    @Query("DELETE FROM focus_sessions WHERE status IN ('COMPLETED','STOPPED')")
+    suspend fun deleteFinalizedSessions(): Int
 }
 
 @Database(entities = [FocusSessionEntity::class, FocusRewardEntity::class], version = 1, exportSchema = false)
