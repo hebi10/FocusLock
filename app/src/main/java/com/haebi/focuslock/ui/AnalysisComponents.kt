@@ -80,7 +80,7 @@ fun AnalysisChart(snapshot: UsageSnapshot, period: String) {
                                     .clickable(role = Role.Button) { selectedIndex = index }
                                     .semantics {
                                         contentDescription = "${bar.detail}, ${bar.valueLabel}"
-                                        selected = selectedIndex == index
+                                        this.selected = selectedIndex == index
                                     },
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(FocusSpacing.xs)

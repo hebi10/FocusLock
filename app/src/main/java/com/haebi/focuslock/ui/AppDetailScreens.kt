@@ -236,7 +236,8 @@ fun AppDetailScreen(
 @Composable
 private fun AppDetailHistoryChart(values: List<Int?>, startDate: LocalDate) {
     var savedIndex by rememberSaveable(startDate.toString(), values.size) { mutableIntStateOf(values.lastIndex) }
-    val selectedIndex = savedIndex.coerceIn(0, values.lastIndex)
+    if (values.isEmpty()) return
+    val selectedIndex = ChartSelectionPolicy.index(values.size, savedIndex)
     val maximum = values.filterNotNull().maxOrNull()?.coerceAtLeast(1) ?: 1
     val selectedDate = startDate.plusDays(selectedIndex.toLong())
     Text(
@@ -261,7 +262,7 @@ private fun AppDetailHistoryChart(values: List<Int?>, startDate: LocalDate) {
                     .testTag("app-history-bar-$index")
                     .clickable(role = Role.Button) { savedIndex = index }
                     .semantics {
-                        selected = selectedIndex == index
+                        this.selected = selectedIndex == index
                         contentDescription =
                             "${date.format(DateTimeFormatter.ofPattern("M월 d일 EEEE", Locale.KOREAN))}, ${minutes?.let(UsageFormat::minutesLabel) ?: "기록 미확인"}"
                     },
