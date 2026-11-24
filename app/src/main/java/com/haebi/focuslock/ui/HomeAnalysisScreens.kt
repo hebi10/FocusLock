@@ -95,6 +95,11 @@ fun HomeScreen(
                     )
                 }
                 Text(
+                    "Android에서 제공한 기기 사용 통계입니다.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
                     UsageComparisonPolicy.foregroundNotice,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
