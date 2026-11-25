@@ -20,6 +20,7 @@ adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
 
 run_case() {
   local method="$1" variant="$2" font="$3"
+  shift 3
   local safe="${method##*#}"
   local log="${root}/logs/${variant}-${safe}.txt"
   echo "::group::UI-R08 ${variant} ${method}"
@@ -27,7 +28,7 @@ run_case() {
   if ! adb shell am instrument -w -r \
       -e class "${method}" \
       -e qa_variant "${variant}" \
-      -e expected_font_scale "${font}" \
+      -e expected_font_scale "${font}" "$@" \
       com.haebi.focuslock.test/androidx.test.runner.AndroidJUnitRunner \
       2>&1 | tee "${log}"; then
     echo "::error::Android instrumentation process failed: ${method} ${variant}"
@@ -82,6 +83,19 @@ if [[ "${api}" == "29" || "${api}" == "35" ]]; then
   set_viewport "api${api}-phone" "1080x2400" "420" "1.0"
 else
   set_viewport "api36-phone" "1080x2400" "420" "1.0"
+  # Exercise the actual screenshot path on the normal API36 viewport before merging.
+  run_case 'com.haebi.focuslock.GoalManagerQaTest#settingsCanOpenGoalManagerWithoutChangingUserGoals' "api36-final-goal-evidence" 1.0 -e flfix08_capture true
+  run_case 'com.haebi.focuslock.LocalDataQaTest#dataScreenHasExportAndCancellableDeletion' "api36-final-local-data-evidence" 1.0 -e flfix08_capture true
+  if ! adb pull /sdcard/Android/data/com.haebi.focuslock/files/qa-flfix08-captures/ "${root}/screens/"; then
+    echo "::error::Unable to retrieve final goal and data screen evidence"
+    failures=$((failures + 1))
+  fi
+  for name in goal-manager goal-history local-data goal-history-delete-confirm focus-history-delete-confirm; do
+    if [[ ! -s "${root}/screens/qa-flfix08-captures/${name}.png" || ! -s "${root}/screens/qa-flfix08-captures/${name}.xml" ]]; then
+      echo "::error::Missing visible-screen evidence: ${name}"
+      failures=$((failures + 1))
+    fi
+  done
   set_viewport "api36-compact-font160" "880x2200" "420" "1.6"
   set_viewport "api36-tablet-portrait" "1280x1920" "240" "1.0"
   set_viewport "api36-tablet-landscape" "1920x1280" "240" "1.0"

@@ -69,7 +69,6 @@ class GoalManagerQaTest {
                 assertNotNull("Goal manager entry", goals)
                 goals!!.click()
                 assertTrue(device.wait(Until.hasObject(By.text("전체 앱 사용 목표")), 8_000L))
-                FinalQaEvidence.capture("goal-manager")
                 repeat(6) {
                     if (!device.hasObject(By.res("whole-goal-save")) && !device.hasObject(By.text("전체 목표 저장"))) {
                         device.swipe(device.displayWidth / 2, device.displayHeight * 3 / 4,
@@ -80,16 +79,24 @@ class GoalManagerQaTest {
                 assertTrue("Whole goal save action must be reachable",
                     device.hasObject(By.res("whole-goal-save")) || device.hasObject(By.text("전체 목표 저장")))
                 if (FinalQaEvidence.enabled) {
-                    repeat(14) {
-                        if (!device.hasObject(By.text("목표 이력 및 달성률"))) {
+                    FinalQaEvidence.capture("goal-manager",
+                        listOf(By.text("전체 앱 사용 목표"), By.text("전체 목표 저장")),
+                        listOf(By.text("사용 정보·알림 권한 관리")))
+                    val disclaimer = By.textStartsWith("오늘은 제외합니다.")
+                    val dateRow = By.text(java.util.regex.Pattern.compile("[0-9]+월 [0-9]+일 · .+"))
+                    fun historyVisible() = FinalQaEvidence.visible(device, disclaimer) &&
+                        FinalQaEvidence.visible(device, dateRow)
+                    repeat(18) {
+                        if (!historyVisible()) {
                             device.swipe(device.displayWidth / 2, device.displayHeight * 3 / 5,
                                 device.displayWidth / 2, device.displayHeight * 2 / 5, 40)
                             device.waitForIdle(500L)
                         }
                     }
-                    assertTrue("Goal history section must be reachable",
-                        device.wait(Until.hasObject(By.text("목표 이력 및 달성률")), 5_000L))
-                    FinalQaEvidence.capture("goal-history")
+                    assertTrue("Goal history must show its observation disclaimer and a real date row",
+                        historyVisible())
+                    FinalQaEvidence.capture("goal-history", listOf(disclaimer, dateRow),
+                        listOf(By.text("전체 목표 저장")))
                 }
             }
         } finally {
