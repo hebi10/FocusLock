@@ -398,7 +398,9 @@ fun FocusLockApp(goalAlertTarget: String? = null, onGoalAlertHandled: () -> Unit
         }
     }
 
-    FocusLockTheme(theme) {
+    val nightFocus = onboarding < 0 && (focusPhase == "running" ||
+        (focusPhase == "setup" && restoredMainTab(tab) == MainTab.FOCUS && !focusGardenOpen && detail.isEmpty()))
+    FocusLockTheme(theme, nightFocus = nightFocus) {
         val immersive = onboarding >= 0 || focusPhase == "running" || focusPhase == "result"
         Scaffold(
             containerColor = MaterialTheme.colorScheme.background,
@@ -434,7 +436,7 @@ fun FocusLockApp(goalAlertTarget: String? = null, onGoalAlertHandled: () -> Unit
                                 colors = NavigationBarItemDefaults.colors(
                                     selectedIconColor = MaterialTheme.colorScheme.primary,
                                     selectedTextColor = MaterialTheme.colorScheme.primary,
-                                    indicatorColor = MaterialTheme.colorScheme.surfaceVariant
+                                    indicatorColor = MaterialTheme.colorScheme.primaryContainer
                                 )
                             )
                         }

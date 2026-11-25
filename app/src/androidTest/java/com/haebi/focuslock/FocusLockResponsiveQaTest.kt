@@ -1,6 +1,7 @@
 package com.haebi.focuslock
 
 import android.content.Intent
+import android.os.SystemClock
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -177,8 +178,32 @@ class FocusLockResponsiveQaTest {
             assertTrue(visible("사용 정보·알림 권한 관리", 7000L) != null)
             capture("settings")
             tap("사용 정보·알림 권한 관리")
-            assertTrue(visible("권한 관리", 6000L) != null)
+            val directory = File(requireNotNull(context.getExternalFilesDir(null)), "qa-r08")
+            assertTrue(directory.isDirectory || directory.mkdirs())
+            fun destinationReady(): Boolean =
+                FinalQaEvidence.visible(device, By.text("권한 관리")) &&
+                    FinalQaEvidence.visible(device, By.text("개인정보 보호")) &&
+                    !FinalQaEvidence.visible(device, By.text("사용 정보·알림 권한 관리"))
+            val deadline = SystemClock.elapsedRealtime() + 15_000L
+            var stableSince = 0L
+            while (SystemClock.elapsedRealtime() < deadline) {
+                device.waitForIdle(500L)
+                val now = SystemClock.elapsedRealtime()
+                if (destinationReady()) {
+                    if (stableSince == 0L) stableSince = now
+                    if (now - stableSince >= 1500L) break
+                } else stableSince = 0L
+                SystemClock.sleep(250L)
+            }
+            val stable = stableSince > 0L && SystemClock.elapsedRealtime() - stableSince >= 1500L && destinationReady()
+            if (!stable) {
+                device.takeScreenshot(File(directory, "$variant-permissions-failed.png"))
+                device.dumpWindowHierarchy(File(directory, "$variant-permissions-failed.xml"))
+            }
+            assertTrue("Permission destination must be stable before capture ($variant)", stable)
             capture("permissions")
+            assertTrue("Permission destination changed during capture ($variant)", destinationReady())
+            device.dumpWindowHierarchy(File(directory, "$variant-permissions.xml"))
         }
     }
 

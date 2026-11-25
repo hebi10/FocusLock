@@ -23,18 +23,32 @@ private fun summaryData(history: List<GoalHistoryEvent>, scope: String, snapshot
 }
 
 @Composable
-internal fun GoalHistorySummary(history: List<GoalHistoryEvent>, scope: String, snapshot: UsageSnapshot?, days: Int) {
+internal fun GoalHistorySummary(history: List<GoalHistoryEvent>, scope: String, snapshot: UsageSnapshot?, days: Int, showRing: Boolean = false) {
     val summary = remember(history, scope, snapshot, days) { summaryData(history, scope, snapshot, days) }
     if (summary.observed == 0) {
         Text("아직 비교 가능한 목표 이력과 사용 기록이 없습니다.", style = MaterialTheme.typography.bodySmall)
     } else {
-        Text("관측 기준 목표 이하 ${summary.within}/${summary.observed}일 · ${summary.rate}%",
-            style = MaterialTheme.typography.titleMedium)
-        Text("연속 목표 이하 ${summary.streak}일 · 확인된 목표 초과 ${summary.over}일",
-            style = MaterialTheme.typography.bodySmall)
+        if (showRing) {
+            val fraction = summary.within.toFloat() / summary.observed
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                ReferenceGoalRing(fraction, "${summary.rate}%")
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("관측 기준 목표 이하 ${summary.within}/${summary.observed}일 · ${summary.rate}%",
+                        style = MaterialTheme.typography.titleMedium)
+                    Text("연속 목표 이하 ${summary.streak}일 · 확인된 목표 초과 ${summary.over}일",
+                        style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        } else {
+            Text("관측 기준 목표 이하 ${summary.within}/${summary.observed}일 · ${summary.rate}%",
+                style = MaterialTheme.typography.titleMedium)
+            Text("연속 목표 이하 ${summary.streak}일 · 확인된 목표 초과 ${summary.over}일",
+                style = MaterialTheme.typography.bodySmall)
+        }
     }
-    Text("오늘은 제외합니다. 목표 변경일·이력 없음·사용 기록 미확인일은 성공으로 계산하지 않습니다. Android 기록이 완전하다는 보장은 없습니다.",
-        style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    val notice = "오늘은 제외합니다. 목표 변경일·이력 없음·사용 기록 미확인일은 성공으로 계산하지 않습니다. Android 기록이 완전하다는 보장은 없습니다."
+    if (showRing) ReferenceMeasurementNote("오늘·목표 변경일·미확인일 제외", notice, "reference-goal-report-note")
+    else Text(notice, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 @Composable

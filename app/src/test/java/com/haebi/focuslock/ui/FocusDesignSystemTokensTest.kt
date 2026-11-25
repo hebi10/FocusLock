@@ -23,11 +23,14 @@ class FocusDesignSystemTokensTest {
 
     @Test
     fun surfacesAndSemanticColorsMatchApprovedDriveDesign() {
-        assertEquals(Color(0xFFF7F7F7), FocusColors.BgLight)
+        assertEquals(Color(0xFFF6F5FB), FocusColors.BgLight)
+        assertEquals(Color(0xFF6942D9), FocusColors.Brand)
+        assertEquals(Color(0xFFBBA8FF), FocusColors.BrandDark)
+        assertEquals(Color(0xFF10182F), FocusColors.NightBackground)
         assertEquals(Color(0xFF101010), FocusColors.BgDark)
         assertEquals(Color(0xFF171717), FocusColors.TextLight)
         assertEquals(Color(0xFFF3F3F3), FocusColors.TextDark)
-        assertEquals(Color(0xFFE4E4E4), FocusColors.GrayLight)
+        assertEquals(Color(0xFFE5E3EF), FocusColors.GrayLight)
         assertEquals(Color(0xFF363636), FocusColors.DividerDark)
         assertEquals(Color(0xFF357A57), FocusColors.Green)
         assertEquals(Color(0xFFAA720E), FocusColors.Amber)
@@ -36,8 +39,11 @@ class FocusDesignSystemTokensTest {
 
     @Test
     fun neutralBodyTextHasAccessibleContrast() {
-        assertTrue(contrast(0xFF171717L, 0xFFF7F7F7L) >= 4.5)
-        assertTrue(contrast(0xFF666666L, 0xFFFFFFFFL) >= 4.5)
+        assertTrue(contrast(0xFF171717L, 0xFFF6F5FBL) >= 4.5)
+        assertTrue(contrast(0xFF646276L, 0xFFFFFFFFL) >= 4.5)
+        assertTrue(contrast(0xFF6942D9L, 0xFFFFFFFFL) >= 4.5)
+        assertTrue(contrast(0xFFBBA8FFL, 0xFF21143DL) >= 4.5)
+        assertTrue(contrast(0xFFC3CBE2L, 0xFF202B49L) >= 4.5)
         assertTrue(contrast(0xFFF3F3F3L, 0xFF101010L) >= 4.5)
         assertTrue(contrast(0xFFA8A8A8L, 0xFF1B1B1BL) >= 4.5)
     }
