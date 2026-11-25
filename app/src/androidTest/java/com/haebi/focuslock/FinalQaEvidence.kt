@@ -13,17 +13,25 @@ internal object FinalQaEvidence {
     val enabled: Boolean
         get() = InstrumentationRegistry.getArguments().getString("flfix08_capture") == "true"
 
-    fun visible(device: UiDevice, selector: BySelector): Boolean =
-        device.findObjects(selector).any { node ->
+    fun visibleCount(device: UiDevice, selector: BySelector, minHeight: Int = 1): Int =
+        device.findObjects(selector).count { node ->
             runCatching {
                 val bounds = node.visibleBounds
-                bounds.width() > 0 && bounds.height() > 0 &&
+                bounds.width() > 0 && bounds.height() >= minHeight &&
                     bounds.left >= 0 && bounds.right <= device.displayWidth &&
                     bounds.top >= 0 && bounds.bottom <= device.displayHeight
             }.getOrDefault(false)
         }
 
-    fun capture(name: String, required: List<BySelector>, forbidden: List<BySelector> = emptyList()) {
+    fun visible(device: UiDevice, selector: BySelector): Boolean =
+        visibleCount(device, selector) > 0
+
+    fun capture(
+        name: String,
+        required: List<BySelector>,
+        forbidden: List<BySelector> = emptyList(),
+        additionalReady: () -> Boolean = { true }
+    ) {
         if (!enabled) return
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val device = UiDevice.getInstance(instrumentation)
@@ -31,7 +39,7 @@ internal object FinalQaEvidence {
             "qa-flfix08-captures")
         assertTrue(directory.isDirectory || directory.mkdirs())
         val ready = {
-            required.all { visible(device, it) } && forbidden.none { visible(device, it) }
+            required.all { visible(device, it) } && forbidden.none { visible(device, it) } && additionalReady()
         }
         val deadline = SystemClock.elapsedRealtime() + 12_000L
         var stableSince = 0L
@@ -44,8 +52,15 @@ internal object FinalQaEvidence {
             } else stableSince = 0L
             SystemClock.sleep(250L)
         }
-        assertTrue("Capture $name did not reach a stable visible destination",
-            stableSince > 0L && SystemClock.elapsedRealtime() - stableSince >= 1_500L && ready())
+        val stable = stableSince > 0L && SystemClock.elapsedRealtime() - stableSince >= 1_500L && ready()
+        if (!stable) {
+            // Keep diagnostic images distinct from required, verified capture names.
+            device.takeScreenshot(File(directory, "$name-failed.png"))
+            device.dumpWindowHierarchy(File(directory, "$name-failed.xml"))
+            System.err.println("Capture $name required: " + required.map { "$it=${visibleCount(device, it)}" })
+            System.err.println("Capture $name forbidden: " + forbidden.map { "$it=${visibleCount(device, it)}" })
+        }
+        assertTrue("Capture $name did not reach a stable visible destination", stable)
         assertTrue("Actual FL-FIX-08 screenshot failed: $name",
             device.takeScreenshot(File(directory, "$name.png")))
         assertTrue("Capture $name changed during screenshot", ready())
