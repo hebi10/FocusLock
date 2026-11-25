@@ -30,3 +30,8 @@
 - 3d368fc2: Android CI, OPS-07/09 및 API29·35 성공. API36 27건 중 1건 실패(시간대 선택 검증), 55개 PNG 확보. 실행 https://github.com/hebi10/FocusLock/actions/runs/45538615375, artifact 14988991315. 전용 01-home~05-settings PNG/XML 모두 존재하며 1080×2400. 최신 5개 캡처 시각 검수에서 24시간 전체 그래프, 7일 리포트 선 그래프, 중앙 타이머 및 설정 메뉴 개선 확인.
 - 실제 실패 XML: 선택 전 0시 버튼 checkable=true, checked=false, selected=false. 선택 후 화면 텍스트 '0시 · 기록 미확인', 버튼 checkable=true, checked=true, selected=false. 즉 제품 동작과 값은 정상이고 Android의 Button 역할 매핑에 맞지 않는 isSelected 검사가 오검출 원인이다. 검증을 정확한 체크 상태와 실제 표시값 모두로 수정하고 1시 선택 후 0시 체크 해제까지 확인한다. 테스트 강도 완화나 데이터 주입 없음.
 - 이전 API35의 권한 관리 캡처가 설정 화면으로 남은 문제도 해당 화면 고유 제목/개인정보 보호 본문/설정 진입 항목 비가시성의 1.5초 안정화 조건 및 XML/실패 진단 보존을 추가하여 해결을 검증한다. 이번 후속 변경은 계측 테스트와 문서만 수정, 제품 소스 변경 없음. 최신 CI·API29/35/36 재검증 전 병합하지 않는다.
+
+## 병합 후 전체 QA 홈 집계 안내 회귀 보완
+- main c291cd4c278aae8ae80847460fc42a975b1fbfd7, 전체 QA [45542574423](https://github.com/hebi10/FocusLock/actions/runs/45542574423): 29건 중 28건 성공, RenewHomeQaTest#homePresentsUsageBeforeOptionalFocusAndAllowsAnalysis 1건 실패. 필수 캡처 37+7장과 해시 일치, 전체 PNG 54장. 실행 실패이므로 스토어 증빙 또는 릴리스 QA 성공으로 사용하지 않는다.
+- 원인: FL-DESIGN-01에서 원래 집계 출처 및 제한 안내를 홈의 '집계 기준' 펼쳐보기로 옮겼지만 기존 전체 QA는 닫힌 상태에서 독립적인 옛 문구를 검색했다. 제품 소스의 실제 집계·디자인·권한 동작은 변경하지 않는다. 테스트는 접힌 Android 관측 요약, 펼친 원래 출처·포그라운드 합산·전일 직접 비교 제한, 접기 동작 및 기존 상위 앱·집중·분석 진입을 검증한다. PR API36 선별 QA에 해당 기존 테스트를 포함해 병합 전에 동일 회귀를 검증한다. 기존 전체 QA 목록과 캡처 계약 및 배포 게이트 유지. 정확한 최신 SHA로 재검증 후에만 스토어 준비를 진행한다.
+- 실제 QA 데이터: Android UsageStatsManager, 데이터 주입 없음, 7일 관측 1일, 합계 약 2분, 충분한 기록 다양성 미충족. 시각 검수한 주요 화면은 새 디자인이 적용되었으나 스토어 자료로 확정하지 않는다.

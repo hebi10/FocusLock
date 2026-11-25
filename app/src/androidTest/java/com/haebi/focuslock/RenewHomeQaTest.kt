@@ -39,7 +39,27 @@ class RenewHomeQaTest {
             assertTrue(device.wait(Until.hasObject(By.text("오늘의 FocusLock")), 20000L))
             assertTrue("Actual OS usage total should be the primary home metric",
                 device.wait(Until.hasObject(By.text("오늘 사용 시간")), 10000L))
-            reachable("Android에서 제공한 기기 사용 통계입니다.")
+            // FL-DESIGN-01 keeps the qualifier visible and the full source notice expandable.
+            assertTrue("The collapsed usage summary must identify Android observation",
+                device.wait(Until.hasObject(By.text("오늘 진행 중 · Android 관측 합계")), 5000L))
+            val measurement = requireNotNull(device.wait(
+                Until.findObject(By.res("reference-home-note")), 6000L
+            )) { "Home measurement details must remain reachable" }
+            measurement.click()
+            assertTrue("Expanding must disclose the original Android usage source",
+                device.wait(Until.hasObject(By.textContains("Android에서 제공한 기기 사용 통계입니다.")), 6000L))
+            assertTrue("Expanding must disclose the foreground aggregation limitation",
+                device.wait(Until.hasObject(By.textContains("Android 앱별 포그라운드 시간 합계입니다.")), 5000L))
+            assertTrue("Expanding must disclose the incomplete-day comparison limitation",
+                device.wait(Until.hasObject(By.textContains("어제 전체 사용 시간과 직접 비교하지 않습니다.")), 5000L))
+            val collapse = requireNotNull(device.wait(
+                Until.findObject(By.res("reference-home-note")), 5000L
+            )) { "Home measurement details must remain collapsible" }
+            collapse.click()
+            assertTrue("Collapse must hide the detailed notice",
+                device.wait(Until.gone(By.textContains("Android에서 제공한 기기 사용 통계입니다.")), 5000L))
+            assertTrue("The Android observation summary must remain visible after collapse",
+                device.wait(Until.hasObject(By.text("오늘 진행 중 · Android 관측 합계")), 5000L))
             reachable("많이 사용한 앱")
             reachable("필요할 때 집중하기")
             reachable("집중 시작")
