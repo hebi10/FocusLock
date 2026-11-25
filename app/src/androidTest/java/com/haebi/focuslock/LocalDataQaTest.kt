@@ -131,15 +131,19 @@ class LocalDataQaTest {
                 findText("데이터 관리").click()
                 assertTrue(device.wait(Until.hasObject(By.text("기록 내보내기")), 8_000L))
                 assertTrue(findText("JSON 내보내기").isEnabled)
-                FinalQaEvidence.capture("local-data")
+                FinalQaEvidence.capture("local-data",
+                    listOf(By.text("기록 내보내기"), By.text("JSON 내보내기")),
+                    listOf(By.text("사용 정보·알림 권한 관리"), By.text("테마")))
                 findText("목표 이력 삭제").click()
                 assertTrue(device.wait(Until.hasObject(By.text("목표 이력을 삭제할까요?")), 8_000L))
-                FinalQaEvidence.capture("goal-history-delete-confirm")
+                FinalQaEvidence.capture("goal-history-delete-confirm",
+                    listOf(By.text("목표 이력을 삭제할까요?"), By.text("취소"), By.text("삭제")))
                 findText("취소").click()
                 assertTrue(device.wait(Until.gone(By.text("목표 이력을 삭제할까요?")), 5_000L))
                 findText("집중 기록 및 보상 삭제").click()
                 assertTrue(device.wait(Until.hasObject(By.text("집중 기록 및 보상을 삭제할까요?")), 8_000L))
-                FinalQaEvidence.capture("focus-history-delete-confirm")
+                FinalQaEvidence.capture("focus-history-delete-confirm",
+                    listOf(By.text("집중 기록 및 보상을 삭제할까요?"), By.text("취소"), By.text("삭제")))
                 findText("취소").click()
                 assertTrue(device.wait(Until.gone(By.text("집중 기록 및 보상을 삭제할까요?")), 5_000L))
             }
