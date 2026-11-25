@@ -112,7 +112,9 @@ class ReferenceDesignQaTest {
                     fun selected(): Boolean {
                         val label = device.findObject(By.res("analysis-chart-selected"))
                         val chip = device.findObject(By.res(tag))
-                        return label?.text == expected && chip?.isSelected == true
+                        // Compose exposes this selected Button role to Android as checkable/checked,
+                        // rather than the selected property used by tab-role nodes.
+                        return label?.text == expected && chip?.isCheckable == true && chip.isChecked
                     }
                     // Tap an actual visible control, reacquiring bounds after any scroll or recompose.
                     repeat(3) {
@@ -130,6 +132,8 @@ class ReferenceDesignQaTest {
                         evidence("hourly-selection-failed-$index")
                         System.err.println("Hour $index expected: $expected; actual: " +
                             device.findObject(By.res("analysis-chart-selected"))?.text +
+                            "; checkable: " + device.findObject(By.res(tag))?.isCheckable +
+                            "; checked: " + device.findObject(By.res(tag))?.isChecked +
                             "; selected: " + device.findObject(By.res(tag))?.isSelected)
                     }
                     assertTrue("Hour $index must be selected and expose its own real value or unknown state", selected())
@@ -139,6 +143,9 @@ class ReferenceDesignQaTest {
                 // Their display values are read from actual Android usage, not a seeded usage fixture.
                 verifyHour(0)
                 verifyHour(1)
+                val previous = requireNotNull(device.findObject(By.res("analysis-chart-bar-0")))
+                assertTrue("Selecting a different hour must clear the previous checked state",
+                    previous.isCheckable && !previous.isChecked)
             }
         } finally {
             prefs.edit().putBoolean("onboarding_completed", completed).putString("theme", previousTheme).commit()
