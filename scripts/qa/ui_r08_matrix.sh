@@ -84,6 +84,8 @@ if [[ "${api}" == "29" || "${api}" == "35" ]]; then
 else
   set_viewport "api36-phone" "1080x2400" "420" "1.0"
   run_case 'com.haebi.focuslock.ReferenceDesignQaTest#fiveMainScreensCaptureActualUi' "api36-reference-design" 1.0
+  # Exercise the existing full-QA home regression before merging any change to its assertions.
+  run_case 'com.haebi.focuslock.RenewHomeQaTest#homePresentsUsageBeforeOptionalFocusAndAllowsAnalysis' "api36-renew-home" 1.0
   # Selection regression is a separate required case so a failure cannot stop the five captures.
   run_case 'com.haebi.focuslock.ReferenceDesignQaTest#hourlySelectionShowsRealValueOrUnknown' "api36-reference-hour-selection" 1.0
   if ! adb pull /sdcard/Android/data/com.haebi.focuslock/files/qa-reference-design/ "${root}/screens/"; then
