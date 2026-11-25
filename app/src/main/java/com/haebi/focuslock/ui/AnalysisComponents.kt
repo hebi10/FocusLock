@@ -8,7 +8,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -84,8 +83,11 @@ fun AnalysisChart(snapshot: UsageSnapshot, period: String) {
                                 Modifier.width(52.dp).heightIn(min = FocusSpacing.minTouchTarget)
                                     .testTag("analysis-chart-bar-$index")
                                     .background(if (selectedIndex == index) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
-                                    .selectable(selectedIndex == index, role = Role.Button) { selectedIndex = index }
-                                    .semantics { contentDescription = "${bar.detail}, ${bar.valueLabel}" },
+                                    .clickable(role = Role.Button) { selectedIndex = index }
+                                    .semantics {
+                                        contentDescription = "${bar.detail}, ${bar.valueLabel}"
+                                        this.selected = selectedIndex == index
+                                    },
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(bar.label, style = MaterialTheme.typography.labelSmall,
