@@ -21,3 +21,9 @@ production/closed 승격 워크플로와 CLI는 제공하지 않습니다. Play 
 ## 방식 선택
 
 승인된 참조 구현을 앱 식별자와 현재 CI에 맞춰 이식합니다. 별도 배포 서비스나 새 의존성은 추가하지 않습니다. 계정 비밀값을 저장소에 넣는 방식은 사용하지 않습니다.
+
+## OPS-04 — 2026-11-25 실제 배포 회귀 보완
+- 승인된 OPS-09 실행 45563456799: 정확한 main 5fc28176fbc1937ec809a553260f4073922d6534, 최종 QA 45563477508 성공, OPS-03 45564709665 성공, 서명 AAB 빌드 45564726965 성공(0.3.0/5, focuslock-signed-release-5). OPS-04 45565326012 verify에서 `Invalid source run ID`, publish skipped. 원래 빌드 ID는 정상 전달되었으나 Android versionCode용 최대 10자리 정규식을 GitHub 실행 ID에 잘못 적용했다.
+- OPS-04 실행 ID를 정규형 양의 signed int64로 검증하고, 반환된 API 실행 ID의 일치까지 요구한다. 정확한 main/SHA/서명/패키지/버전/해시/아티팩트/승인 게이트는 완화하지 않는다. 11자리·최댓값·잘못된 경로·범위·다른 소스/실행 ID/워크플로 회귀 테스트 추가.
+- 실패 verify에서는 기존 인증서 pin 환경 값이 비어 있었고 기존 google-play 환경의 서명 빌드는 인증서 검증 성공했다. verify도 동일한 기존 환경에서 인증서 검증 단계에만 pin을 주입한다. verify는 contents/actions read만 보유하며 Play 인증/OIDC 요청을 하지 않는다. publish는 기존 인증 및 별도 승인/동일 AAB 재검증 유지.
+- 기존 AAB는 미업로드, 과거 실행 증빙으로 보존. 이 수정 병합 시 main SHA가 바뀌므로 동일 SHA 정책에 따라 기존 AAB를 새 main의 배포 입력으로 사용하지 않는다. 새 main CI 및 전체 QA, 새 SHA로 서명한 미사용 versionCode 빌드 후 내부 테스트에만 업로드. Play 비공개/정식/스토어 변경 없음.
