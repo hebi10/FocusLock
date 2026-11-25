@@ -10,3 +10,8 @@
 - 공통: 라이트 보라색 브랜드/연한 라벤더 표면·카드 경계·보라색 탭, 다크 대비 및 밤 집중 팔레트. 기존 잠금 아이콘, 데이터, 세션, 권한·삭제, API/Play 정책 변경 없음. 실제 통계와 시안 값은 일치시키지 않는다.
 
 검증: Android CI 및 UI-R08 API29/35/36을 기존 계약대로 실행. API36 PR에서 ReferenceDesignQaTest로 5개 페이지 원본 PNG/XML을 qa-reference-design에 보존한다. 실제 QA 픽셀 확인 전 디자인 일치율 또는 완료 선언 금지. 새 캡처를 원시 시안 각 패널의 화면 내부와 나란히 비교해 레이아웃, 컬러, 타입, 조작, 데이터 상태별 차이를 기록한다. 시안 가상 숫자·브랜드 로고·불가능한 차단·90일·실제 네비게이션/접근성 차이는 명시적 제외. 기존 37+7 필수 최종 QA와 배포 게이트 유지. 모든 검사 성공 및 실제 화면 시각 검수 후 안전 병합; Play 변경 없음.
+
+## 최초 CI 오류 수정
+- Android CI 45534589563 및 UI-R08 45534589778: 기존 AppDetailScreens.kt의 SettingRow 네 번째 위치 인자가 새 icon 인자와 충돌하여 컴파일 실패. 기존 목표 동작을 유지하며 onClick 이름 지정으로 수정. 홈 앱 행 테스트 태그를 복원하고 새 캡처 테스트의 하단 탭 탐색을 리소스/설명/텍스트 순으로 보강. 새 HEAD에서 전체 재검증 필요.
+- 생성 원본: https://drive.google.com/file/d/1nbmhehkdFjsa9Dv4Ngk6o_2KqdmdS9GH/view
+- 변경 전 비교: https://drive.google.com/file/d/1IhdHz1UcIX8Iw_vl5p6I2MfjlNgVem_y/view

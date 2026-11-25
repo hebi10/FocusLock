@@ -141,7 +141,7 @@ fun AppDetailScreen(
                 "사용 목표",
                 "시간 초과 시 알림만 제공하며 앱을 강제로 종료하지 않습니다.",
                 if (goalMinutes == null) "설정" else "수정",
-                onGoal
+                onClick = onGoal
             )
         }
         FocusCard {

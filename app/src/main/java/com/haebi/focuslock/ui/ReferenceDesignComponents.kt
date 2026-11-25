@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -51,7 +52,7 @@ internal fun ReferenceUsageSparkline(bars: List<AnalysisBar>, modifier: Modifier
 
 @Composable
 internal fun ReferenceRankRow(app: AppUsage, totalMinutes: Int, onClick: () -> Unit) {
-    Row(Modifier.fillMaxWidth().heightIn(min = FocusSpacing.minTouchTarget).clickable(onClick = onClick)
+    Row(Modifier.fillMaxWidth().testTag("usage-row").heightIn(min = FocusSpacing.minTouchTarget).clickable(onClick = onClick)
         .padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         InstalledAppIcon(app, 32.dp)

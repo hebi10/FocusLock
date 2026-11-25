@@ -31,9 +31,11 @@ class ReferenceDesignQaTest {
             ActivityScenario.launch<MainActivity>(intent).use {
                 val directory = File(requireNotNull(context.getExternalFilesDir(null)), "qa-reference-design")
                 assertTrue(directory.isDirectory || directory.mkdirs())
-                fun capture(tab: String, name: String, required: String) {
-                    val nav = requireNotNull(device.wait(Until.findObject(By.res("nav-$tab")), 15_000L))
-                    nav.click()
+                fun capture(tab: String, label: String, name: String, required: String) {
+                    val nav = device.wait(Until.findObject(By.res("nav-$tab")), 3_000L)
+                        ?: device.wait(Until.findObject(By.desc(label)), 5_000L)
+                        ?: device.wait(Until.findObject(By.text(label)), 7_000L)
+                    requireNotNull(nav) { "Navigation tab not reachable: $tab" }.click()
                     assertTrue("Reference page not loaded: $name", device.wait(Until.hasObject(By.text(required)), 20_000L))
                     device.waitForIdle(1500L)
                     SystemClock.sleep(1500L)
@@ -41,11 +43,11 @@ class ReferenceDesignQaTest {
                     assertTrue(device.takeScreenshot(File(directory, "$name.png")))
                     device.dumpWindowHierarchy(File(directory, "$name.xml"))
                 }
-                capture("HOME", "01-home", "오늘 사용 시간")
-                capture("ANALYSIS", "02-analysis", "총 사용 시간")
-                capture("REPORT", "03-report", "최근 7일 총 사용 시간")
-                capture("FOCUS", "04-focus", "집중 시작")
-                capture("SETTINGS", "05-settings", "사용 정보·알림 권한 관리")
+                capture("HOME", "홈", "01-home", "오늘 사용 시간")
+                capture("ANALYSIS", "사용 분석", "02-analysis", "총 사용 시간")
+                capture("REPORT", "리포트", "03-report", "최근 7일 총 사용 시간")
+                capture("FOCUS", "집중", "04-focus", "집중 시작")
+                capture("SETTINGS", "설정", "05-settings", "사용 정보·알림 권한 관리")
             }
         } finally {
             prefs.edit().putBoolean("onboarding_completed", completed).putString("theme", previousTheme).commit()
