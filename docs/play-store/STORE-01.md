@@ -1,35 +1,12 @@
-# STORE-01 — FocusLock Google Play 한국어 설명 이미지
+# STORE-01 — FocusLock 한국어 스토어 이미지
 
-대상: com.haebi.focuslock, ko-KR, 휴대전화 스크린샷 **8장**과 대표 그래픽 **1장**.
+대상 com.haebi.focuslock / ko-KR. 실제 Android API36 화면을 사용한 휴대전화 RGB PNG 1350×2400 8장 및 대표 그래픽 RGB PNG 1024×500 1장. 기존 아이콘 유지.
 
-## 디자인 및 출처
-
-- 실제 Android API 36 에뮬레이터 UI 계측 캡처만 사용합니다. 설명 문구는 앱 이미지 외부에 표시하고, 내부 UI를 조작하거나 가짜 사용 기록을 만들지 않습니다.
-- 휴대전화: RGB PNG 1350×2400(9:16) × 8장.
-- 대표 그래픽: RGB PNG 1024×500 × 1장.
-- 기존 앱 아이콘은 유지하며 스토어 이미지 작업에서 수정하지 않습니다.
-- 대표 화면: 홈, 사용 분석, 앱별 상세, 사용 목표, 집중 진행, 집중 결과, 정원, 리포트.
-- 자동 원본: 최신 성공한 Android full-screen emulator QA의 focuslock-android-fullscreen-captures artifact (API 36). ZIP에는 실제 PNG 23개가 있어야 합니다.
-- 각 PNG의 SHA-256, 크기, 소스 파일, QA 실행/커밋은 assets/play-store/ko-KR/manifest.json에 기록됩니다.
-
-## 등록 자동화
-
-[STORE-01 workflow](../../.github/workflows/store-01-images.yml)는 다음 중 하나로 실행됩니다.
-
-1. PR의 렌더링 스크립트 수정: 실제 캡처 다운로드 → 8+1 PNG 생성·검증 → artifact 저장, **Play 변경 없음**.
-2. owner의 Issue #14 명령 /store-01-upload: 위 검증 완료 후 이미지를 GitHub assets/play-store/ko-KR에 [skip ci] 커밋하고 기존 Google Play WIF로 한국어 phoneScreenshots와 featureGraphic만 교체합니다.
-3. workflow_dispatch mode=check는 검증만, mode=upload는 업로드까지 진행합니다.
-
-Google Play API는 한 edit에서 이전 이미지 제거 → 8장 순서대로 등록 → 대표 그래픽 등록 → 이미지 SHA-256 검증 → edit validate/commit → **새 edit 재조회**를 수행합니다. 기존 ko-KR 등록정보가 없거나, 등록 검증·인증이 실패하면 commit하지 않습니다. Play에 이미 동일한 이미지가 있다면 변경하지 않습니다.
-
-**하지 않는 작업:** AAB/APK 업로드, 버전 코드 변경, 내부/비공개/프로덕션 트랙 변경, 앱 아이콘 변경, 다른 언어 등록정보 변경, 정책 설문 변경. 이미지 자료 자동 커밋은 [skip ci]를 사용해 앱 자동 재배포가 실행되지 않도록 합니다.
-
-## 재실행과 검증
-
-- GitHub Actions artifact는 만료되므로 워크플로는 실행 당시 최신 성공한 main 계측 테스트 artifact를 조회합니다.
-- 재실행 시 기존 스토어 이미지와 SHA-256을 비교합니다. 등록이 완료된 이미지는 중복 업로드하지 않습니다.
-- 편집이 심사 중이거나 API가 거절하면 반복해서 강행하지 않으며 Play Console 확인이 필요합니다.
-- 검증 명령: python3 scripts/store/render_images.py --check --output assets/play-store/ko-KR
-- 업로드는 owner 전용 명령 또는 main의 명시적 upload 모드에서만 실행합니다.
-
-관련 자료: [Google Play 이미지 규격](https://support.google.com/googleplay/android-developer/answer/9866151), [STORE-01 Issue #14](https://github.com/hebi10/FocusLock/issues/14).
+- FL-FIX-01~08과 스토어 준비 코드까지 모두 병합한 최신 main SHA에서 Android full-screen emulator QA 성공이 필수다.
+- 기존 UI-R00 37장과 FL-FIX-08 추가 화면 7장, ui-r00-audit-report.json, fl-fix08-evidence.json의 SHA-256 및 실행 ID를 확인한다.
+- STORE-01 workflow의 generate 작업은 검증된 artifact만 다운로드하여 실제 화면 외부에 홍보 문구를 넣고 생성 PNG·원본 PNG·대표 그래픽 소스 해시를 manifest.json에 기록한다. 앱 UI를 편집하거나 데이터를 만들어 넣지 않는다.
+- 순서: 홈, 사용 분석, 앱 상세, 전체/개별 목표 관리, 집중 진행, 집중 결과, 정원, 실제 날짜 선택 리포트. 데이터 관리·목표 이력·삭제 확인 캡처는 QA 및 Drive 자료에서 별도 관리한다.
+- 기존 Drive 자료를 보존하며 실제 최신 캡처와 생성 이미지의 사람이 읽을 수 있는 문구·민감정보 노출 여부를 검토한다.
+- PR에서는 소스 선택 및 renderer 테스트만 수행한다. main 병합 후 최신 main의 emulator-smoke.yml을 수동 실행하고 같은 SHA에서 성공한 후 STORE-01 mode=check를 수동 실행한다. 두 승인 boolean은 false로 두고 Play 변경을 실행하지 않는다.
+- 업로드는 별도 승인한 workflow_dispatch main / upload, ops01_release_approved=true, ops06_store_approved=true, 확인 문구·정확한 main SHA·배치 ID·승인한 manifest SHA-256을 모두 요구한다. 기존 OPS-06 게이트, Google Play 인증 및 upload 단계는 변경하지 않는다. 과거 issue 명령이나 자동 커밋은 배포 승인이 아니다.
+- AAB/APK, 내부/비공개/프로덕션 트랙, 등록정보 텍스트, 아이콘, 다른 언어 변경은 하지 않는다. 결과 API 커밋과 Console 심사·실제 노출은 구분한다.
