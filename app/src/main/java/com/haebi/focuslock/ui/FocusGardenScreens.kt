@@ -58,11 +58,15 @@ fun FocusSetupScreen(
             Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-        PageTitle("집중", "지금 할 일에 집중할 시간을 정하세요")
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("집중 모드", style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
+            Text("지금 할 일에 집중할 시간을 정하세요", style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+        }
+        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp)) {
             ReferenceFocusDial(duration, onStart = { onStart(duration) })
-            SectionTitle("집중 모드")
             PeriodSelector(listOf("10분", "25분", "사용자", "자유"), mode) { mode = it }
             if (mode == "사용자") {
                 Slider(
@@ -80,11 +84,11 @@ fun FocusSetupScreen(
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )
         }
-        FocusCard {
+        FocusCard(contentPadding = 12.dp, contentSpacing = 6.dp) {
             SectionTitle("집중 중 사용 기록")
             Text("방해 앱 ${selectedDistractions}개 선택됨", fontWeight = FontWeight.Medium)
             Text(
-                "선택한 앱은 관리 대상으로 저장됩니다. 실제 방해 앱 사용 감지나 강제 차단은 지원하지 않습니다.",
+                "관리 대상 선택만 지원합니다. 실제 사용 감지나 강제 차단은 지원하지 않습니다.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall
             )

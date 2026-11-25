@@ -65,6 +65,7 @@ fun FocusCard(
     modifier: Modifier = Modifier,
     contentPadding: Dp = FocusSpacing.md,
     containerColor: Color = MaterialTheme.colorScheme.surface,
+    contentSpacing: Dp = FocusSpacing.sm,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Surface(
@@ -74,7 +75,7 @@ fun FocusCard(
         border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
         tonalElevation = 0.dp
     ) {
-        Column(modifier = Modifier.padding(contentPadding), verticalArrangement = Arrangement.spacedBy(FocusSpacing.sm), content = content)
+        Column(modifier = Modifier.padding(contentPadding), verticalArrangement = Arrangement.spacedBy(contentSpacing), content = content)
     }
 }
 
@@ -145,7 +146,7 @@ fun PeriodSelector(options: List<String>, selected: String, onSelected: (String)
     val largeFontFourOptions = options.size >= 4 && LocalDensity.current.fontScale >= 1.35f
     val optionRows = if (largeFontFourOptions) options.chunked(2) else listOf(options)
     Column(
-        Modifier.fillMaxWidth().selectableGroup().background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(10.dp)).padding(3.dp),
+        Modifier.fillMaxWidth().selectableGroup().background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(24.dp)).padding(3.dp),
         verticalArrangement = Arrangement.spacedBy(3.dp)
     ) {
         optionRows.forEach { rowOptions ->
@@ -155,7 +156,7 @@ fun PeriodSelector(options: List<String>, selected: String, onSelected: (String)
                     Box(
                         Modifier.weight(1f).heightIn(min = FocusSpacing.minTouchTarget)
                             .testTag("period-option-$option")
-                            .background(if (active) MaterialTheme.colorScheme.primary else Color.Transparent, MaterialTheme.shapes.small)
+                            .background(if (active) MaterialTheme.colorScheme.primary else Color.Transparent, RoundedCornerShape(24.dp))
                             .selectable(selected = active, role = Role.Tab, onClick = { onSelected(option) })
                             .padding(horizontal = 2.dp, vertical = FocusSpacing.xs),
                         contentAlignment = Alignment.Center

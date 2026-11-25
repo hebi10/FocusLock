@@ -46,8 +46,9 @@ internal fun GoalHistorySummary(history: List<GoalHistoryEvent>, scope: String, 
                 style = MaterialTheme.typography.bodySmall)
         }
     }
-    Text("오늘은 제외합니다. 목표 변경일·이력 없음·사용 기록 미확인일은 성공으로 계산하지 않습니다. Android 기록이 완전하다는 보장은 없습니다.",
-        style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    val notice = "오늘은 제외합니다. 목표 변경일·이력 없음·사용 기록 미확인일은 성공으로 계산하지 않습니다. Android 기록이 완전하다는 보장은 없습니다."
+    if (showRing) ReferenceMeasurementNote("오늘·목표 변경일·미확인일 제외", notice, "reference-goal-report-note")
+    else Text(notice, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 @Composable

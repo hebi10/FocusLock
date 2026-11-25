@@ -84,17 +84,11 @@ fun HomeScreen(
         if (snapshot == null) {
             UsageStatus(state, onUsageSettings, onRefresh)
         } else {
-            FocusCard {
+            FocusCard(contentPadding = 12.dp, contentSpacing = 6.dp) {
                 Metric(if (snapshot.today.apps.isEmpty()) "기록 미확인" else UsageFormat.minutesLabel(snapshot.today.totalMinutes), "오늘 사용 시간")
                 if (snapshot.today.apps.isEmpty()) {
                     Text(
                         "아직 확인된 앱 사용 기록이 없습니다. 다른 앱을 사용한 뒤 다시 확인해 주세요.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                } else {
-                    Text(
-                        UsageComparisonPolicy.summary(snapshot, "오늘"),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -105,15 +99,10 @@ fun HomeScreen(
                         ReferenceUsageSparkline(hours, Modifier.fillMaxWidth().height(52.dp))
                     }
                 }
-                Text(
-                    "Android에서 제공한 기기 사용 통계입니다.",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    UsageComparisonPolicy.foregroundNotice,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                ReferenceMeasurementNote(
+                    summary = "오늘 진행 중 · Android 관측 합계",
+                    detail = UsageComparisonPolicy.summary(snapshot, "오늘") + "\nAndroid에서 제공한 기기 사용 통계입니다.\n" + UsageComparisonPolicy.foregroundNotice,
+                    tag = "reference-home-note"
                 )
                 TextButton(onClick = onAnalysis) { Text("사용 현황 자세히 보기") }
             }
@@ -122,7 +111,7 @@ fun HomeScreen(
                 HomeGoalCard(snapshot, globalGoal, goalCount, topApp, onGoals, onSetGoal)
             }
             if (snapshot.today.apps.isNotEmpty()) {
-                FocusCard {
+                FocusCard(contentPadding = 12.dp, contentSpacing = 4.dp) {
                     SectionTitle("많이 사용한 앱", "전체 보기", onAnalysis)
                     if (visibleApps.isEmpty()) {
                         Text(
@@ -233,7 +222,7 @@ private fun HomeGoalCard(
     snapshot: UsageSnapshot?, globalGoal: Int, goalCount: Int,
     topApp: AppUsage?, onGoals: () -> Unit, onSetGoal: (AppUsage) -> Unit
 ) {
-    FocusCard {
+    FocusCard(contentPadding = 12.dp, contentSpacing = 6.dp) {
         SectionTitle("사용 목표", "목표 관리", onGoals)
         if (globalGoal > 0) {
             Text("전체 앱 사용 목표 · " + UsageFormat.minutesLabel(globalGoal),
@@ -299,19 +288,36 @@ fun AnalysisScreen(
                 if (selected.apps.isEmpty()) {
                     InfoState("사용 기록 없음", "선택한 기간에 Android가 제공하는 앱 사용 기록이 없습니다.", "새로고침", onRefresh)
                 } else {
-                    FocusCard {
+                    FocusCard(contentPadding = 12.dp, contentSpacing = 6.dp) {
                         Metric(UsageFormat.minutesLabel(selected.totalMinutes), "총 사용 시간")
-                        Text(
-                            UsageComparisonPolicy.summary(snapshot, period) + "\n" +
-                                (if (period == "오늘") UsageComparisonPolicy.foregroundNotice else UsageComparisonPolicy.partialTodayNotice + "\n" + UsageComparisonPolicy.foregroundNotice),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        ReferenceMeasurementNote(
+                            summary = if (period == "오늘") "오늘 진행 중 · 어제와 직접 비교하지 않음" else UsageComparisonPolicy.summary(snapshot, period),
+                            detail = if (period == "오늘") UsageComparisonPolicy.foregroundNotice else UsageComparisonPolicy.partialTodayNotice + "\n" + UsageComparisonPolicy.foregroundNotice,
+                            tag = "reference-analysis-note"
                         )
                     }
                     val observedInsights = UsageInsightPolicy.forPeriod(snapshot, period, excluded)
                     if (query.isBlank() && !wide) {
                         AnalysisChart(snapshot, period)
                         AnalysisCategorySummary(selected)
+                    }
+                    if (wide) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.md)) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(FocusSpacing.md)) {
+                                AnalysisChart(snapshot, period)
+                                AnalysisCategorySummary(selected)
+                            }
+                            Box(Modifier.weight(1f)) {
+                                AnalysisAppList(selected, period, excluded, category, sort, query,
+                                    onCategory = { category = it }, onSort = { sort = it },
+                                    onQuery = { query = it }, onApp = onApp, onReport = onReport)
+                            }
+                        }
+                    } else {
+                        AnalysisAppList(selected, period, excluded, category, sort, query,
+                            onCategory = { category = it }, onSort = { sort = it },
+                            onQuery = { query = it }, onApp = onApp, onReport = onReport)
+                        if (query.isNotBlank()) AnalysisCategorySummary(selected)
                     }
                     FocusCard(containerColor = MaterialTheme.colorScheme.primaryContainer) {
                         SectionTitle("기록 기반 인사이트")
@@ -331,24 +337,6 @@ fun AnalysisScreen(
                                 )
                             }
                         }
-                    }
-                    if (wide) {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.md)) {
-                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(FocusSpacing.md)) {
-                                AnalysisChart(snapshot, period)
-                                AnalysisCategorySummary(selected)
-                            }
-                            Box(Modifier.weight(1f)) {
-                                AnalysisAppList(selected, period, excluded, category, sort, query,
-                                    onCategory = { category = it }, onSort = { sort = it },
-                                    onQuery = { query = it }, onApp = onApp, onReport = onReport)
-                            }
-                        }
-                    } else {
-                        AnalysisAppList(selected, period, excluded, category, sort, query,
-                            onCategory = { category = it }, onSort = { sort = it },
-                            onQuery = { query = it }, onApp = onApp, onReport = onReport)
-                        if (query.isNotBlank()) AnalysisCategorySummary(selected)
                     }
                 }
             }

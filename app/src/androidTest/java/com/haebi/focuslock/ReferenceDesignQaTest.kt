@@ -44,7 +44,19 @@ class ReferenceDesignQaTest {
                     device.dumpWindowHierarchy(File(directory, "$name.xml"))
                 }
                 capture("HOME", "홈", "01-home", "오늘 사용 시간")
+                val note = requireNotNull(device.wait(Until.findObject(By.res("reference-home-note")), 6_000L))
+                note.click()
+                assertTrue("Full source and measurement notice must remain reachable",
+                    device.wait(Until.hasObject(By.textContains("Android 앱별 포그라운드 시간 합계입니다.")), 5_000L))
+                requireNotNull(device.findObject(By.res("reference-home-note"))).click()
                 capture("ANALYSIS", "사용 분석", "02-analysis", "총 사용 시간")
+                // Only verify selection on observed hourly data, never manufacture an observation.
+                val firstHour = device.findObject(By.res("analysis-chart-bar-0"))
+                if (firstHour != null) {
+                    firstHour.click()
+                    assertTrue("Hourly selection must expose the selected real value or unknown state",
+                        device.wait(Until.hasObject(By.textStartsWith("0시 · ")), 5_000L))
+                }
                 capture("REPORT", "리포트", "03-report", "최근 7일 총 사용 시간")
                 capture("FOCUS", "집중", "04-focus", "집중 시작")
                 capture("SETTINGS", "설정", "05-settings", "사용 정보·알림 권한 관리")

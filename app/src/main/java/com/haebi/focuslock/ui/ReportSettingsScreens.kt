@@ -8,6 +8,8 @@ import androidx.compose.ui.res.painterResource
 import com.haebi.focuslock.R
 import androidx.compose.material.icons.outlined.TrackChanges
 import androidx.compose.material.icons.outlined.LockOpen
+import androidx.compose.material.icons.outlined.NotificationsNone
+import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.foundation.rememberScrollState
@@ -56,20 +58,17 @@ internal fun ReportScreen(state: UsageLoadState, excluded: Map<String, Boolean>,
         } else {
             val selected = snapshot.window(period)
             val visibleApps = selected.apps.filter { excluded[it.id] != true }
-            FocusCard {
+            FocusCard(contentPadding = 12.dp, contentSpacing = 6.dp) {
                 Metric(if (selected.apps.isEmpty()) "기록 미확인" else UsageFormat.minutesLabel(selected.totalMinutes), "최근 ${period} 총 사용 시간")
-                Text(
-                    UsageComparisonPolicy.summary(snapshot, period),
-                    fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(UsageComparisonPolicy.partialTodayNotice, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(UsageComparisonPolicy.foregroundNotice, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                ReferenceMeasurementNote(UsageComparisonPolicy.summary(snapshot, period),
+                    UsageComparisonPolicy.partialTodayNotice + "\n" + UsageComparisonPolicy.foregroundNotice,
+                    "reference-report-note")
             }
-            FocusCard {
+            FocusCard(contentPadding = 12.dp, contentSpacing = 6.dp) {
                 SectionTitle("전체 사용 목표 리포트", "목표 관리", onGoals)
                 GoalHistorySummary(goalHistory, GoalHistoryPolicy.TOTAL, snapshot, if (period == "30일") 30 else 7, showRing = true)
             }
-            FocusCard {
+            FocusCard(contentPadding = 12.dp, contentSpacing = 6.dp) {
                 SectionTitle("사용 시간 추이")
                 val recorded = snapshot.observedChart(period).orEmpty()
                 val values = recorded.map { it ?: 0 }
@@ -79,7 +78,14 @@ internal fun ReportScreen(state: UsageLoadState, excluded: Map<String, Boolean>,
                         mutableIntStateOf(recorded.lastIndex)
                     }
                     val index = ChartSelectionPolicy.index(recorded.size, savedIndex)
-                    BarChart(values, labels, (values.maxOrNull() ?: 1).coerceAtLeast(1), index, observed = recorded.map { it != null })
+                    if (period == "7일") {
+                        ReferenceObservedLine(recorded, index, "reference-report-week-line")
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            listOf("6일 전", "3일 전", "오늘").forEach { tick ->
+                                Text(tick, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    } else BarChart(values, labels, (values.maxOrNull() ?: 1).coerceAtLeast(1), index, observed = recorded.map { it != null })
                     val day = selected.startDate.plusDays(index.toLong())
                     val dateLabel = day.format(DateTimeFormatter.ofPattern("M월 d일", Locale.KOREAN))
                     val valueLabel = recorded[index]?.let(UsageFormat::minutesLabel) ?: "기록 미확인"
@@ -169,8 +175,8 @@ private fun InfoPairReport(label: String, value: String) {
 fun SettingsScreen(theme: String, onTheme: (String) -> Unit, onPermissions: () -> Unit, onInfo: () -> Unit, onGoals: () -> Unit = {}, onLocalData: () -> Unit = {}) {
     AdaptiveScrollColumn {
         PageTitle("설정")
-        FocusCard(containerColor = MaterialTheme.colorScheme.primaryContainer) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        FocusCard(contentPadding = 12.dp, containerColor = MaterialTheme.colorScheme.primaryContainer, contentSpacing = 6.dp) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Box(Modifier.size(54.dp).background(MaterialTheme.colorScheme.primary, RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
                     Image(painterResource(R.drawable.ic_launcher_foreground), null, Modifier.fillMaxSize())
                 }
@@ -181,12 +187,14 @@ fun SettingsScreen(theme: String, onTheme: (String) -> Unit, onPermissions: () -
             }
             Text(SettingsDisclosurePolicy.subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
         }
-        FocusCard(contentPadding = 12.dp) {
-            SettingRow("목표 관리", "전체 앱 사용 목표와 개별 앱 목표 및 변경 이력", icon = Icons.Outlined.TrackChanges, onClick = onGoals)
+        FocusCard(contentPadding = 12.dp, contentSpacing = 4.dp) {
+            SettingRow("목표 관리", "전체 앱 사용 목표와 앱별 목표·이력", icon = Icons.Outlined.TrackChanges, onClick = onGoals)
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            SettingRow("알림 설정", "Android 앱 알림 및 목표 알림 채널", icon = Icons.Outlined.NotificationsNone, onClick = onPermissions)
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             SettingRow("사용 정보·알림 권한 관리", SettingsDisclosurePolicy.permissionSubtitle, icon = Icons.Outlined.LockOpen, onClick = onPermissions)
         }
-        FocusCard(contentPadding = 12.dp) {
+        FocusCard(contentPadding = 12.dp, contentSpacing = 4.dp) {
             SectionTitle("화면")
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Icon(Icons.Outlined.Settings, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
@@ -194,8 +202,8 @@ fun SettingsScreen(theme: String, onTheme: (String) -> Unit, onPermissions: () -
             }
             PeriodSelector(listOf("시스템", "라이트", "다크"), theme, onTheme)
         }
-        FocusCard(contentPadding = 12.dp) {
-            SettingRow("데이터 관리", "로컬 기록 JSON 내보내기 및 종류별 삭제", icon = Icons.Outlined.Info, onClick = onLocalData)
+        FocusCard(contentPadding = 12.dp, contentSpacing = 4.dp) {
+            SettingRow("데이터 관리", "로컬 기록 JSON 내보내기 및 종류별 삭제", icon = Icons.Outlined.Storage, onClick = onLocalData)
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             SettingRow("현재 구현 범위", "사용 통계·목표 알림·집중 기록·정원 관리", icon = Icons.Outlined.Info, onClick = onInfo)
         }

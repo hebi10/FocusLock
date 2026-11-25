@@ -8,6 +8,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -46,7 +47,7 @@ import com.haebi.focuslock.data.UsageWindow
 fun AnalysisChart(snapshot: UsageSnapshot, period: String) {
     val bars = AnalysisModels.bars(snapshot, period)
     var selectedIndex by rememberSaveable(period, snapshot.window(period).startDate.toString()) { mutableIntStateOf(-1) }
-    FocusCard {
+    FocusCard(contentPadding = 12.dp, contentSpacing = 6.dp) {
         SectionTitle(if (period == "오늘") "시간대별 사용량" else "일별 사용 시간")
         when {
             bars == null -> Text(
@@ -62,82 +63,89 @@ fun AnalysisChart(snapshot: UsageSnapshot, period: String) {
             else -> {
                 val selected = bars.getOrNull(selectedIndex)
                 Text(
-                    if (selected == null) "막대를 선택하면 해당 시간의 사용량을 확인할 수 있습니다."
+                    if (selected == null) "시간 또는 날짜를 선택해 사용량을 확인하세요."
                     else "${selected.detail} · ${selected.valueLabel}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.testTag("analysis-chart-selected")
                 )
-                val maxValue = bars.maxOf { it.minutes }.coerceAtLeast(1)
-                BoxWithConstraints(Modifier.fillMaxWidth()) {
-                    val touchWidth = maxOf(maxWidth / bars.size, FocusSpacing.minTouchTarget)
-                    val chartScroll = rememberScrollState()
-                    Row(
-                        Modifier.fillMaxWidth().horizontalScroll(chartScroll),
-                        horizontalArrangement = Arrangement.spacedBy(0.dp)
-                    ) {
+                if (period == "오늘") {
+                    ReferenceObservedLine(bars.map { if (it.observed) it.minutes else null }, selectedIndex,
+                        "reference-hour-overview")
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        listOf("0시", "6시", "12시", "18시", "23시").forEach { tick ->
+                            Text(tick, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         bars.forEachIndexed { index, bar ->
-                            Column(
-                                Modifier.width(touchWidth).heightIn(min = 142.dp)
+                            Box(
+                                Modifier.width(52.dp).heightIn(min = FocusSpacing.minTouchTarget)
                                     .testTag("analysis-chart-bar-$index")
-                                    .clickable(role = Role.Button) { selectedIndex = index }
-                                    .semantics {
-                                        contentDescription = "${bar.detail}, ${bar.valueLabel}"
-                                        this.selected = selectedIndex == index
-                                    },
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(FocusSpacing.xs)
+                                    .background(if (selectedIndex == index) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+                                    .selectable(selectedIndex == index, role = Role.Button) { selectedIndex = index }
+                                    .semantics { contentDescription = "${bar.detail}, ${bar.valueLabel}" },
+                                contentAlignment = Alignment.Center
                             ) {
-                                Box(
-                                    Modifier.fillMaxWidth().height(110.dp),
-                                    contentAlignment = Alignment.BottomCenter
+                                Text(bar.label, style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurface)
+                            }
+                        }
+                    }
+                } else {
+                    val maxValue = bars.maxOf { it.minutes }.coerceAtLeast(1)
+                    BoxWithConstraints(Modifier.fillMaxWidth()) {
+                        val touchWidth = maxOf(maxWidth / bars.size, FocusSpacing.minTouchTarget)
+                        val chartScroll = rememberScrollState()
+                        Row(
+                            Modifier.fillMaxWidth().horizontalScroll(chartScroll),
+                            horizontalArrangement = Arrangement.spacedBy(0.dp)
+                        ) {
+                            bars.forEachIndexed { index, bar ->
+                                Column(
+                                    Modifier.width(touchWidth).heightIn(min = 142.dp)
+                                        .testTag("analysis-chart-bar-$index")
+                                        .clickable(role = Role.Button) { selectedIndex = index }
+                                        .semantics {
+                                            contentDescription = "${bar.detail}, ${bar.valueLabel}"
+                                            this.selected = selectedIndex == index
+                                        },
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(FocusSpacing.xs)
                                 ) {
-                                    val height = (98f * bar.minutes / maxValue).coerceAtLeast(if (bar.minutes > 0) 3f else 0f)
-                                    if (!bar.observed) Text("—", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    else if (period == "오늘") {
-                                        val accent = MaterialTheme.colorScheme.primary
-                                        val grid = MaterialTheme.colorScheme.outlineVariant
-                                        Canvas(Modifier.fillMaxSize()) {
-                                            val x = size.width / 2f
-                                            fun y(value: Int) = size.height - 8.dp.toPx() - (size.height - 16.dp.toPx()) * value / maxValue
-                                            val point = Offset(x, y(bar.minutes))
-                                            for (step in 1..3) {
-                                                val lineY = size.height * step / 4f
-                                                drawLine(grid, Offset(0f, lineY), Offset(size.width, lineY), 0.5.dp.toPx())
-                                            }
-                                            bars.getOrNull(index - 1)?.takeIf { it.observed }?.let {
-                                                drawLine(accent, Offset(0f, (y(it.minutes) + point.y) / 2f), point, 2.dp.toPx(), StrokeCap.Round)
-                                            }
-                                            bars.getOrNull(index + 1)?.takeIf { it.observed }?.let {
-                                                drawLine(accent, point, Offset(size.width, (y(it.minutes) + point.y) / 2f), 2.dp.toPx(), StrokeCap.Round)
-                                            }
-                                            drawCircle(accent, if (selectedIndex == index) 4.dp.toPx() else 2.5.dp.toPx(), point)
-                                        }
-                                    } else Box(
-                                        Modifier.width(20.dp).height(height.dp)
-                                            .background(
-                                                MaterialTheme.colorScheme.primary.copy(
-                                                    alpha = if (selectedIndex == index) 1f else 0.52f
-                                                ),
-                                                RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp)
-                                            )
+                                    Box(
+                                        Modifier.fillMaxWidth().height(110.dp),
+                                        contentAlignment = Alignment.BottomCenter
+                                    ) {
+                                        val height = (98f * bar.minutes / maxValue).coerceAtLeast(if (bar.minutes > 0) 3f else 0f)
+                                        if (!bar.observed) Text("—", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        else Box(
+                                            Modifier.width(20.dp).height(height.dp)
+                                                .background(
+                                                    MaterialTheme.colorScheme.primary.copy(
+                                                        alpha = if (selectedIndex == index) 1f else 0.52f
+                                                    ),
+                                                    RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp)
+                                                )
+                                        )
+                                    }
+                                    Text(
+                                        bar.label,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        maxLines = 1,
+                                        textAlign = TextAlign.Center,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
-                                Text(
-                                    bar.label,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    maxLines = 1,
-                                    textAlign = TextAlign.Center,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
                             }
                         }
                     }
                 }
-                if (period == "오늘") Text(
+                if (period == "오늘") ReferenceMeasurementNote(
+                    "Android 이벤트 기준 · — 기록 미확인",
                     "시간대별 정보는 Android 앱 전환 이벤트 기준 참고 값입니다. 동시 앱 사용과 이벤트 누락으로 실제 경과 시간과 다를 수 있습니다. —는 기록 미확인입니다.",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    "reference-hour-note"
                 )
             }
         }
@@ -162,7 +170,7 @@ fun AnalysisChart(snapshot: UsageSnapshot, period: String) {
 
 @Composable
 fun AnalysisCategorySummary(window: UsageWindow) {
-    FocusCard {
+    FocusCard(contentPadding = 12.dp, contentSpacing = 6.dp) {
         SectionTitle("카테고리별 사용 비중")
         val categories = window.apps.groupBy { it.category }
             .map { (category, apps) ->
