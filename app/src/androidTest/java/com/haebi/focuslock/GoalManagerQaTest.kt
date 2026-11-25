@@ -69,6 +69,7 @@ class GoalManagerQaTest {
                 assertNotNull("Goal manager entry", goals)
                 goals!!.click()
                 assertTrue(device.wait(Until.hasObject(By.text("전체 앱 사용 목표")), 8_000L))
+                FinalQaEvidence.capture("goal-manager")
                 repeat(6) {
                     if (!device.hasObject(By.res("whole-goal-save")) && !device.hasObject(By.text("전체 목표 저장"))) {
                         device.swipe(device.displayWidth / 2, device.displayHeight * 3 / 4,
@@ -78,6 +79,18 @@ class GoalManagerQaTest {
                 }
                 assertTrue("Whole goal save action must be reachable",
                     device.hasObject(By.res("whole-goal-save")) || device.hasObject(By.text("전체 목표 저장")))
+                if (FinalQaEvidence.enabled) {
+                    repeat(14) {
+                        if (!device.hasObject(By.text("목표 이력 및 달성률"))) {
+                            device.swipe(device.displayWidth / 2, device.displayHeight * 3 / 5,
+                                device.displayWidth / 2, device.displayHeight * 2 / 5, 40)
+                            device.waitForIdle(500L)
+                        }
+                    }
+                    assertTrue("Goal history section must be reachable",
+                        device.wait(Until.hasObject(By.text("목표 이력 및 달성률")), 5_000L))
+                    FinalQaEvidence.capture("goal-history")
+                }
             }
         } finally {
             prefs.edit().putBoolean("onboarding_completed", wasCompleted).apply()

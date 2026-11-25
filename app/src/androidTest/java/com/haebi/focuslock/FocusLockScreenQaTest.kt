@@ -114,6 +114,15 @@ class FocusLockScreenQaTest {
             captureScrolledContent("25-onboarding-goal-scroll")
             tapText("FocusLock 시작")
             capture("04-home-denied")
+            // The optional goal management card may move the CTA below the fold.
+            // Check the actual home CTA without starting a focus session.
+            repeat(8) {
+                if (!device.hasObject(By.text("집중 시작"))) {
+                    device.swipe(device.displayWidth / 2, device.displayHeight * 3 / 5,
+                        device.displayWidth / 2, device.displayHeight * 2 / 5, 40)
+                    device.waitForIdle(500L)
+                }
+            }
             assertTrue("Focus CTA must remain available without usage access",
                 device.wait(Until.findObject(By.text("집중 시작")), 3500L) != null)
             tapText("사용 분석")
