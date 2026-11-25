@@ -3,6 +3,9 @@ package com.haebi.focuslock.ui
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -91,7 +94,26 @@ fun AnalysisChart(snapshot: UsageSnapshot, period: String) {
                                 ) {
                                     val height = (98f * bar.minutes / maxValue).coerceAtLeast(if (bar.minutes > 0) 3f else 0f)
                                     if (!bar.observed) Text("—", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    else Box(
+                                    else if (period == "오늘") {
+                                        val accent = MaterialTheme.colorScheme.primary
+                                        val grid = MaterialTheme.colorScheme.outlineVariant
+                                        Canvas(Modifier.fillMaxSize()) {
+                                            val x = size.width / 2f
+                                            fun y(value: Int) = size.height - 8.dp.toPx() - (size.height - 16.dp.toPx()) * value / maxValue
+                                            val point = Offset(x, y(bar.minutes))
+                                            for (step in 1..3) {
+                                                val lineY = size.height * step / 4f
+                                                drawLine(grid, Offset(0f, lineY), Offset(size.width, lineY), 0.5.dp.toPx())
+                                            }
+                                            bars.getOrNull(index - 1)?.takeIf { it.observed }?.let {
+                                                drawLine(accent, Offset(0f, (y(it.minutes) + point.y) / 2f), point, 2.dp.toPx(), StrokeCap.Round)
+                                            }
+                                            bars.getOrNull(index + 1)?.takeIf { it.observed }?.let {
+                                                drawLine(accent, point, Offset(size.width, (y(it.minutes) + point.y) / 2f), 2.dp.toPx(), StrokeCap.Round)
+                                            }
+                                            drawCircle(accent, if (selectedIndex == index) 4.dp.toPx() else 2.5.dp.toPx(), point)
+                                        }
+                                    } else Box(
                                         Modifier.width(20.dp).height(height.dp)
                                             .background(
                                                 MaterialTheme.colorScheme.primary.copy(

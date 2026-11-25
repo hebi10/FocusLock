@@ -1,6 +1,11 @@
 package com.haebi.focuslock.ui
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -69,11 +74,11 @@ fun HomeScreen(
 
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(horizontal = 16.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         PageTitle("오늘의 FocusLock", LocalDate.now().format(DateTimeFormatter.ofPattern("M월 d일 EEEE", Locale.KOREAN))) {
-            TextButton(onClick = onSettings) { Text("설정") }
+            IconButton(onClick = onSettings) { Icon(Icons.Outlined.Settings, "설정") }
         }
 
         if (snapshot == null) {
@@ -94,6 +99,12 @@ fun HomeScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                if (snapshot.today.apps.isNotEmpty()) {
+                    val hours = AnalysisModels.bars(snapshot, "오늘")
+                    if (hours != null && hours.any { it.observed }) {
+                        ReferenceUsageSparkline(hours, Modifier.fillMaxWidth().height(52.dp))
+                    }
+                }
                 Text(
                     "Android에서 제공한 기기 사용 통계입니다.",
                     style = MaterialTheme.typography.labelSmall,
@@ -107,6 +118,9 @@ fun HomeScreen(
                 TextButton(onClick = onAnalysis) { Text("사용 현황 자세히 보기") }
             }
 
+            if (globalGoal > 0) {
+                HomeGoalCard(snapshot, globalGoal, goalCount, topApp, onGoals, onSetGoal)
+            }
             if (snapshot.today.apps.isNotEmpty()) {
                 FocusCard {
                     SectionTitle("많이 사용한 앱", "전체 보기", onAnalysis)
@@ -118,7 +132,7 @@ fun HomeScreen(
                         )
                     }
                     visibleApps.take(3).forEachIndexed { index, app ->
-                        AppUsageRow(app, goals[app.id], snapshot.today.totalMinutes) { onApp(app) }
+                        ReferenceRankRow(app, snapshot.today.totalMinutes) { onApp(app) }
                         val goal = goals[app.id]
                         if (goal != null && goal > 0) {
                             Column(
@@ -150,7 +164,7 @@ fun HomeScreen(
             }
 
             if (todayInsights.isNotEmpty() || weeklyInsights.isNotEmpty() || goalSuggestion != null) {
-                FocusCard {
+                FocusCard(containerColor = MaterialTheme.colorScheme.primaryContainer) {
                     SectionTitle("관측 기반 사용 패턴")
                     (todayInsights + weeklyInsights.take(1)).forEach { insight ->
                         Text(insight.message, style = MaterialTheme.typography.bodyMedium)
@@ -175,31 +189,9 @@ fun HomeScreen(
             }
         }
 
-        FocusCard {
-            SectionTitle("사용 목표", "목표 관리", onGoals)
-            if (globalGoal > 0) {
-                Text("전체 앱 사용 목표 · " + UsageFormat.minutesLabel(globalGoal),
-                    style = MaterialTheme.typography.titleMedium)
-                val millis = snapshot?.today?.totalForegroundMillis?.takeIf { it > 0 }
-                if (millis == null) Text("오늘 사용 기록 미확인", style = MaterialTheme.typography.bodySmall)
-                else {
-                    val limit = globalGoal.toLong() * 60_000L
-                    Text(UsageFormat.minutesLabel(snapshot!!.today.totalMinutes) + " / " + UsageFormat.minutesLabel(globalGoal),
-                        style = MaterialTheme.typography.bodyMedium)
-                    ProgressBar((millis.toDouble() / limit).toFloat(), isWarning = millis > limit)
-                    Text(if (millis > limit) "관측 사용량이 전체 목표를 초과했습니다." else "오늘은 진행 중입니다.",
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            } else Text("하루 전체 앱 사용 목표를 선택해서 설정할 수 있습니다.",
-                style = MaterialTheme.typography.bodySmall)
-            Text("설정된 앱별 목표 ${goalCount}개", style = MaterialTheme.typography.bodyMedium)
-            Text("개별 앱 목표의 합계와 전체 앱 사용 목표는 별개입니다.",
-                style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (goalCount == 0 && topApp != null) {
-                TextButton(onClick = { onSetGoal(topApp) }) { Text("앱별 사용 목표 설정") }
-            }
+        if (snapshot == null || globalGoal <= 0) {
+            HomeGoalCard(snapshot, globalGoal, goalCount, topApp, onGoals, onSetGoal)
         }
-
         FocusCard {
             SectionTitle("필요할 때 집중하기")
             Text(
@@ -232,6 +224,39 @@ fun HomeScreen(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
+    }
+}
+
+@Composable
+private fun HomeGoalCard(
+    snapshot: UsageSnapshot?, globalGoal: Int, goalCount: Int,
+    topApp: AppUsage?, onGoals: () -> Unit, onSetGoal: (AppUsage) -> Unit
+) {
+    FocusCard {
+        SectionTitle("사용 목표", "목표 관리", onGoals)
+        if (globalGoal > 0) {
+            Text("전체 앱 사용 목표 · " + UsageFormat.minutesLabel(globalGoal),
+                style = MaterialTheme.typography.titleMedium)
+            val millis = snapshot?.today?.totalForegroundMillis?.takeIf { it > 0 }
+            if (millis == null) Text("오늘 사용 기록 미확인", style = MaterialTheme.typography.bodySmall)
+            else {
+                val limit = globalGoal.toLong() * 60_000L
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("${(millis.toDouble() / limit * 100).toInt()}%", style = MaterialTheme.typography.headlineMedium, color = if (millis > limit) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary)
+                    Text(UsageFormat.minutesLabel(snapshot!!.today.totalMinutes) + " / " + UsageFormat.minutesLabel(globalGoal), style = MaterialTheme.typography.bodySmall)
+                }
+                ProgressBar((millis.toDouble() / limit).toFloat(), isWarning = millis > limit)
+                Text(if (millis > limit) "관측 사용량이 전체 목표를 초과했습니다." else "오늘은 진행 중입니다.",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        } else Text("하루 전체 앱 사용 목표를 선택해서 설정할 수 있습니다.",
+            style = MaterialTheme.typography.bodySmall)
+        Text("설정된 앱별 목표 ${goalCount}개", style = MaterialTheme.typography.bodyMedium)
+        Text("개별 앱 목표의 합계와 전체 앱 사용 목표는 별개입니다.",
+            style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (goalCount == 0 && topApp != null) {
+            TextButton(onClick = { onSetGoal(topApp) }) { Text("앱별 사용 목표 설정") }
         }
     }
 }
@@ -284,7 +309,11 @@ fun AnalysisScreen(
                         )
                     }
                     val observedInsights = UsageInsightPolicy.forPeriod(snapshot, period, excluded)
-                    FocusCard {
+                    if (query.isBlank() && !wide) {
+                        AnalysisChart(snapshot, period)
+                        AnalysisCategorySummary(selected)
+                    }
+                    FocusCard(containerColor = MaterialTheme.colorScheme.primaryContainer) {
                         SectionTitle("기록 기반 인사이트")
                         if (observedInsights.isEmpty()) {
                             Text(
@@ -316,11 +345,10 @@ fun AnalysisScreen(
                             }
                         }
                     } else {
-                        if (query.isBlank()) AnalysisChart(snapshot, period)
                         AnalysisAppList(selected, period, excluded, category, sort, query,
                             onCategory = { category = it }, onSort = { sort = it },
                             onQuery = { query = it }, onApp = onApp, onReport = onReport)
-                        AnalysisCategorySummary(selected)
+                        if (query.isNotBlank()) AnalysisCategorySummary(selected)
                     }
                 }
             }

@@ -1,5 +1,6 @@
 package com.haebi.focuslock.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -22,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -59,11 +61,17 @@ fun SectionTitle(title: String, actionLabel: String? = null, onAction: (() -> Un
 }
 
 @Composable
-fun FocusCard(modifier: Modifier = Modifier, contentPadding: Dp = FocusSpacing.md, content: @Composable ColumnScope.() -> Unit) {
+fun FocusCard(
+    modifier: Modifier = Modifier,
+    contentPadding: Dp = FocusSpacing.md,
+    containerColor: Color = MaterialTheme.colorScheme.surface,
+    content: @Composable ColumnScope.() -> Unit
+) {
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surface,
+        color = containerColor,
         shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
         tonalElevation = 0.dp
     ) {
         Column(modifier = Modifier.padding(contentPadding), verticalArrangement = Arrangement.spacedBy(FocusSpacing.sm), content = content)
@@ -216,8 +224,12 @@ fun ActionButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifi
 }
 
 @Composable
-fun SettingRow(title: String, subtitle: String? = null, value: String? = null, onClick: () -> Unit) {
+fun SettingRow(title: String, subtitle: String? = null, value: String? = null, icon: ImageVector? = null, onClick: () -> Unit) {
     Row(Modifier.fillMaxWidth().heightIn(min = FocusSpacing.minTouchTarget).clickable(onClick = onClick).padding(vertical = FocusSpacing.xs), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        if (icon != null) Box(
+            Modifier.size(34.dp).background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(8.dp)),
+            contentAlignment = Alignment.Center
+        ) { Icon(icon, null, Modifier.size(19.dp), tint = MaterialTheme.colorScheme.primary) }
         Column(Modifier.weight(1f)) {
             Text(title, fontSize = 15.sp, fontWeight = FontWeight.Medium)
             if (subtitle != null) Text(subtitle, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, lineHeight = 17.sp)

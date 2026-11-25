@@ -51,13 +51,17 @@ fun FocusSetupScreen(
         "사용자" -> customMinutes
         else -> 0
     }
-    Column(Modifier.fillMaxSize()) {
+    Box(Modifier.fillMaxSize()) {
+        ReferenceFocusBackdrop(Modifier.matchParentSize())
+        Column(Modifier.fillMaxSize()) {
         Column(
             Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
         PageTitle("집중", "지금 할 일에 집중할 시간을 정하세요")
-        FocusCard {
+        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            ReferenceFocusDial(duration, onStart = { onStart(duration) })
             SectionTitle("집중 모드")
             PeriodSelector(listOf("10분", "25분", "사용자", "자유"), mode) { mode = it }
             if (mode == "사용자") {
@@ -68,12 +72,6 @@ fun FocusSetupScreen(
                 )
                 Text("사용자 지정 · ${customMinutes}분", style = MaterialTheme.typography.bodySmall)
             }
-            Spacer(Modifier.height(4.dp))
-            Text(
-                if (duration == 0) "자유 집중" else DemoData.minutesLabel(duration),
-                style = MaterialTheme.typography.displaySmall,
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            )
             Text(
                 if (duration == 0) "자유 집중은 10분 이상 기록하면 완료 보상을 받습니다."
                 else "설정한 집중 시간을 채우면 완료 보상을 받습니다.",
@@ -126,6 +124,7 @@ fun FocusSetupScreen(
         }
         Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
             ActionButton("집중 시작", { onStart(duration) })
+        }
         }
     }
     if (showDistractionSheet) {

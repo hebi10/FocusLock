@@ -25,16 +25,22 @@ object FocusColors {
     val DarkGreen = Color(0xFF9BD5AD)
     val Amber = Color(0xFFAA720E)
     val Red = Color(0xFFB84343)
-    val BgLight = Color(0xFFF7F7F7)
+    val Brand = Color(0xFF6942D9)
+    val BrandDark = Color(0xFFBBA8FF)
+    val BrandTint = Color(0xFFEEE8FF)
+    val BrandTintDark = Color(0xFF352B50)
+    val NightBackground = Color(0xFF10182F)
+    val NightSurface = Color(0xFF202B49)
+    val BgLight = Color(0xFFF6F5FB)
     val BgDark = Color(0xFF101010)
-    val GrayLight = Color(0xFFE4E4E4)
+    val GrayLight = Color(0xFFE5E3EF)
     val TextLight = Color(0xFF171717)
     val TextDark = Color(0xFFF3F3F3)
-    val SecondaryTextLight = Color(0xFF666666)
+    val SecondaryTextLight = Color(0xFF646276)
     val SecondaryTextDark = Color(0xFFA8A8A8)
     val SurfaceLight = Color.White
     val SurfaceDark = Color(0xFF1B1B1B)
-    val SurfaceVariantLight = Color(0xFFEEEEEE)
+    val SurfaceVariantLight = Color(0xFFF0EEF8)
     val SurfaceVariantDark = Color(0xFF2D2D2D)
     val DividerDark = Color(0xFF363636)
 }
@@ -65,14 +71,17 @@ private val focusTypography = Typography(
 )
 
 private val lightScheme = lightColorScheme(
-    primary = FocusColors.TextLight,
+    primary = FocusColors.Brand,
     onPrimary = FocusColors.SurfaceLight,
+    primaryContainer = FocusColors.BrandTint,
+    onPrimaryContainer = Color(0xFF3F258C),
     background = FocusColors.BgLight,
     onBackground = FocusColors.TextLight,
     surface = FocusColors.SurfaceLight,
     onSurface = FocusColors.TextLight,
     surfaceVariant = FocusColors.SurfaceVariantLight,
     onSurfaceVariant = FocusColors.SecondaryTextLight,
+    outline = Color(0xFF827D92),
     outlineVariant = FocusColors.GrayLight,
     secondary = FocusColors.Green,
     onSecondary = Color.White,
@@ -80,23 +89,39 @@ private val lightScheme = lightColorScheme(
 )
 
 private val darkScheme = darkColorScheme(
-    primary = FocusColors.TextDark,
-    onPrimary = FocusColors.TextLight,
+    primary = FocusColors.BrandDark,
+    onPrimary = Color(0xFF21143D),
+    primaryContainer = FocusColors.BrandTintDark,
+    onPrimaryContainer = Color(0xFFE8DFFF),
     background = FocusColors.BgDark,
     onBackground = FocusColors.TextDark,
     surface = FocusColors.SurfaceDark,
     onSurface = FocusColors.TextDark,
     surfaceVariant = FocusColors.SurfaceVariantDark,
     onSurfaceVariant = FocusColors.SecondaryTextDark,
+    outline = Color(0xFF8E899E),
     outlineVariant = FocusColors.DividerDark,
     secondary = FocusColors.DarkGreen,
     onSecondary = Color(0xFF101010),
     error = Color(0xFFF2A3A3)
 )
 
+private val focusNightScheme = darkScheme.copy(
+    background = FocusColors.NightBackground,
+    surface = FocusColors.NightSurface,
+    surfaceVariant = Color(0xFF263553),
+    onSurface = Color(0xFFF6F5FC),
+    onBackground = Color(0xFFF6F5FC),
+    onSurfaceVariant = Color(0xFFC3CBE2),
+    outline = Color(0xFF8994B4),
+    outlineVariant = Color(0xFF3A4869),
+    primaryContainer = Color(0xFF383363),
+    onPrimaryContainer = Color(0xFFE6DEFF)
+)
+
 @Composable
-fun FocusLockTheme(themeChoice: String = "시스템", content: @Composable () -> Unit) {
-    val dark = when (themeChoice) {
+fun FocusLockTheme(themeChoice: String = "시스템", nightFocus: Boolean = false, content: @Composable () -> Unit) {
+    val dark = nightFocus || when (themeChoice) {
         "다크" -> true
         "라이트" -> false
         else -> isSystemInDarkTheme()
@@ -115,7 +140,7 @@ fun FocusLockTheme(themeChoice: String = "시스템", content: @Composable () ->
         }
     }
     MaterialTheme(
-        colorScheme = if (dark) darkScheme else lightScheme,
+        colorScheme = if (nightFocus) focusNightScheme else if (dark) darkScheme else lightScheme,
         typography = focusTypography,
         shapes = Shapes(
             extraSmall = RoundedCornerShape(4.dp),

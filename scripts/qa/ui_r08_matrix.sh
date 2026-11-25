@@ -83,6 +83,17 @@ if [[ "${api}" == "29" || "${api}" == "35" ]]; then
   set_viewport "api${api}-phone" "1080x2400" "420" "1.0"
 else
   set_viewport "api36-phone" "1080x2400" "420" "1.0"
+  run_case 'com.haebi.focuslock.ReferenceDesignQaTest#fiveMainScreensCaptureActualUi' "api36-reference-design" 1.0
+  if ! adb pull /sdcard/Android/data/com.haebi.focuslock/files/qa-reference-design/ "${root}/screens/"; then
+    echo "::error::Unable to retrieve reference design captures"
+    failures=$((failures + 1))
+  fi
+  for name in 01-home 02-analysis 03-report 04-focus 05-settings; do
+    if [[ ! -s "${root}/screens/qa-reference-design/${name}.png" || ! -s "${root}/screens/qa-reference-design/${name}.xml" ]]; then
+      echo "::error::Missing reference design capture: ${name}"
+      failures=$((failures + 1))
+    fi
+  done
   # Exercise the actual screenshot path on the normal API36 viewport before merging.
   run_case 'com.haebi.focuslock.GoalManagerQaTest#settingsCanOpenGoalManagerWithoutChangingUserGoals' "api36-final-goal-evidence" 1.0 -e flfix08_capture true
   run_case 'com.haebi.focuslock.LocalDataQaTest#dataScreenHasExportAndCancellableDeletion' "api36-final-local-data-evidence" 1.0 -e flfix08_capture true
