@@ -1,10 +1,16 @@
 package com.haebi.focuslock.ui
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ArrowForwardIos
 import androidx.compose.material.icons.outlined.Assessment
+import androidx.compose.material.icons.outlined.CenterFocusStrong
 import androidx.compose.material.icons.outlined.CheckCircleOutline
 import androidx.compose.material.icons.outlined.LockOpen
 import androidx.compose.material.icons.outlined.NotificationsNone
@@ -15,9 +21,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.haebi.focuslock.R
 import com.haebi.focuslock.data.AppUsage
 import com.haebi.focuslock.data.UsageFormat
 import com.haebi.focuslock.data.UsageLoadState
@@ -33,6 +42,7 @@ private fun OnboardingLayout(
     onSecondary: () -> Unit,
     body: @Composable ColumnScope.() -> Unit
 ) {
+    val isIntro = step == 1
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         Column(
             Modifier.widthIn(max = 600.dp).fillMaxSize()
@@ -44,19 +54,37 @@ private fun OnboardingLayout(
                 verticalArrangement = Arrangement.spacedBy(FocusSpacing.md)
             ) {
                 Spacer(Modifier.height(FocusSpacing.xs))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text("FocusLock", style = MaterialTheme.typography.titleMedium)
-                    Text("$step / 3", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (isIntro) {
+                    Column(
+                        Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(FocusSpacing.xs),
+                    ) {
+                        Icon(Icons.Outlined.CenterFocusStrong, null, modifier = Modifier.size(54.dp))
+                        Text("FocusLock", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+                        Text(title, style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
+                        Text(
+                            description,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+                } else {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Text("FocusLock", style = MaterialTheme.typography.titleMedium)
+                        Text("$step / 3", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    LinearProgressIndicator(
+                        progress = { step / 3f },
+                        modifier = Modifier.fillMaxWidth().height(FocusSpacing.xxs),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                    Spacer(Modifier.height(FocusSpacing.xs))
+                    Text(title, style = MaterialTheme.typography.headlineMedium)
+                    Text(description, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                LinearProgressIndicator(
-                    progress = { step / 3f },
-                    modifier = Modifier.fillMaxWidth().height(FocusSpacing.xxs),
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant
-                )
-                Spacer(Modifier.height(FocusSpacing.xs))
-                Text(title, style = MaterialTheme.typography.headlineMedium)
-                Text(description, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 body()
                 Spacer(Modifier.height(FocusSpacing.sm))
             }
@@ -64,7 +92,20 @@ private fun OnboardingLayout(
                 Modifier.fillMaxWidth().padding(top = FocusSpacing.sm),
                 verticalArrangement = Arrangement.spacedBy(FocusSpacing.xxs)
             ) {
-                ActionButton(primaryLabel, onPrimary)
+                if (isIntro) {
+                    Row(
+                        modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = FocusSpacing.sm),
+                        horizontalArrangement = Arrangement.spacedBy(FocusSpacing.xs),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        repeat(3) { page ->
+                            val selected = page == 0
+                            val color = if (selected) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.outlineVariant
+                            Box(Modifier.size(if (selected) 8.dp else 6.dp).background(color, CircleShape))
+                        }
+                    }
+                }
+                ActionButton(primaryLabel, onPrimary, leadingIcon = Icons.Outlined.CenterFocusStrong.takeIf { isIntro })
                 TextButton(
                     onClick = onSecondary,
                     modifier = Modifier.align(Alignment.CenterHorizontally).heightIn(min = FocusSpacing.minTouchTarget)
@@ -80,17 +121,30 @@ private fun OnboardingLayout(
 private fun OnboardingFeature(
     title: String,
     description: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    illustrated: Boolean = false,
 ) {
     Row(
         Modifier.fillMaxWidth().heightIn(min = FocusSpacing.minTouchTarget),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(FocusSpacing.sm)
     ) {
-        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(FocusSpacing.icon))
+        if (illustrated) {
+            Box(
+                modifier = Modifier.size(40.dp).background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(9.dp)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(icon, null, tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(FocusSpacing.icon))
+            }
+        } else {
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(FocusSpacing.icon))
+        }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(FocusSpacing.xxs)) {
             Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
             Text(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        if (illustrated) {
+            Icon(Icons.Outlined.ArrowForwardIos, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(12.dp))
         }
     }
 }
@@ -106,12 +160,21 @@ fun OnboardingIntro(onNext: () -> Unit, onExplore: () -> Unit) {
         secondaryLabel = "둘러보기",
         onSecondary = onExplore
     ) {
-        FocusCard {
-            OnboardingFeature("앱별 사용 패턴", "오늘·최근 7일·30일 사용 시간과 실제 기록을 확인합니다.", Icons.Outlined.Assessment)
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            OnboardingFeature("선택형 사용 목표", "필요할 때 앱별 목표와 요일별 알림을 설정합니다.", Icons.Outlined.TrackChanges)
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            OnboardingFeature("집중 기록과 정원", "집중 타이머는 선택해서 사용하며 완료 기록은 기기에 저장합니다.", Icons.Outlined.Yard)
+        Image(
+            painterResource(R.drawable.garden_illustration),
+            contentDescription = "작은 정원과 캐릭터",
+            modifier = Modifier.fillMaxWidth().height(180.dp),
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(FocusSpacing.xs)) {
+            FocusCard(contentPadding = 12.dp) {
+                OnboardingFeature("앱별 사용 패턴", "오늘·최근 7일·30일 사용 시간과 실제 기록을 확인합니다.", Icons.Outlined.Assessment, illustrated = true)
+            }
+            FocusCard(contentPadding = 12.dp) {
+                OnboardingFeature("선택형 사용 목표", "필요할 때 앱별 목표와 요일별 알림을 설정합니다.", Icons.Outlined.TrackChanges, illustrated = true)
+            }
+            FocusCard(contentPadding = 12.dp) {
+                OnboardingFeature("집중 기록과 정원", "집중 타이머는 선택해서 사용하며 완료 기록은 기기에 저장합니다.", Icons.Outlined.Yard, illustrated = true)
+            }
         }
     }
 }
