@@ -5,6 +5,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CenterFocusStrong
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -84,8 +86,16 @@ fun HomeScreen(
         if (snapshot == null) {
             UsageStatus(state, onUsageSettings, onRefresh)
         } else {
-            FocusCard(contentPadding = 12.dp, contentSpacing = 6.dp) {
-                Metric(if (snapshot.today.apps.isEmpty()) "기록 미확인" else UsageFormat.minutesLabel(snapshot.today.totalMinutes), "오늘 사용 시간")
+            FocusCard(contentPadding = 14.dp, contentSpacing = 6.dp) {
+                Row(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.Schedule, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Text("오늘 사용 시간", style = MaterialTheme.typography.labelLarge)
+                }
+                Text(
+                    if (snapshot.today.apps.isEmpty()) "기록 미확인" else UsageFormat.minutesLabel(snapshot.today.totalMinutes),
+                    style = MaterialTheme.typography.displaySmall,
+                    fontWeight = FontWeight.Bold,
+                )
                 if (snapshot.today.apps.isEmpty()) {
                     Text(
                         "아직 확인된 앱 사용 기록이 없습니다. 다른 앱을 사용한 뒤 다시 확인해 주세요.",
@@ -188,7 +198,7 @@ fun HomeScreen(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            ActionButton("집중 시작", onFocus)
+            ActionButton("집중 시작", onFocus, leadingIcon = Icons.Outlined.CenterFocusStrong)
         }
 
         if (snapshot != null) {

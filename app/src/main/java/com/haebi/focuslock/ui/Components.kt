@@ -214,14 +214,26 @@ fun BarChart(values: List<Int>, labels: List<String>, maxValue: Int, highlight: 
 }
 
 @Composable
-fun ActionButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
+fun ActionButton(
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    leadingIcon: ImageVector? = null,
+) {
     Button(
         onClick = onClick,
         modifier = modifier.fillMaxWidth().heightIn(min = FocusSpacing.actionHeight),
         enabled = enabled,
         shape = MaterialTheme.shapes.small,
         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary)
-    ) { Text(label, style = MaterialTheme.typography.labelLarge) }
+    ) {
+        if (leadingIcon != null) {
+            Icon(leadingIcon, contentDescription = null, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(FocusSpacing.sm))
+        }
+        Text(label, style = MaterialTheme.typography.labelLarge)
+    }
 }
 
 @Composable
